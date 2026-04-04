@@ -38,7 +38,7 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Install project and docs tooling
         run: |
