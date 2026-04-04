@@ -31,4 +31,5 @@ make ci-local
 
 - The default branch is `master`.
 - Local hooks block direct commits to `master`.
-- Conventional commits are enforced through `commitlint`.
+- Conventional commit structure is enforced through `commitlint`; length limits are reported as
+  warnings.
