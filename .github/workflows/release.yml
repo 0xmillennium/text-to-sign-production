@@ -18,7 +18,6 @@ jobs:
     uses: ./.github/workflows/ci.yml
     permissions:
       contents: read
-      pull-requests: read
 
   release:
     name: Create GitHub Release
