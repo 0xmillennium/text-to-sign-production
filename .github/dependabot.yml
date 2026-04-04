@@ -1,0 +1,31 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    target-branch: "master"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    target-branch: "master"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - github-actions
+
+  - package-ecosystem: pre-commit
+    directory: "/"
+    target-branch: "master"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - pre-commit
