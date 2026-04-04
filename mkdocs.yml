@@ -1,0 +1,33 @@
+site_name: text-to-sign-production
+site_description: Thesis-ready reproducible research scaffold for text-to-sign production.
+theme:
+  name: material
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Repository Structure: repository-structure.md
+  - Development Setup: development-setup.md
+  - Decisions Overview: decisions.md
+  - ADR Template: decisions/template.md
+  - ADR 0001: decisions/adr-0001-repo-centered-workflow.md
+  - ADR 0002: decisions/adr-0002-notebooks-as-thin-drivers.md
+  - ADR 0003: decisions/adr-0003-dvc-inclusion.md
+  - ADR 0004: decisions/adr-0004-english-as-project-language.md
+  - ADR 0005: decisions/adr-0005-sprint-1-excludes-ml-implementation.md
+  - Experiments Overview: experiments.md
+  - Experiment Log Guide: experiments/README.md
+  - Experiment Template: experiments/template.md
+  - Roadmap: roadmap.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+strict: true

@@ -1,0 +1,28 @@
+PYTHON ?= python
+
+.PHONY: install lint test docs check ci-local
+
+install:
+	$(PYTHON) -m pip install --upgrade pip setuptools wheel
+	$(PYTHON) -m pip install -e ".[dev,docs]"
+	$(PYTHON) -m pre_commit install --hook-type pre-commit --hook-type commit-msg
+
+lint:
+	$(PYTHON) -m ruff check .
+	$(PYTHON) -m ruff format --check .
+	$(PYTHON) -m mypy src tests
+
+test:
+	$(PYTHON) -m pytest --cov=text_to_sign_production --cov-report=term-missing
+
+docs:
+	$(PYTHON) -m mkdocs build --strict
+
+check: lint test docs
+
+ci-local:
+	PRE_COMMIT_HOME=$(CURDIR)/.cache/pre-commit SKIP=no-commit-to-branch sh -c 'git ls-files -z --cached --others --exclude-standard | xargs -0 -r -n 200 $(PYTHON) -m pre_commit run --show-diff-on-failure --files'
+	# Temporary ignore: unpatched transitive diskcache advisory brought in by DVC.
+	$(PYTHON) -m pip_audit --ignore-vuln CVE-2025-69872
+	$(PYTHON) -m pytest --cov=text_to_sign_production --cov-report=term-missing --cov-report=xml
+	$(PYTHON) -m mkdocs build --strict

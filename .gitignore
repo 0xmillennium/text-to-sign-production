@@ -1,0 +1,32 @@
+# Local tooling
+.codex
+.cache/
+.venv*/
+venv*/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Build and coverage artifacts
+.coverage
+.coverage.*
+build/
+dist/
+htmlcov/
+coverage.xml
+site/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# DVC
+.dvc/cache/
+
+# OS files
+.DS_Store
