@@ -74,7 +74,9 @@ def test_package_sprint2_outputs_creates_expected_archives(tmp_path: Path) -> No
 
 
 def test_colab_notebook_contains_required_stages_and_script_calls() -> None:
-    notebook_path = Path("notebooks/colab/sprint2_pipeline_colab.ipynb")
+    notebook_path = (
+        Path(__file__).resolve().parents[1] / "notebooks/colab/sprint2_pipeline_colab.ipynb"
+    )
     notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
 
     assert notebook["nbformat"] == 4

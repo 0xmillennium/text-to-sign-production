@@ -1,4 +1,4 @@
-"""Smoke tests for the Sprint 1 repository scaffold."""
+"""Smoke and environment override tests for the repository scaffold."""
 
 import os
 from importlib import import_module, reload

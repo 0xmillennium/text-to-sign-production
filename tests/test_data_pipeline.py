@@ -33,6 +33,7 @@ from text_to_sign_production.data.schemas import NormalizedManifestEntry
 from text_to_sign_production.data.validate import (
     validate_normalized_records,
     validate_processed_records,
+    validate_raw_records,
 )
 
 
@@ -329,6 +330,22 @@ def test_validate_normalized_records_reports_parse_errors() -> None:
 
     assert len(issues) == 1
     assert issues[0].code == "normalized_record_parse_error"
+
+
+@pytest.mark.parametrize(
+    ("validator", "path"),
+    [
+        (validate_raw_records, Path("raw.jsonl")),
+        (validate_normalized_records, Path("normalized.jsonl")),
+        (validate_processed_records, Path("processed.jsonl")),
+    ],
+)
+def test_validators_do_not_report_duplicate_sample_id_for_blank_values(
+    validator: Any, path: Path
+) -> None:
+    issues = validator(path, [{"sample_id": " "}, {"sample_id": ""}])
+
+    assert all(issue.code != "duplicate_sample_id" for issue in issues)
 
 
 def test_validate_processed_records_resolves_repo_relative_sample_paths(

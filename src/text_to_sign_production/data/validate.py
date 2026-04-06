@@ -39,6 +39,11 @@ PROCESSED_REQUIRED_FIELDS = frozenset(
 )
 
 
+def _sample_id_from_record(record: dict[str, Any]) -> str | None:
+    sample_id = str(record.get("sample_id", "")).strip()
+    return sample_id or None
+
+
 def validate_manifest(path: Path, kind: str) -> list[ValidationIssue]:
     """Validate a manifest and return structural errors plus auditable warnings."""
 
@@ -61,6 +66,7 @@ def validate_raw_records(path: Path, records: Iterable[dict[str, Any]]) -> list[
     issues: list[ValidationIssue] = []
     seen_sample_ids: set[str] = set()
     for index, record in enumerate(records):
+        sample_id = _sample_id_from_record(record)
         missing = _missing_required_fields(record, RAW_REQUIRED_FIELDS)
         if missing:
             issues.append(
@@ -68,13 +74,12 @@ def validate_raw_records(path: Path, records: Iterable[dict[str, Any]]) -> list[
                     severity="error",
                     code="missing_required_fields",
                     message=f"Record {index} is missing required fields: {missing}",
-                    sample_id=str(record.get("sample_id")) if record.get("sample_id") else None,
+                    sample_id=sample_id,
                     path=path.as_posix(),
                 )
             )
 
-        sample_id = str(record.get("sample_id", ""))
-        if sample_id in seen_sample_ids:
+        if sample_id is not None and sample_id in seen_sample_ids:
             issues.append(
                 ValidationIssue(
                     severity="error",
@@ -85,7 +90,8 @@ def validate_raw_records(path: Path, records: Iterable[dict[str, Any]]) -> list[
                     path=path.as_posix(),
                 )
             )
-        seen_sample_ids.add(sample_id)
+        elif sample_id is not None:
+            seen_sample_ids.add(sample_id)
 
         try:
             raw_entry = RawManifestEntry.from_record(record)
@@ -157,18 +163,19 @@ def validate_normalized_records(
     issues: list[ValidationIssue] = []
     seen_sample_ids: set[str] = set()
     for record in records:
-        sample_id = str(record.get("sample_id", ""))
-        if sample_id in seen_sample_ids:
+        sample_id = _sample_id_from_record(record)
+        if sample_id is not None and sample_id in seen_sample_ids:
             issues.append(
                 ValidationIssue(
                     severity="error",
                     code="duplicate_sample_id",
                     message=f"Duplicate normalized sample_id detected: {sample_id}",
-                    sample_id=sample_id or None,
+                    sample_id=sample_id,
                     path=path.as_posix(),
                 )
             )
-        seen_sample_ids.add(sample_id)
+        elif sample_id is not None:
+            seen_sample_ids.add(sample_id)
 
         try:
             entry = NormalizedManifestEntry.from_record(record)
@@ -222,6 +229,7 @@ def validate_processed_records(
     issues: list[ValidationIssue] = []
     seen_sample_ids: set[str] = set()
     for index, record in enumerate(records):
+        sample_id = _sample_id_from_record(record)
         missing = _missing_required_fields(record, PROCESSED_REQUIRED_FIELDS)
         if missing:
             issues.append(
@@ -229,23 +237,23 @@ def validate_processed_records(
                     severity="error",
                     code="missing_required_fields",
                     message=f"Record {index} is missing required fields: {missing}",
-                    sample_id=str(record.get("sample_id")) if record.get("sample_id") else None,
+                    sample_id=sample_id,
                     path=path.as_posix(),
                 )
             )
 
-        sample_id = str(record.get("sample_id", ""))
-        if sample_id in seen_sample_ids:
+        if sample_id is not None and sample_id in seen_sample_ids:
             issues.append(
                 ValidationIssue(
                     severity="error",
                     code="duplicate_sample_id",
                     message=f"Duplicate processed sample_id detected: {sample_id}",
-                    sample_id=sample_id or None,
+                    sample_id=sample_id,
                     path=path.as_posix(),
                 )
             )
-        seen_sample_ids.add(sample_id)
+        elif sample_id is not None:
+            seen_sample_ids.add(sample_id)
 
         try:
             entry = ProcessedManifestEntry.from_record(record)
