@@ -421,6 +421,63 @@ def test_validate_processed_records_reports_missing_required_fields() -> None:
     assert "source_keypoints_dir" in missing_fields_issue.message
 
 
+def test_export_final_manifests_rejects_missing_source_keypoints_dir(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    monkeypatch.setattr(
+        reports_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+    )
+    monkeypatch.setattr(reports_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports")
+    monkeypatch.setattr(reports_mod, "_load_raw_records", lambda split: [])
+    monkeypatch.setattr(
+        reports_mod,
+        "_load_filtered_records",
+        lambda split: (
+            [
+                NormalizedManifestEntry(
+                    sample_id="sample",
+                    processed_schema_version=PROCESSED_SCHEMA_VERSION,
+                    text="text",
+                    split=split,
+                    start_time=0.0,
+                    end_time=1.0,
+                    num_frames=2,
+                    sample_path=f"data/processed/v1/samples/{split}/sample.npz",
+                    source_video_id="video",
+                    source_sentence_id="sentence",
+                    source_sentence_name="sample",
+                    source_metadata_path="data/raw/how2sign/translations/train.tsv",
+                    source_keypoints_dir=None,
+                    source_video_path="data/raw/how2sign/bfh_keypoints/train/sample.mp4",
+                    fps=24.0,
+                    video_width=1280,
+                    video_height=720,
+                    video_metadata_error=None,
+                    selected_person_index=0,
+                    multi_person_frame_count=0,
+                    max_people_per_frame=1,
+                    frame_valid_count=2,
+                    frame_invalid_count=0,
+                    face_missing_frame_count=0,
+                    out_of_bounds_coordinate_count=0,
+                    frames_with_any_zeroed_required_joint=0,
+                    frame_issue_counts={},
+                    core_channel_nonzero_frames={"body": 2, "left_hand": 2, "right_hand": 2},
+                    sample_parse_error=None,
+                )
+            ]
+            if split == "train"
+            else []
+        ),
+    )
+
+    with pytest.raises(ValueError, match="missing source_keypoints_dir"):
+        reports_mod.export_final_manifests(
+            assumption_report={"generated_at": "2026-04-07T00:00:00+00:00", "splits": {}},
+            filter_report={"generated_at": "2026-04-07T00:00:00+00:00", "splits": {}},
+        )
+
+
 def test_cli_pipeline_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
     _create_fixture_dataset(tmp_path)
     _patch_pipeline_paths(monkeypatch, tmp_path)

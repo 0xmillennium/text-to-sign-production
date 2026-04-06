@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from dataclasses import fields as dataclass_fields
 from pathlib import Path
 from typing import Any
@@ -42,24 +42,26 @@ PROCESSED_REQUIRED_FIELDS = frozenset(
 def validate_manifest(path: Path, kind: str) -> list[ValidationIssue]:
     """Validate a manifest and return structural errors plus auditable warnings."""
 
-    records = list(iter_jsonl(path))
     if kind == "raw":
-        return validate_raw_records(path, records)
+        return validate_raw_records(path, iter_jsonl(path))
     if kind == "normalized":
-        return validate_normalized_records(path, records)
+        return validate_normalized_records(path, iter_jsonl(path))
     if kind == "processed":
-        return validate_processed_records(path, records)
+        return validate_processed_records(path, iter_jsonl(path))
     raise ValueError(f"Unsupported manifest kind: {kind}")
 
 
-def _check_required_fields(
-    path: Path,
-    records: Sequence[dict[str, Any]],
-    required_fields: Iterable[str],
-) -> list[ValidationIssue]:
+def _missing_required_fields(record: dict[str, Any], required_fields: Iterable[str]) -> list[str]:
+    return sorted(set(required_fields).difference(record.keys()))
+
+
+def validate_raw_records(path: Path, records: Iterable[dict[str, Any]]) -> list[ValidationIssue]:
+    """Validate raw-manifest structure plus expected data-quality warnings."""
+
     issues: list[ValidationIssue] = []
+    seen_sample_ids: set[str] = set()
     for index, record in enumerate(records):
-        missing = sorted(set(required_fields).difference(record.keys()))
+        missing = _missing_required_fields(record, RAW_REQUIRED_FIELDS)
         if missing:
             issues.append(
                 ValidationIssue(
@@ -70,15 +72,7 @@ def _check_required_fields(
                     path=path.as_posix(),
                 )
             )
-    return issues
 
-
-def validate_raw_records(path: Path, records: Sequence[dict[str, Any]]) -> list[ValidationIssue]:
-    """Validate raw-manifest structure plus expected data-quality warnings."""
-
-    issues = _check_required_fields(path, records, RAW_REQUIRED_FIELDS)
-    seen_sample_ids: set[str] = set()
-    for record in records:
         sample_id = str(record.get("sample_id", ""))
         if sample_id in seen_sample_ids:
             issues.append(
@@ -156,7 +150,7 @@ def validate_raw_records(path: Path, records: Sequence[dict[str, Any]]) -> list[
 
 
 def validate_normalized_records(
-    path: Path, records: Sequence[dict[str, Any]]
+    path: Path, records: Iterable[dict[str, Any]]
 ) -> list[ValidationIssue]:
     """Validate normalized candidate manifests."""
 
@@ -221,13 +215,25 @@ def validate_normalized_records(
 
 
 def validate_processed_records(
-    path: Path, records: Sequence[dict[str, Any]]
+    path: Path, records: Iterable[dict[str, Any]]
 ) -> list[ValidationIssue]:
     """Validate final processed manifests."""
 
-    issues = _check_required_fields(path, records, PROCESSED_REQUIRED_FIELDS)
+    issues: list[ValidationIssue] = []
     seen_sample_ids: set[str] = set()
-    for record in records:
+    for index, record in enumerate(records):
+        missing = _missing_required_fields(record, PROCESSED_REQUIRED_FIELDS)
+        if missing:
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="missing_required_fields",
+                    message=f"Record {index} is missing required fields: {missing}",
+                    sample_id=str(record.get("sample_id")) if record.get("sample_id") else None,
+                    path=path.as_posix(),
+                )
+            )
+
         sample_id = str(record.get("sample_id", ""))
         if sample_id in seen_sample_ids:
             issues.append(

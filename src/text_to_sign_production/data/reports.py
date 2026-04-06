@@ -50,6 +50,42 @@ def _numeric_summary(values: Iterable[int | float]) -> dict[str, float | int | N
     return summary
 
 
+def _build_processed_manifest_entry(entry: NormalizedManifestEntry) -> ProcessedManifestEntry:
+    if entry.sample_path is None:
+        raise ValueError(f"Filtered entry {entry.sample_id} is missing sample_path.")
+    if entry.source_keypoints_dir is None:
+        raise ValueError(f"Filtered entry {entry.sample_id} is missing source_keypoints_dir.")
+
+    return ProcessedManifestEntry(
+        sample_id=entry.sample_id,
+        processed_schema_version=entry.processed_schema_version,
+        text=entry.text,
+        split=entry.split,
+        fps=entry.fps,
+        num_frames=entry.num_frames,
+        sample_path=entry.sample_path,
+        source_video_id=entry.source_video_id,
+        source_sentence_id=entry.source_sentence_id,
+        source_sentence_name=entry.source_sentence_name,
+        selected_person_index=entry.selected_person_index,
+        multi_person_frame_count=entry.multi_person_frame_count,
+        max_people_per_frame=entry.max_people_per_frame,
+        source_metadata_path=entry.source_metadata_path,
+        source_keypoints_dir=entry.source_keypoints_dir,
+        source_video_path=entry.source_video_path,
+        video_width=entry.video_width,
+        video_height=entry.video_height,
+        video_metadata_error=entry.video_metadata_error,
+        frame_valid_count=entry.frame_valid_count,
+        frame_invalid_count=entry.frame_invalid_count,
+        face_missing_frame_count=entry.face_missing_frame_count,
+        out_of_bounds_coordinate_count=entry.out_of_bounds_coordinate_count,
+        frames_with_any_zeroed_required_joint=entry.frames_with_any_zeroed_required_joint,
+        frame_issue_counts=entry.frame_issue_counts,
+        core_channel_nonzero_frames=entry.core_channel_nonzero_frames,
+    )
+
+
 def export_final_manifests(
     assumption_report: dict[str, Any],
     filter_report: dict[str, Any],
@@ -69,34 +105,7 @@ def export_final_manifests(
         raw_entries = _load_raw_records(split)
         raw_records_by_split[split] = raw_entries
         final_records = [
-            ProcessedManifestEntry(
-                sample_id=entry.sample_id,
-                processed_schema_version=entry.processed_schema_version,
-                text=entry.text,
-                split=entry.split,
-                fps=entry.fps,
-                num_frames=entry.num_frames,
-                sample_path=entry.sample_path or "",
-                source_video_id=entry.source_video_id,
-                source_sentence_id=entry.source_sentence_id,
-                source_sentence_name=entry.source_sentence_name,
-                selected_person_index=entry.selected_person_index,
-                multi_person_frame_count=entry.multi_person_frame_count,
-                max_people_per_frame=entry.max_people_per_frame,
-                source_metadata_path=entry.source_metadata_path,
-                source_keypoints_dir=entry.source_keypoints_dir or "",
-                source_video_path=entry.source_video_path,
-                video_width=entry.video_width,
-                video_height=entry.video_height,
-                video_metadata_error=entry.video_metadata_error,
-                frame_valid_count=entry.frame_valid_count,
-                frame_invalid_count=entry.frame_invalid_count,
-                face_missing_frame_count=entry.face_missing_frame_count,
-                out_of_bounds_coordinate_count=entry.out_of_bounds_coordinate_count,
-                frames_with_any_zeroed_required_joint=entry.frames_with_any_zeroed_required_joint,
-                frame_issue_counts=entry.frame_issue_counts,
-                core_channel_nonzero_frames=entry.core_channel_nonzero_frames,
-            )
+            _build_processed_manifest_entry(entry)
             for entry in filtered_entries
             if entry.sample_path is not None
         ]
