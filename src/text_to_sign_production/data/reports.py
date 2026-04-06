@@ -96,14 +96,12 @@ def export_final_manifests(
     ensure_directory(PROCESSED_REPORTS_ROOT)
 
     final_records_by_split: dict[str, list[ProcessedManifestEntry]] = {}
-    raw_records_by_split: dict[str, list[RawManifestEntry]] = {}
     split_report: dict[str, Any] = {"generated_at": utc_timestamp(), "splits": {}}
     quality_report: dict[str, Any] = {"generated_at": utc_timestamp(), "splits": {}}
 
     for split in SPLITS:
         filtered_entries = _load_filtered_records(split)
         raw_entries = _load_raw_records(split)
-        raw_records_by_split[split] = raw_entries
         final_records = [
             _build_processed_manifest_entry(entry)
             for entry in filtered_entries
@@ -197,16 +195,6 @@ def export_final_manifests(
         "quality_report": quality_report,
         "split_report": split_report,
     }
-
-
-def _render_summary_list(summary: dict[str, float | int | None]) -> list[str]:
-    return [
-        f"count: {summary['count']}",
-        f"min: {summary['min']}",
-        f"median: {summary['median']}",
-        f"mean: {summary['mean']}",
-        f"max: {summary['max']}",
-    ]
 
 
 def write_markdown_reports(
