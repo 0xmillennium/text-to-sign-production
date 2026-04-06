@@ -566,8 +566,29 @@ def test_export_final_manifests_rejects_missing_source_keypoints_dir(
 
     with pytest.raises(ValueError, match="missing source_keypoints_dir"):
         reports_mod.export_final_manifests(
-            assumption_report={"generated_at": "2026-04-07T00:00:00+00:00", "splits": {}},
-            filter_report={"generated_at": "2026-04-07T00:00:00+00:00", "splits": {}},
+            assumption_report={
+                "generated_at": "2026-04-07T00:00:00+00:00",
+                "splits": {
+                    "train": {
+                        "translation_row_count": 1,
+                        "matched_sample_count": 1,
+                        "unmatched_sample_count": 0,
+                        "video_metadata": {"readable_count": 1, "unreadable_count": 0},
+                        "first_frame_people_counter": {"1": 1},
+                        "openpose_schema": {"deviation_counts": {}},
+                    }
+                },
+            },
+            filter_report={
+                "generated_at": "2026-04-07T00:00:00+00:00",
+                "splits": {
+                    "train": {
+                        "dropped_samples": 0,
+                        "drop_reason_counts": {},
+                    }
+                },
+            },
+            splits=("train",),
         )
 
 
@@ -680,6 +701,46 @@ def test_export_final_manifests_supports_subset_splits(tmp_path: Path, monkeypat
     assert (tmp_path / "data/processed/manifests/train.jsonl").exists()
     assert not (tmp_path / "data/processed/manifests/val.jsonl").exists()
     assert not (tmp_path / "data/processed/manifests/test.jsonl").exists()
+
+
+def test_export_final_manifests_rejects_missing_requested_report_splits(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    monkeypatch.setattr(
+        reports_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+    )
+    monkeypatch.setattr(reports_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports")
+    monkeypatch.setattr(reports_mod, "_load_raw_records", lambda split: [])
+    monkeypatch.setattr(reports_mod, "_load_filtered_records", lambda split: [])
+
+    with pytest.raises(ValueError, match="assumption_report is missing requested splits: train"):
+        reports_mod.export_final_manifests(
+            assumption_report={"generated_at": "2026-04-07T00:00:00+00:00", "splits": {}},
+            filter_report={
+                "generated_at": "2026-04-07T00:00:00+00:00",
+                "splits": {"train": {"dropped_samples": 0, "drop_reason_counts": {}}},
+            },
+            splits=("train",),
+        )
+
+    with pytest.raises(ValueError, match="filter_report is missing requested splits: train"):
+        reports_mod.export_final_manifests(
+            assumption_report={
+                "generated_at": "2026-04-07T00:00:00+00:00",
+                "splits": {
+                    "train": {
+                        "translation_row_count": 1,
+                        "matched_sample_count": 1,
+                        "unmatched_sample_count": 0,
+                        "video_metadata": {"readable_count": 1, "unreadable_count": 0},
+                        "first_frame_people_counter": {"1": 1},
+                        "openpose_schema": {"deviation_counts": {}},
+                    }
+                },
+            },
+            filter_report={"generated_at": "2026-04-07T00:00:00+00:00", "splits": {}},
+            splits=("train",),
+        )
 
 
 def test_cli_pipeline_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:

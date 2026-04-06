@@ -86,6 +86,16 @@ def _build_processed_manifest_entry(entry: NormalizedManifestEntry) -> Processed
     )
 
 
+def _validate_report_splits(
+    report_name: str, report: dict[str, Any], requested_splits: tuple[str, ...]
+) -> None:
+    available_splits = set(report.get("splits", {}))
+    missing_splits = [split for split in requested_splits if split not in available_splits]
+    if missing_splits:
+        missing_display = ", ".join(missing_splits)
+        raise ValueError(f"{report_name} is missing requested splits: {missing_display}")
+
+
 def export_final_manifests(
     assumption_report: dict[str, Any],
     filter_report: dict[str, Any],
@@ -98,6 +108,8 @@ def export_final_manifests(
     ensure_directory(PROCESSED_REPORTS_ROOT)
 
     requested_splits = tuple(splits)
+    _validate_report_splits("assumption_report", assumption_report, requested_splits)
+    _validate_report_splits("filter_report", filter_report, requested_splits)
     final_records_by_split: dict[str, list[ProcessedManifestEntry]] = {}
     split_report: dict[str, Any] = {"generated_at": utc_timestamp(), "splits": {}}
     quality_report: dict[str, Any] = {"generated_at": utc_timestamp(), "splits": {}}
@@ -191,7 +203,6 @@ def export_final_manifests(
     write_json(PROCESSED_REPORTS_ROOT / "split-report.json", split_report)
     write_markdown_reports(
         assumption_report,
-        filter_report,
         quality_report,
         split_report,
         splits=requested_splits,
@@ -204,7 +215,6 @@ def export_final_manifests(
 
 def write_markdown_reports(
     assumption_report: dict[str, Any],
-    filter_report: dict[str, Any],
     quality_report: dict[str, Any],
     split_report: dict[str, Any],
     *,
