@@ -8,6 +8,21 @@ nav:
   - Getting Started: getting-started.md
   - Repository Structure: repository-structure.md
   - Development Setup: development-setup.md
+  - Execution:
+      - Colab Sprint 2: execution/colab-sprint2.md
+  - Data:
+      - Raw Layout: data/raw-layout.md
+      - Raw Schema: data/raw-schema.md
+      - Translation TSV Schema: data/csv-schema.md
+      - OpenPose Schema: data/openpose-schema.md
+      - Processed Schema: data/processed-schema.md
+      - Filter Policy: data/filter-policy.md
+      - Data Versioning: data/versioning.md
+  - Storage:
+      - Artifact Strategy: storage/artifacts.md
+  - Reports:
+      - Data Quality: reports/data-quality-report.md
+      - Split Integrity: reports/split-report.md
   - Decisions Overview: decisions.md
   - ADR Template: decisions/template.md
   - ADR 0001: decisions/adr-0001-repo-centered-workflow.md
@@ -15,6 +30,11 @@ nav:
   - ADR 0003: decisions/adr-0003-dvc-inclusion.md
   - ADR 0004: decisions/adr-0004-english-as-project-language.md
   - ADR 0005: decisions/adr-0005-sprint-1-excludes-ml-implementation.md
+  - ADR 0006: decisions/adr-0006-sprint-2-data-first.md
+  - ADR 0007: decisions/adr-0007-preserve-official-how2sign-splits.md
+  - ADR 0008: decisions/adr-0008-manifest-driven-processed-dataset.md
+  - ADR 0009: decisions/adr-0009-npz-processed-sample-format.md
+  - ADR 0010: decisions/adr-0010-face-optional-in-v1.md
   - Experiments Overview: experiments.md
   - Experiment Log Guide: experiments/README.md
   - Experiment Template: experiments/template.md

@@ -1,0 +1,46 @@
+"""Small helpers shared across the Sprint 2 pipeline modules."""
+
+from __future__ import annotations
+
+from collections.abc import Iterable
+from datetime import UTC, datetime
+from pathlib import Path
+from statistics import mean, median
+
+from .constants import REPO_ROOT
+
+
+def repo_relative_path(path: Path | None) -> str | None:
+    """Return a stable repo-relative POSIX path string."""
+
+    if path is None:
+        return None
+    return path.resolve().relative_to(REPO_ROOT).as_posix()
+
+
+def ensure_directory(path: Path) -> None:
+    """Create a directory tree if it does not exist yet."""
+
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def utc_timestamp() -> str:
+    """Return an ISO-8601 UTC timestamp suitable for reports."""
+
+    return datetime.now(UTC).replace(microsecond=0).isoformat()
+
+
+def summarize_numbers(values: Iterable[int | float]) -> dict[str, float | int | None]:
+    """Return a compact numeric summary for reporting."""
+
+    collected = [float(value) for value in values]
+    if not collected:
+        return {"count": 0, "min": None, "max": None, "mean": None, "median": None}
+
+    return {
+        "count": len(collected),
+        "min": min(collected),
+        "max": max(collected),
+        "mean": mean(collected),
+        "median": median(collected),
+    }

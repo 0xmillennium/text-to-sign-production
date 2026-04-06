@@ -1,0 +1,303 @@
+"""Manifest validation helpers for raw, normalized, and processed datasets."""
+
+from __future__ import annotations
+
+from collections.abc import Iterable, Sequence
+from pathlib import Path
+from typing import Any
+
+from .constants import PROCESSED_SCHEMA_VERSION, SPLITS
+from .jsonl import iter_jsonl
+from .schemas import (
+    NormalizedManifestEntry,
+    ProcessedManifestEntry,
+    RawManifestEntry,
+    ValidationIssue,
+)
+
+RAW_REQUIRED_FIELDS = frozenset(
+    {
+        "sample_id",
+        "source_split",
+        "video_id",
+        "video_name",
+        "sentence_id",
+        "sentence_name",
+        "text",
+        "start_time",
+        "end_time",
+        "keypoints_dir",
+        "source_metadata_path",
+        "has_face",
+        "num_frames",
+    }
+)
+PROCESSED_REQUIRED_FIELDS = frozenset(
+    {
+        "sample_id",
+        "processed_schema_version",
+        "text",
+        "split",
+        "fps",
+        "num_frames",
+        "sample_path",
+        "source_video_id",
+        "source_sentence_id",
+        "source_sentence_name",
+        "selected_person_index",
+        "multi_person_frame_count",
+        "max_people_per_frame",
+    }
+)
+
+
+def validate_manifest(path: Path, kind: str) -> list[ValidationIssue]:
+    """Validate a manifest and return structural errors plus auditable warnings."""
+
+    records = list(iter_jsonl(path))
+    if kind == "raw":
+        return validate_raw_records(path, records)
+    if kind == "normalized":
+        return validate_normalized_records(path, records)
+    if kind == "processed":
+        return validate_processed_records(path, records)
+    raise ValueError(f"Unsupported manifest kind: {kind}")
+
+
+def _check_required_fields(
+    path: Path,
+    records: Sequence[dict[str, Any]],
+    required_fields: Iterable[str],
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    for index, record in enumerate(records):
+        missing = sorted(set(required_fields).difference(record.keys()))
+        if missing:
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="missing_required_fields",
+                    message=f"Record {index} is missing required fields: {missing}",
+                    sample_id=str(record.get("sample_id")) if record.get("sample_id") else None,
+                    path=path.as_posix(),
+                )
+            )
+    return issues
+
+
+def validate_raw_records(path: Path, records: Sequence[dict[str, Any]]) -> list[ValidationIssue]:
+    """Validate raw-manifest structure plus expected data-quality warnings."""
+
+    issues = _check_required_fields(path, records, RAW_REQUIRED_FIELDS)
+    seen_sample_ids: set[str] = set()
+    for record in records:
+        sample_id = str(record.get("sample_id", ""))
+        if sample_id in seen_sample_ids:
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="duplicate_sample_id",
+                    message=f"Duplicate raw sample_id detected: {sample_id}",
+                    sample_id=sample_id,
+                    split=str(record.get("source_split")) if record.get("source_split") else None,
+                    path=path.as_posix(),
+                )
+            )
+        seen_sample_ids.add(sample_id)
+
+        try:
+            raw_entry = RawManifestEntry.from_record(record)
+        except Exception as exc:
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="raw_record_parse_error",
+                    message=f"Could not parse raw record: {exc}",
+                    sample_id=sample_id or None,
+                    path=path.as_posix(),
+                )
+            )
+            continue
+
+        if raw_entry.source_split not in SPLITS:
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="invalid_split",
+                    message=f"Unexpected raw split: {raw_entry.source_split}",
+                    sample_id=raw_entry.sample_id,
+                    split=raw_entry.source_split,
+                    path=path.as_posix(),
+                )
+            )
+        if raw_entry.end_time <= raw_entry.start_time:
+            issues.append(
+                ValidationIssue(
+                    severity="warning",
+                    code="invalid_time_range",
+                    message="Raw sample has a non-positive time range.",
+                    sample_id=raw_entry.sample_id,
+                    split=raw_entry.source_split,
+                    path=path.as_posix(),
+                )
+            )
+        if raw_entry.keypoints_dir is None:
+            issues.append(
+                ValidationIssue(
+                    severity="warning",
+                    code="missing_keypoints_dir",
+                    message="Raw sample has no matched keypoints directory.",
+                    sample_id=raw_entry.sample_id,
+                    split=raw_entry.source_split,
+                    path=path.as_posix(),
+                )
+            )
+        elif raw_entry.num_frames <= 0:
+            issues.append(
+                ValidationIssue(
+                    severity="warning",
+                    code="missing_frame_json_files",
+                    message="Matched raw sample has no frame JSON files.",
+                    sample_id=raw_entry.sample_id,
+                    split=raw_entry.source_split,
+                    path=path.as_posix(),
+                )
+            )
+
+    return issues
+
+
+def validate_normalized_records(
+    path: Path, records: Sequence[dict[str, Any]]
+) -> list[ValidationIssue]:
+    """Validate normalized candidate manifests."""
+
+    issues: list[ValidationIssue] = []
+    seen_sample_ids: set[str] = set()
+    for record in records:
+        sample_id = str(record.get("sample_id", ""))
+        if sample_id in seen_sample_ids:
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="duplicate_sample_id",
+                    message=f"Duplicate normalized sample_id detected: {sample_id}",
+                    sample_id=sample_id or None,
+                    path=path.as_posix(),
+                )
+            )
+        seen_sample_ids.add(sample_id)
+
+        entry = NormalizedManifestEntry.from_record(record)
+        if entry.processed_schema_version != PROCESSED_SCHEMA_VERSION:
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="unexpected_processed_schema_version",
+                    message=f"Normalized entry uses schema {entry.processed_schema_version}.",
+                    sample_id=entry.sample_id,
+                    split=entry.split,
+                    path=path.as_posix(),
+                )
+            )
+        if (
+            entry.sample_path is None
+            and entry.source_keypoints_dir is not None
+            and entry.sample_parse_error is None
+        ):
+            issues.append(
+                ValidationIssue(
+                    severity="warning",
+                    code="missing_sample_file",
+                    message=(
+                        "Normalized entry is missing a sample file despite having keypoints input."
+                    ),
+                    sample_id=entry.sample_id,
+                    split=entry.split,
+                    path=path.as_posix(),
+                )
+            )
+    return issues
+
+
+def validate_processed_records(
+    path: Path, records: Sequence[dict[str, Any]]
+) -> list[ValidationIssue]:
+    """Validate final processed manifests."""
+
+    issues = _check_required_fields(path, records, PROCESSED_REQUIRED_FIELDS)
+    seen_sample_ids: set[str] = set()
+    for record in records:
+        sample_id = str(record.get("sample_id", ""))
+        if sample_id in seen_sample_ids:
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="duplicate_sample_id",
+                    message=f"Duplicate processed sample_id detected: {sample_id}",
+                    sample_id=sample_id or None,
+                    path=path.as_posix(),
+                )
+            )
+        seen_sample_ids.add(sample_id)
+
+        try:
+            entry = ProcessedManifestEntry.from_record(record)
+        except Exception as exc:
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="processed_record_parse_error",
+                    message=f"Could not parse processed record: {exc}",
+                    sample_id=sample_id or None,
+                    path=path.as_posix(),
+                )
+            )
+            continue
+
+        if entry.processed_schema_version != PROCESSED_SCHEMA_VERSION:
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="unexpected_processed_schema_version",
+                    message=f"Processed entry uses schema {entry.processed_schema_version}.",
+                    sample_id=entry.sample_id,
+                    split=entry.split,
+                    path=path.as_posix(),
+                )
+            )
+        if entry.split not in SPLITS:
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="invalid_split",
+                    message=f"Unexpected processed split: {entry.split}",
+                    sample_id=entry.sample_id,
+                    split=entry.split,
+                    path=path.as_posix(),
+                )
+            )
+        if entry.selected_person_index != 0:
+            issues.append(
+                ValidationIssue(
+                    severity="warning",
+                    code="unexpected_selected_person_index",
+                    message="Processed entry selected a non-zero person index.",
+                    sample_id=entry.sample_id,
+                    split=entry.split,
+                    path=path.as_posix(),
+                )
+            )
+        sample_path = Path(entry.sample_path)
+        if not sample_path.exists():
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="missing_sample_file",
+                    message=f"Processed sample file does not exist: {entry.sample_path}",
+                    sample_id=entry.sample_id,
+                    split=entry.split,
+                    path=path.as_posix(),
+                )
+            )
+    return issues
