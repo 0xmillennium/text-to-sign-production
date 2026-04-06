@@ -302,7 +302,35 @@ def validate_processed_records(
                     path=path.as_posix(),
                 )
             )
-        sample_path = resolve_repo_path(entry.sample_path)
+
+        raw_sample_path = Path(entry.sample_path)
+        if raw_sample_path.is_absolute():
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="absolute_sample_path",
+                    message=f"Processed sample_path must be repo-relative: {entry.sample_path}",
+                    sample_id=entry.sample_id,
+                    split=entry.split,
+                    path=path.as_posix(),
+                )
+            )
+            continue
+
+        try:
+            sample_path = resolve_repo_path(entry.sample_path)
+        except ValueError as exc:
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="invalid_sample_path",
+                    message=str(exc),
+                    sample_id=entry.sample_id,
+                    split=entry.split,
+                    path=path.as_posix(),
+                )
+            )
+            continue
         if not sample_path.exists():
             issues.append(
                 ValidationIssue(
