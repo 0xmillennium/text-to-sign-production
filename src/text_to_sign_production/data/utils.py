@@ -23,8 +23,13 @@ def resolve_repo_path(path: Path | str) -> Path:
 
     candidate = Path(path)
     if candidate.is_absolute():
-        return candidate
-    return REPO_ROOT / candidate
+        return candidate.resolve()
+
+    repo_root = REPO_ROOT.resolve()
+    resolved = (repo_root / candidate).resolve()
+    if not resolved.is_relative_to(repo_root):
+        raise ValueError(f"Repo-relative path escapes repo root: {path}")
+    return resolved
 
 
 def ensure_directory(path: Path) -> None:

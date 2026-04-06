@@ -89,17 +89,20 @@ def _build_processed_manifest_entry(entry: NormalizedManifestEntry) -> Processed
 def export_final_manifests(
     assumption_report: dict[str, Any],
     filter_report: dict[str, Any],
+    *,
+    splits: tuple[str, ...] = SPLITS,
 ) -> dict[str, Any]:
     """Build final processed manifests plus Markdown and JSON reports."""
 
     ensure_directory(PROCESSED_MANIFESTS_ROOT)
     ensure_directory(PROCESSED_REPORTS_ROOT)
 
+    requested_splits = tuple(splits)
     final_records_by_split: dict[str, list[ProcessedManifestEntry]] = {}
     split_report: dict[str, Any] = {"generated_at": utc_timestamp(), "splits": {}}
     quality_report: dict[str, Any] = {"generated_at": utc_timestamp(), "splits": {}}
 
-    for split in SPLITS:
+    for split in requested_splits:
         filtered_entries = _load_filtered_records(split)
         raw_entries = _load_raw_records(split)
         final_records = [
@@ -162,35 +165,37 @@ def export_final_manifests(
         split: {record.sample_id for record in records}
         for split, records in final_records_by_split.items()
     }
-    for split in SPLITS:
+    for split in requested_splits:
         overlaps = {
             other_split: sorted(split_names[split].intersection(split_names[other_split]))[:10]
-            for other_split in SPLITS
+            for other_split in requested_splits
             if other_split != split
         }
         split_report["splits"][split]["sample_id_overlap_with_other_splits"] = overlaps
-    split_report["official_split_names"] = list(SPLITS)
-    split_report["video_id_overlap"] = {
-        "train_val": len(
-            {record.source_video_id for record in final_records_by_split["train"]}.intersection(
-                {record.source_video_id for record in final_records_by_split["val"]}
+    split_report["official_split_names"] = list(requested_splits)
+    video_id_overlap: dict[str, int] = {}
+    for left_index, left_split in enumerate(requested_splits):
+        left_video_ids = {
+            record.source_video_id for record in final_records_by_split.get(left_split, [])
+        }
+        for right_split in requested_splits[left_index + 1 :]:
+            right_video_ids = {
+                record.source_video_id for record in final_records_by_split.get(right_split, [])
+            }
+            video_id_overlap[f"{left_split}_{right_split}"] = len(
+                left_video_ids.intersection(right_video_ids)
             )
-        ),
-        "train_test": len(
-            {record.source_video_id for record in final_records_by_split["train"]}.intersection(
-                {record.source_video_id for record in final_records_by_split["test"]}
-            )
-        ),
-        "val_test": len(
-            {record.source_video_id for record in final_records_by_split["val"]}.intersection(
-                {record.source_video_id for record in final_records_by_split["test"]}
-            )
-        ),
-    }
+    split_report["video_id_overlap"] = video_id_overlap
 
     write_json(PROCESSED_REPORTS_ROOT / "data-quality-report.json", quality_report)
     write_json(PROCESSED_REPORTS_ROOT / "split-report.json", split_report)
-    write_markdown_reports(assumption_report, filter_report, quality_report, split_report)
+    write_markdown_reports(
+        assumption_report,
+        filter_report,
+        quality_report,
+        split_report,
+        splits=requested_splits,
+    )
     return {
         "quality_report": quality_report,
         "split_report": split_report,
@@ -202,6 +207,8 @@ def write_markdown_reports(
     filter_report: dict[str, Any],
     quality_report: dict[str, Any],
     split_report: dict[str, Any],
+    *,
+    splits: tuple[str, ...] = SPLITS,
 ) -> None:
     """Write human-readable Markdown reports under the processed reports root."""
 
@@ -211,7 +218,7 @@ def write_markdown_reports(
         f"Generated at: `{assumption_report['generated_at']}`",
         "",
     ]
-    for split in SPLITS:
+    for split in splits:
         split_data = assumption_report["splits"][split]
         assumption_lines.extend(
             [
@@ -240,7 +247,7 @@ def write_markdown_reports(
         f"Generated at: `{quality_report['generated_at']}`",
         "",
     ]
-    for split in SPLITS:
+    for split in splits:
         split_data = quality_report["splits"][split]
         quality_lines.extend(
             [
@@ -278,7 +285,7 @@ def write_markdown_reports(
         f"Video overlap summary: `{split_report['video_id_overlap']}`",
         "",
     ]
-    for split in SPLITS:
+    for split in splits:
         split_data = split_report["splits"][split]
         split_lines.extend(
             [

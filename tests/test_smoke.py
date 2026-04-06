@@ -5,6 +5,8 @@ from importlib import import_module, reload
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from text_to_sign_production import __version__, smoke_check
 
 
@@ -48,3 +50,14 @@ def test_repo_root_respects_env_override(tmp_path: Path, monkeypatch: Any) -> No
             monkeypatch.setenv("T2SP_REPO_ROOT", original_repo_root)
         reload(constants_mod)
         reload(utils_mod)
+
+
+def test_resolve_repo_path_rejects_relative_escape(tmp_path: Path, monkeypatch: Any) -> None:
+    """Repo-relative paths must stay within the repo root."""
+
+    import text_to_sign_production.data.utils as utils_mod
+
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path.resolve())
+
+    with pytest.raises(ValueError, match="escapes repo root"):
+        utils_mod.resolve_repo_path("../../outside.txt")

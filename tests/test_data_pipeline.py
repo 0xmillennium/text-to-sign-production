@@ -29,7 +29,7 @@ from text_to_sign_production.data.filtering import (
     load_filter_config,
 )
 from text_to_sign_production.data.openpose import parse_frame
-from text_to_sign_production.data.schemas import NormalizedManifestEntry
+from text_to_sign_production.data.schemas import NormalizedManifestEntry, RawManifestEntry
 from text_to_sign_production.data.validate import (
     validate_normalized_records,
     validate_processed_records,
@@ -493,6 +493,117 @@ def test_export_final_manifests_rejects_missing_source_keypoints_dir(
             assumption_report={"generated_at": "2026-04-07T00:00:00+00:00", "splits": {}},
             filter_report={"generated_at": "2026-04-07T00:00:00+00:00", "splits": {}},
         )
+
+
+def test_export_final_manifests_supports_subset_splits(tmp_path: Path, monkeypatch: Any) -> None:
+    monkeypatch.setattr(
+        reports_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+    )
+    monkeypatch.setattr(reports_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports")
+    monkeypatch.setattr(
+        reports_mod,
+        "_load_raw_records",
+        lambda split: (
+            [
+                RawManifestEntry(
+                    sample_id="sample",
+                    source_split=split,
+                    video_id="video",
+                    video_name="video-rgb_front",
+                    sentence_id="sentence",
+                    sentence_name="sample",
+                    text="text",
+                    start_time=0.0,
+                    end_time=1.0,
+                    keypoints_dir=f"data/raw/how2sign/bfh_keypoints/{split}/sample",
+                    source_metadata_path="data/raw/how2sign/translations/train.tsv",
+                    has_face=True,
+                    num_frames=2,
+                    source_video_path=f"data/raw/how2sign/bfh_keypoints/{split}/sample.mp4",
+                    video_width=1280,
+                    video_height=720,
+                    video_fps=24.0,
+                    video_metadata_error=None,
+                )
+            ]
+            if split == "train"
+            else pytest.fail(f"Unexpected raw split request: {split}")
+        ),
+    )
+    monkeypatch.setattr(
+        reports_mod,
+        "_load_filtered_records",
+        lambda split: (
+            [
+                NormalizedManifestEntry(
+                    sample_id="sample",
+                    processed_schema_version=PROCESSED_SCHEMA_VERSION,
+                    text="text",
+                    split=split,
+                    start_time=0.0,
+                    end_time=1.0,
+                    num_frames=2,
+                    sample_path=f"data/processed/v1/samples/{split}/sample.npz",
+                    source_video_id="video",
+                    source_sentence_id="sentence",
+                    source_sentence_name="sample",
+                    source_metadata_path="data/raw/how2sign/translations/train.tsv",
+                    source_keypoints_dir=f"data/raw/how2sign/bfh_keypoints/{split}/sample",
+                    source_video_path=f"data/raw/how2sign/bfh_keypoints/{split}/sample.mp4",
+                    fps=24.0,
+                    video_width=1280,
+                    video_height=720,
+                    video_metadata_error=None,
+                    selected_person_index=0,
+                    multi_person_frame_count=0,
+                    max_people_per_frame=1,
+                    frame_valid_count=2,
+                    frame_invalid_count=0,
+                    face_missing_frame_count=0,
+                    out_of_bounds_coordinate_count=0,
+                    frames_with_any_zeroed_required_joint=0,
+                    frame_issue_counts={},
+                    core_channel_nonzero_frames={"body": 2, "left_hand": 2, "right_hand": 2},
+                    sample_parse_error=None,
+                )
+            ]
+            if split == "train"
+            else pytest.fail(f"Unexpected filtered split request: {split}")
+        ),
+    )
+
+    result = reports_mod.export_final_manifests(
+        assumption_report={
+            "generated_at": "2026-04-07T00:00:00+00:00",
+            "splits": {
+                "train": {
+                    "translation_row_count": 1,
+                    "matched_sample_count": 1,
+                    "unmatched_sample_count": 0,
+                    "video_metadata": {"readable_count": 1, "unreadable_count": 0},
+                    "first_frame_people_counter": {"1": 1},
+                    "openpose_schema": {"deviation_counts": {}},
+                }
+            },
+        },
+        filter_report={
+            "generated_at": "2026-04-07T00:00:00+00:00",
+            "splits": {
+                "train": {
+                    "dropped_samples": 0,
+                    "drop_reason_counts": {},
+                }
+            },
+        },
+        splits=("train",),
+    )
+
+    assert result["split_report"]["official_split_names"] == ["train"]
+    assert result["split_report"]["video_id_overlap"] == {}
+    assert set(result["split_report"]["splits"]) == {"train"}
+    assert (tmp_path / "data/processed/manifests/train.jsonl").exists()
+    assert not (tmp_path / "data/processed/manifests/val.jsonl").exists()
+    assert not (tmp_path / "data/processed/manifests/test.jsonl").exists()
 
 
 def test_cli_pipeline_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
