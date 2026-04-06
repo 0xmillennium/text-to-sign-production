@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import pytest
 
 import scripts.export_training_manifest as export_training_manifest_script
 import scripts.filter_samples as filter_samples_script
@@ -22,9 +23,17 @@ import text_to_sign_production.data.raw as raw_mod
 import text_to_sign_production.data.reports as reports_mod
 import text_to_sign_production.data.utils as utils_mod
 from text_to_sign_production.data.constants import PROCESSED_SCHEMA_VERSION
-from text_to_sign_production.data.filtering import FilterConfig, determine_drop_reasons
+from text_to_sign_production.data.filtering import (
+    FilterConfig,
+    determine_drop_reasons,
+    load_filter_config,
+)
 from text_to_sign_production.data.openpose import parse_frame
 from text_to_sign_production.data.schemas import NormalizedManifestEntry
+from text_to_sign_production.data.validate import (
+    validate_normalized_records,
+    validate_processed_records,
+)
 
 
 def _make_box(box_type: bytes, payload: bytes) -> bytes:
@@ -112,21 +121,27 @@ def _write_translation_file(path: Path, rows: list[dict[str, str]]) -> None:
 
 
 def _patch_pipeline_paths(monkeypatch: Any, root: Path) -> None:
-    monkeypatch.chdir(root)
     monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
     monkeypatch.setattr(raw_mod, "TRANSLATIONS_DIR", root / "data/raw/how2sign/translations")
     monkeypatch.setattr(raw_mod, "BFH_KEYPOINTS_ROOT", root / "data/raw/how2sign/bfh_keypoints")
     monkeypatch.setattr(raw_mod, "RAW_MANIFESTS_ROOT", root / "data/interim/raw_manifests")
     monkeypatch.setattr(raw_mod, "INTERIM_REPORTS_ROOT", root / "data/interim/reports")
+    monkeypatch.setattr(normalize_mod, "RAW_MANIFESTS_ROOT", root / "data/interim/raw_manifests")
     monkeypatch.setattr(
         normalize_mod, "NORMALIZED_MANIFESTS_ROOT", root / "data/interim/normalized_manifests"
     )
     monkeypatch.setattr(normalize_mod, "PROCESSED_SAMPLES_ROOT", root / "data/processed/v1/samples")
     monkeypatch.setattr(
+        filtering_mod, "NORMALIZED_MANIFESTS_ROOT", root / "data/interim/normalized_manifests"
+    )
+    monkeypatch.setattr(
         filtering_mod, "FILTERED_MANIFESTS_ROOT", root / "data/interim/filtered_manifests"
     )
     monkeypatch.setattr(filtering_mod, "INTERIM_REPORTS_ROOT", root / "data/interim/reports")
     monkeypatch.setattr(reports_mod, "RAW_MANIFESTS_ROOT", root / "data/interim/raw_manifests")
+    monkeypatch.setattr(
+        reports_mod, "FILTERED_MANIFESTS_ROOT", root / "data/interim/filtered_manifests"
+    )
     monkeypatch.setattr(
         reports_mod, "PROCESSED_MANIFESTS_ROOT", root / "data/processed/v1/manifests"
     )
@@ -134,6 +149,8 @@ def _patch_pipeline_paths(monkeypatch: Any, root: Path) -> None:
     monkeypatch.setattr(
         view_sample_script, "PROCESSED_MANIFESTS_ROOT", root / "data/processed/v1/manifests"
     )
+    monkeypatch.setattr(filter_samples_script, "PROJECT_ROOT", root)
+    monkeypatch.setattr(export_training_manifest_script, "PROJECT_ROOT", root)
 
 
 def _create_fixture_dataset(root: Path) -> None:
@@ -223,6 +240,39 @@ def test_parse_frame_tracks_multi_person_and_any_zeroed_required_joint(tmp_path:
     assert parsed.confidences["left_hand"].shape == (21,)
 
 
+def test_parse_frame_counts_canvas_edge_coordinates_as_out_of_bounds(tmp_path: Path) -> None:
+    frame_path = tmp_path / "frame.json"
+    payload = _person_payload()
+    payload["pose_keypoints_2d"][:3] = [1280.0, 720.0, 0.9]
+    _write_openpose_frame(frame_path, people=[payload])
+
+    parsed = parse_frame(frame_path)
+
+    assert parsed.out_of_bounds_coordinate_count == 2
+
+
+@pytest.mark.parametrize("schema_version", [None, 2])
+def test_load_filter_config_requires_supported_schema_version(
+    tmp_path: Path, schema_version: int | None
+) -> None:
+    config_path = tmp_path / "filter.yaml"
+    lines = [
+        "require_nonempty_text: true",
+        "require_positive_duration: true",
+        "require_keypoints_dir: true",
+        "require_frames: true",
+        "drop_on_sample_parse_error: true",
+        "require_at_least_one_valid_frame: true",
+        "minimum_nonzero_frames_per_core_channel: 1",
+    ]
+    if schema_version is not None:
+        lines.insert(0, f"schema_version: {schema_version}")
+    config_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Unsupported filter config schema_version"):
+        load_filter_config(config_path)
+
+
 def test_determine_drop_reasons_respects_core_channel_policy() -> None:
     entry = NormalizedManifestEntry(
         sample_id="sample",
@@ -274,9 +324,109 @@ def test_determine_drop_reasons_respects_core_channel_policy() -> None:
     )
 
 
+def test_validate_normalized_records_reports_parse_errors() -> None:
+    issues = validate_normalized_records(Path("normalized.jsonl"), [{"sample_id": "broken"}])
+
+    assert len(issues) == 1
+    assert issues[0].code == "normalized_record_parse_error"
+
+
+def test_validate_processed_records_resolves_repo_relative_sample_paths(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "repo"
+    sample_path = root / "data/processed/v1/samples/train/sample.npz"
+    sample_path.parent.mkdir(parents=True, exist_ok=True)
+    sample_path.write_text("placeholder", encoding="utf-8")
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    monkeypatch.chdir(outside_dir)
+
+    issues = validate_processed_records(
+        root / "data/processed/v1/manifests/train.jsonl",
+        [
+            {
+                "sample_id": "sample",
+                "processed_schema_version": PROCESSED_SCHEMA_VERSION,
+                "text": "text",
+                "split": "train",
+                "fps": 24.0,
+                "num_frames": 2,
+                "sample_path": "data/processed/v1/samples/train/sample.npz",
+                "source_video_id": "video",
+                "source_sentence_id": "sentence",
+                "source_sentence_name": "sample",
+                "selected_person_index": 0,
+                "multi_person_frame_count": 0,
+                "max_people_per_frame": 1,
+                "source_metadata_path": "data/raw/how2sign/translations/train.tsv",
+                "source_keypoints_dir": "data/raw/how2sign/bfh_keypoints/train/sample",
+                "source_video_path": "data/raw/how2sign/bfh_keypoints/train/sample.mp4",
+                "video_width": 1280,
+                "video_height": 720,
+                "video_metadata_error": None,
+                "frame_valid_count": 2,
+                "frame_invalid_count": 0,
+                "face_missing_frame_count": 0,
+                "out_of_bounds_coordinate_count": 0,
+                "frames_with_any_zeroed_required_joint": 0,
+                "frame_issue_counts": {},
+                "core_channel_nonzero_frames": {"body": 2, "left_hand": 2, "right_hand": 2},
+            }
+        ],
+    )
+
+    assert [issue.code for issue in issues] == []
+
+
+def test_validate_processed_records_reports_missing_required_fields() -> None:
+    issues = validate_processed_records(
+        Path("processed.jsonl"),
+        [
+            {
+                "sample_id": "sample",
+                "processed_schema_version": PROCESSED_SCHEMA_VERSION,
+                "text": "text",
+                "split": "train",
+                "fps": 24.0,
+                "num_frames": 2,
+                "sample_path": "data/processed/v1/samples/train/sample.npz",
+                "source_video_id": "video",
+                "source_sentence_id": "sentence",
+                "source_sentence_name": "sample",
+                "selected_person_index": 0,
+                "multi_person_frame_count": 0,
+                "max_people_per_frame": 1,
+                "source_video_path": "data/raw/how2sign/bfh_keypoints/train/sample.mp4",
+                "video_width": 1280,
+                "video_height": 720,
+                "video_metadata_error": None,
+                "frame_valid_count": 2,
+                "frame_invalid_count": 0,
+                "face_missing_frame_count": 0,
+                "out_of_bounds_coordinate_count": 0,
+                "frames_with_any_zeroed_required_joint": 0,
+                "frame_issue_counts": {},
+                "core_channel_nonzero_frames": {"body": 2, "left_hand": 2, "right_hand": 2},
+            }
+        ],
+    )
+
+    missing_fields_issue = next(
+        issue for issue in issues if issue.code == "missing_required_fields"
+    )
+    assert "source_metadata_path" in missing_fields_issue.message
+    assert "source_keypoints_dir" in missing_fields_issue.message
+
+
 def test_cli_pipeline_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
     _create_fixture_dataset(tmp_path)
     _patch_pipeline_paths(monkeypatch, tmp_path)
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    monkeypatch.chdir(outside_dir)
 
     monkeypatch.setattr(sys, "argv", ["prepare_raw.py", "--splits", "train", "val", "test"])
     assert prepare_raw_script.main() == 0
@@ -296,7 +446,7 @@ def test_cli_pipeline_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
         [
             "validate_manifest.py",
             "--manifest",
-            "data/interim/raw_manifests/raw_train.jsonl",
+            str(raw_manifest),
             "--kind",
             "raw",
         ],
@@ -311,8 +461,6 @@ def test_cli_pipeline_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
         "argv",
         [
             "filter_samples.py",
-            "--config",
-            "configs/data/filter-v1.yaml",
             "--splits",
             "train",
             "val",
@@ -357,6 +505,7 @@ def test_cli_pipeline_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
     filter_report = json.loads(
         (tmp_path / "data/interim/reports/filter-report.json").read_text(encoding="utf-8")
     )
+    assert filter_report["config_path"] == "configs/data/filter-v1.yaml"
     assert filter_report["splits"]["train"]["dropped_samples"] == 1
     assert filter_report["splits"]["train"]["drop_reason_counts"]["missing_keypoints_dir"] == 1
 

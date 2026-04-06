@@ -18,6 +18,15 @@ def repo_relative_path(path: Path | None) -> str | None:
     return path.resolve().relative_to(REPO_ROOT).as_posix()
 
 
+def resolve_repo_path(path: Path | str) -> Path:
+    """Resolve an absolute path or a repo-relative path against the repo root."""
+
+    candidate = Path(path)
+    if candidate.is_absolute():
+        return candidate
+    return REPO_ROOT / candidate
+
+
 def ensure_directory(path: Path) -> None:
     """Create a directory tree if it does not exist yet."""
 

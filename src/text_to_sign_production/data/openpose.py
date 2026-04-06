@@ -310,10 +310,10 @@ def parse_frame(
         x_values = raw_array[:, 0]
         y_values = raw_array[:, 1]
         out_of_bounds_coordinate_count += int(
-            np.count_nonzero((x_values < 0) | (x_values > canvas_width))
+            np.count_nonzero((x_values < 0) | (x_values >= canvas_width))
         )
         out_of_bounds_coordinate_count += int(
-            np.count_nonzero((y_values < 0) | (y_values > canvas_height))
+            np.count_nonzero((y_values < 0) | (y_values >= canvas_height))
         )
 
         coords[channel] = parsed_coords

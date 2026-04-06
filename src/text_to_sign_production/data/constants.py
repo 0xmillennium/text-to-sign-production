@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Final
 
-REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
+
+def _resolve_repo_root() -> Path:
+    override = os.environ.get("T2SP_REPO_ROOT")
+    if override:
+        return Path(override).expanduser().resolve()
+    return Path(__file__).resolve().parents[3]
+
+
+REPO_ROOT: Final[Path] = _resolve_repo_root()
 
 RAW_ROOT: Final[Path] = REPO_ROOT / "data" / "raw" / "how2sign"
 TRANSLATIONS_DIR: Final[Path] = RAW_ROOT / "translations"

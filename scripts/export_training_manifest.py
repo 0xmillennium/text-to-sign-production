@@ -19,12 +19,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--assumption-report",
-        default="data/interim/reports/assumption-report.json",
+        default=str(PROJECT_ROOT / "data/interim/reports/assumption-report.json"),
         help="Machine-readable assumption report from prepare_raw.",
     )
     parser.add_argument(
         "--filter-report",
-        default="data/interim/reports/filter-report.json",
+        default=str(PROJECT_ROOT / "data/interim/reports/filter-report.json"),
         help="Machine-readable filter report from filter_samples.",
     )
     return parser.parse_args()

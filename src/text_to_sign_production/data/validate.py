@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from dataclasses import fields as dataclass_fields
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,7 @@ from .schemas import (
     RawManifestEntry,
     ValidationIssue,
 )
+from .utils import resolve_repo_path
 
 RAW_REQUIRED_FIELDS = frozenset(
     {
@@ -33,21 +35,7 @@ RAW_REQUIRED_FIELDS = frozenset(
     }
 )
 PROCESSED_REQUIRED_FIELDS = frozenset(
-    {
-        "sample_id",
-        "processed_schema_version",
-        "text",
-        "split",
-        "fps",
-        "num_frames",
-        "sample_path",
-        "source_video_id",
-        "source_sentence_id",
-        "source_sentence_name",
-        "selected_person_index",
-        "multi_person_frame_count",
-        "max_people_per_frame",
-    }
+    field.name for field in dataclass_fields(ProcessedManifestEntry)
 )
 
 
@@ -188,7 +176,19 @@ def validate_normalized_records(
             )
         seen_sample_ids.add(sample_id)
 
-        entry = NormalizedManifestEntry.from_record(record)
+        try:
+            entry = NormalizedManifestEntry.from_record(record)
+        except Exception as exc:
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="normalized_record_parse_error",
+                    message=f"Could not parse normalized record: {exc}",
+                    sample_id=sample_id or None,
+                    path=path.as_posix(),
+                )
+            )
+            continue
         if entry.processed_schema_version != PROCESSED_SCHEMA_VERSION:
             issues.append(
                 ValidationIssue(
@@ -288,7 +288,7 @@ def validate_processed_records(
                     path=path.as_posix(),
                 )
             )
-        sample_path = Path(entry.sample_path)
+        sample_path = resolve_repo_path(entry.sample_path)
         if not sample_path.exists():
             issues.append(
                 ValidationIssue(

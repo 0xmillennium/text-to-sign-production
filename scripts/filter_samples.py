@@ -19,7 +19,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--config",
-        default="configs/data/filter-v1.yaml",
+        default=str(PROJECT_ROOT / "configs/data/filter-v1.yaml"),
         help="YAML filtering policy.",
     )
     parser.add_argument(

@@ -9,10 +9,18 @@ from typing import Any
 
 import yaml
 
-from .constants import FILTERED_MANIFESTS_ROOT, INTERIM_REPORTS_ROOT, REQUIRED_CORE_CHANNELS, SPLITS
+from .constants import (
+    FILTERED_MANIFESTS_ROOT,
+    INTERIM_REPORTS_ROOT,
+    NORMALIZED_MANIFESTS_ROOT,
+    REQUIRED_CORE_CHANNELS,
+    SPLITS,
+)
 from .jsonl import iter_jsonl, write_json, write_jsonl
 from .schemas import NormalizedManifestEntry
-from .utils import ensure_directory, utc_timestamp
+from .utils import ensure_directory, repo_relative_path, resolve_repo_path, utc_timestamp
+
+FILTER_CONFIG_SCHEMA_VERSION = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +43,12 @@ def load_filter_config(path: Path) -> FilterConfig:
         payload = yaml.safe_load(handle)
     if not isinstance(payload, dict):
         raise ValueError(f"Expected mapping in filter config {path}.")
+    schema_version = payload.get("schema_version")
+    if schema_version != FILTER_CONFIG_SCHEMA_VERSION:
+        raise ValueError(
+            f"Unsupported filter config schema_version {schema_version!r} in {path}; "
+            f"expected {FILTER_CONFIG_SCHEMA_VERSION}."
+        )
     return FilterConfig(
         require_nonempty_text=bool(payload["require_nonempty_text"]),
         require_positive_duration=bool(payload["require_positive_duration"]),
@@ -84,9 +98,8 @@ def filter_split(
 ) -> tuple[list[NormalizedManifestEntry], dict[str, Any]]:
     """Filter one split-specific normalized manifest."""
 
-    input_path = Path("data/interim/normalized_manifests") / f"normalized_{split}.jsonl"
-    absolute_input_path = input_path.resolve()
-    if not absolute_input_path.exists():
+    input_path = NORMALIZED_MANIFESTS_ROOT / f"normalized_{split}.jsonl"
+    if not input_path.exists():
         raise FileNotFoundError(f"Normalized manifest not found: {input_path}")
 
     ensure_directory(FILTERED_MANIFESTS_ROOT)
@@ -96,7 +109,7 @@ def filter_split(
     dropped_examples: list[dict[str, Any]] = []
     total_entries = 0
 
-    for record in iter_jsonl(absolute_input_path):
+    for record in iter_jsonl(input_path):
         total_entries += 1
         entry = NormalizedManifestEntry.from_record(record)
         drop_reasons = determine_drop_reasons(entry, config)
@@ -127,10 +140,15 @@ def filter_all_splits(config_path: Path, *, splits: tuple[str, ...] = SPLITS) ->
 
     config = load_filter_config(config_path)
     ensure_directory(INTERIM_REPORTS_ROOT)
+    resolved_config_path = resolve_repo_path(config_path)
+    try:
+        report_config_path = repo_relative_path(resolved_config_path)
+    except ValueError:
+        report_config_path = config_path.name
 
     report: dict[str, Any] = {
         "generated_at": utc_timestamp(),
-        "config_path": str(config_path),
+        "config_path": report_config_path,
         "splits": {},
     }
     for split in splits:

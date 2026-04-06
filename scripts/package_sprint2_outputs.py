@@ -72,6 +72,21 @@ def _assert_archive_prerequisites() -> None:
         raise RuntimeError("`tar` is required to package Sprint 2 outputs.")
     if shutil.which("zstd") is None:
         raise RuntimeError("`zstd` is required to create `.tar.zst` archives.")
+    if not _tar_supports_zstd():
+        raise RuntimeError("`tar` with `--zstd` support is required to package Sprint 2 outputs.")
+
+
+def _tar_supports_zstd() -> bool:
+    tar_path = shutil.which("tar")
+    if tar_path is None:
+        return False
+    help_result = subprocess.run(
+        [tar_path, "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return "--zstd" in (help_result.stdout + help_result.stderr)
 
 
 def _assert_required_members(project_root: Path, members: tuple[Path, ...]) -> None:

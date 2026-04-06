@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections import Counter
-from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
@@ -13,13 +12,14 @@ from .constants import (
     OPENPOSE_CHANNEL_SPECS,
     PROCESSED_SAMPLES_ROOT,
     PROCESSED_SCHEMA_VERSION,
+    RAW_MANIFESTS_ROOT,
     REQUIRED_CORE_CHANNELS,
     SPLITS,
 )
 from .jsonl import iter_jsonl, write_jsonl
 from .openpose import parse_frame
 from .schemas import NormalizedManifestEntry, RawManifestEntry
-from .utils import ensure_directory, repo_relative_path
+from .utils import ensure_directory, repo_relative_path, resolve_repo_path
 
 
 def _empty_channel_tensor(
@@ -36,16 +36,15 @@ def _empty_channel_tensor(
 def normalize_split(split: str) -> list[NormalizedManifestEntry]:
     """Normalize all raw-manifest rows for one split."""
 
-    raw_manifest_path = Path("data/interim/raw_manifests") / f"raw_{split}.jsonl"
-    absolute_manifest_path = raw_manifest_path.resolve()
-    if not absolute_manifest_path.exists():
+    raw_manifest_path = RAW_MANIFESTS_ROOT / f"raw_{split}.jsonl"
+    if not raw_manifest_path.exists():
         raise FileNotFoundError(f"Raw manifest not found: {raw_manifest_path}")
 
     ensure_directory(NORMALIZED_MANIFESTS_ROOT)
     ensure_directory(PROCESSED_SAMPLES_ROOT / split)
 
     normalized_entries: list[NormalizedManifestEntry] = []
-    for record in iter_jsonl(absolute_manifest_path):
+    for record in iter_jsonl(raw_manifest_path):
         raw_entry = RawManifestEntry.from_record(record)
         normalized_entries.append(normalize_sample(raw_entry))
 
@@ -96,10 +95,7 @@ def normalize_sample(raw_entry: RawManifestEntry) -> NormalizedManifestEntry:
             sample_parse_error=None,
         )
 
-    keypoints_dir = Path(raw_entry.keypoints_dir)
-    if not keypoints_dir.is_absolute():
-        keypoints_dir = Path.cwd() / keypoints_dir
-
+    keypoints_dir = resolve_repo_path(raw_entry.keypoints_dir)
     frame_paths = sorted(keypoints_dir.glob("*.json"))
     if not frame_paths:
         return NormalizedManifestEntry(

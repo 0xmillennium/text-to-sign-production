@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from pathlib import Path
 from typing import Any
 
-from .constants import PROCESSED_MANIFESTS_ROOT, PROCESSED_REPORTS_ROOT, RAW_MANIFESTS_ROOT, SPLITS
+from .constants import (
+    FILTERED_MANIFESTS_ROOT,
+    PROCESSED_MANIFESTS_ROOT,
+    PROCESSED_REPORTS_ROOT,
+    RAW_MANIFESTS_ROOT,
+    SPLITS,
+)
 from .jsonl import read_jsonl, write_json, write_jsonl
 from .schemas import NormalizedManifestEntry, ProcessedManifestEntry, RawManifestEntry
 from .utils import ensure_directory, summarize_numbers, utc_timestamp
@@ -22,9 +27,7 @@ def _load_raw_records(split: str) -> list[RawManifestEntry]:
 def _load_filtered_records(split: str) -> list[NormalizedManifestEntry]:
     return [
         NormalizedManifestEntry.from_record(record)
-        for record in read_jsonl(
-            Path("data/interim/filtered_manifests") / f"filtered_{split}.jsonl"
-        )
+        for record in read_jsonl(FILTERED_MANIFESTS_ROOT / f"filtered_{split}.jsonl")
     ]
 
 

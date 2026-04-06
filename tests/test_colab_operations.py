@@ -18,8 +18,8 @@ def _write(path: Path, content: str) -> None:
 
 
 @pytest.mark.skipif(
-    shutil.which("tar") is None or shutil.which("zstd") is None,
-    reason="tar and zstd are required for archive tests",
+    shutil.which("zstd") is None or not package_outputs_script._tar_supports_zstd(),
+    reason="tar with --zstd support and zstd are required for archive tests",
 )
 def test_package_sprint2_outputs_creates_expected_archives(tmp_path: Path) -> None:
     manifest_and_report_files = {

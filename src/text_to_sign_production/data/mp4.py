@@ -10,10 +10,6 @@ from typing import BinaryIO
 
 from .schemas import VideoMetadata
 
-CONTAINER_BOX_TYPES = frozenset(
-    {b"moov", b"trak", b"mdia", b"minf", b"stbl", b"edts", b"dinf", b"udta"}
-)
-
 
 @dataclass(frozen=True, slots=True)
 class MP4Box:

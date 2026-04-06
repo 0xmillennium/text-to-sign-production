@@ -17,6 +17,7 @@ if str(SRC_ROOT) not in sys.path:
 
 from text_to_sign_production.data.constants import PROCESSED_MANIFESTS_ROOT, SPLITS  # noqa: E402
 from text_to_sign_production.data.jsonl import iter_jsonl  # noqa: E402
+from text_to_sign_production.data.utils import resolve_repo_path  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -44,9 +45,7 @@ def main() -> int:
     record = load_record(args.split, args.sample_id)
     print(json.dumps(record, indent=2, sort_keys=True))
 
-    sample_path = Path(record["sample_path"])
-    if not sample_path.is_absolute():
-        sample_path = Path.cwd() / sample_path
+    sample_path = resolve_repo_path(record["sample_path"])
     with np.load(sample_path) as sample:
         print("npz keys:", sorted(sample.files))
         for key in sorted(sample.files):
