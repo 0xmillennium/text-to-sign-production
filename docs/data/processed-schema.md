@@ -30,7 +30,7 @@ Required arrays and fields:
 | `face` | `(frames, 70, 2)` | Normalized face coordinates or zero-fill. |
 | `face_confidence` | `(frames, 70)` | Face confidence values or zero-fill. |
 | `people_per_frame` | `(frames,)` | Number of people observed in each frame. |
-| `selected_person_index` | scalar | Always `0` in v1. |
+| `selected_person_index` | scalar | Pipeline-generated samples use `0` in v1; validators treat non-zero manifest values as auditable warnings and payload/manifest mismatches as errors. |
 | `frame_valid_mask` | `(frames,)` | Whether required core channels were structurally valid. |
 
 ## Normalization
@@ -66,7 +66,7 @@ Required fields:
 | `source_video_id` | Source `VIDEO_ID`. |
 | `source_sentence_id` | Source `SENTENCE_ID`. |
 | `source_sentence_name` | Source `SENTENCE_NAME`. |
-| `selected_person_index` | Deterministic selected person index. |
+| `selected_person_index` | Deterministic selected person index; the current v1 pipeline writes `0` and validators warn on non-zero manifest values. |
 | `multi_person_frame_count` | Frames with more than one detected person. |
 | `max_people_per_frame` | Maximum detected people count in the clip. |
 

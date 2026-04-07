@@ -815,6 +815,7 @@ def test_validate_processed_records_rejects_unreadable_npz_payload(
 
     issue = next(issue for issue in issues if issue.code == "invalid_sample_file")
     assert ".npz" in issue.message
+    assert issue.path == sample_path.as_posix()
 
 
 def test_validate_processed_records_rejects_missing_required_sample_arrays(
@@ -833,6 +834,7 @@ def test_validate_processed_records_rejects_missing_required_sample_arrays(
     issue = next(issue for issue in issues if issue.code == "missing_sample_arrays")
     assert "face" in issue.message
     assert "frame_valid_mask" in issue.message
+    assert issue.path == sample_path.as_posix()
 
 
 def test_validate_processed_records_rejects_unexpected_sample_payload_schema_version(
@@ -853,6 +855,7 @@ def test_validate_processed_records_rejects_unexpected_sample_payload_schema_ver
 
     issue = next(issue for issue in issues if issue.code == "unexpected_sample_schema_version")
     assert "t2sp-processed-v999" in issue.message
+    assert issue.path == sample_path.as_posix()
 
 
 def test_validate_processed_records_rejects_invalid_sample_array_shapes(
@@ -874,6 +877,7 @@ def test_validate_processed_records_rejects_invalid_sample_array_shapes(
     issue = next(issue for issue in issues if issue.code == "invalid_sample_array_shape")
     assert "'body'" in issue.message
     assert "(3, 25, 2)" in issue.message
+    assert issue.path == sample_path.as_posix()
 
 
 def test_validate_processed_records_rejects_unexpected_sample_selected_person_index(
@@ -896,6 +900,7 @@ def test_validate_processed_records_rejects_unexpected_sample_selected_person_in
         issue for issue in issues if issue.code == "unexpected_sample_selected_person_index"
     )
     assert "payload=1" in issue.message
+    assert issue.path == sample_path.as_posix()
 
 
 def test_validate_processed_records_allows_matching_nonzero_selected_person_index_with_warning(
@@ -938,6 +943,8 @@ def test_validate_processed_records_rejects_frame_valid_count_mismatch(
     invalid_issue = next(issue for issue in issues if issue.code == "frame_invalid_count_mismatch")
     assert "payload=1" in valid_issue.message
     assert "payload=1" in invalid_issue.message
+    assert valid_issue.path == sample_path.as_posix()
+    assert invalid_issue.path == sample_path.as_posix()
 
 
 def test_export_final_manifests_rejects_missing_source_keypoints_dir(

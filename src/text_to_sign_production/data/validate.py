@@ -77,7 +77,7 @@ def _validate_processed_sample_payload(
     entry: ProcessedManifestEntry,
     sample: Any,
     *,
-    path: Path,
+    sample_path: Path,
 ) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
 
@@ -93,7 +93,7 @@ def _validate_processed_sample_payload(
                 ),
                 sample_id=entry.sample_id,
                 split=entry.split,
-                path=path.as_posix(),
+                path=sample_path.as_posix(),
             )
         )
     else:
@@ -106,7 +106,7 @@ def _validate_processed_sample_payload(
                     message=f"Processed sample payload uses schema {payload_schema_version}.",
                     sample_id=entry.sample_id,
                     split=entry.split,
-                    path=path.as_posix(),
+                    path=sample_path.as_posix(),
                 )
             )
 
@@ -122,7 +122,7 @@ def _validate_processed_sample_payload(
                 ),
                 sample_id=entry.sample_id,
                 split=entry.split,
-                path=path.as_posix(),
+                path=sample_path.as_posix(),
             )
         )
     else:
@@ -139,7 +139,7 @@ def _validate_processed_sample_payload(
                     ),
                     sample_id=entry.sample_id,
                     split=entry.split,
-                    path=path.as_posix(),
+                    path=sample_path.as_posix(),
                 )
             )
 
@@ -156,7 +156,7 @@ def _validate_processed_sample_payload(
                     ),
                     sample_id=entry.sample_id,
                     split=entry.split,
-                    path=path.as_posix(),
+                    path=sample_path.as_posix(),
                 )
             )
 
@@ -174,7 +174,7 @@ def _validate_processed_sample_payload(
                     ),
                     sample_id=entry.sample_id,
                     split=entry.split,
-                    path=path.as_posix(),
+                    path=sample_path.as_posix(),
                 )
             )
         frame_invalid_count = int(frame_valid_mask.shape[0] - frame_valid_count)
@@ -190,7 +190,7 @@ def _validate_processed_sample_payload(
                     ),
                     sample_id=entry.sample_id,
                     split=entry.split,
-                    path=path.as_posix(),
+                    path=sample_path.as_posix(),
                 )
             )
 
@@ -557,7 +557,7 @@ def validate_processed_records(
                     message=f"Processed sample file does not exist: {entry.sample_path}",
                     sample_id=entry.sample_id,
                     split=entry.split,
-                    path=path.as_posix(),
+                    path=sample_path.as_posix(),
                 )
             )
             continue
@@ -575,12 +575,18 @@ def validate_processed_records(
                             ),
                             sample_id=entry.sample_id,
                             split=entry.split,
-                            path=path.as_posix(),
+                            path=sample_path.as_posix(),
                         )
                     )
                     continue
 
-                issues.extend(_validate_processed_sample_payload(entry, sample, path=path))
+                issues.extend(
+                    _validate_processed_sample_payload(
+                        entry,
+                        sample,
+                        sample_path=sample_path,
+                    )
+                )
         except (BadZipFile, EOFError, OSError, ValueError) as exc:
             issues.append(
                 ValidationIssue(
@@ -589,7 +595,7 @@ def validate_processed_records(
                     message=f"Processed sample file could not be read as .npz: {exc}",
                     sample_id=entry.sample_id,
                     split=entry.split,
-                    path=path.as_posix(),
+                    path=sample_path.as_posix(),
                 )
             )
             continue
