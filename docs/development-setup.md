@@ -6,8 +6,19 @@
 make install
 ```
 
-This installs the package in editable mode, developer tooling, documentation dependencies, and
+This installs the package in editable mode, both optional extra sets (`dev` and `docs`), and
 registers `pre-commit` plus `commit-msg` hooks.
+
+If you only need one side of the toolchain, use:
+
+```bash
+make install-dev
+make install-docs
+```
+
+- `make install-dev` installs code-quality and test tooling only.
+- `make install-docs` installs the MkDocs toolchain only.
+- `make install` remains the default because the local CI-style workflow also builds docs.
 
 ## Local Quality Commands
 

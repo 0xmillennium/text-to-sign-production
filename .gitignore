@@ -30,3 +30,22 @@ site/
 
 # OS files
 .DS_Store
+
+# Local operational config
+configs/storage.local.yaml
+
+# Data files
+data/raw/how2sign/bfh_keypoints/test_2D_keypoints/openpose_output
+data/raw/how2sign/bfh_keypoints/train_2D_keypoints/openpose_output
+data/raw/how2sign/bfh_keypoints/val_2D_keypoints/openpose_output
+data/raw/how2sign/translations/how2sign_realigned_test.csv
+data/raw/how2sign/translations/how2sign_realigned_train.csv
+data/raw/how2sign/translations/how2sign_realigned_val.csv
+data/interim/raw_manifests/
+data/interim/normalized_manifests/
+data/interim/filtered_manifests/
+data/interim/reports/
+data/processed/v1/manifests/
+data/processed/v1/reports/
+data/processed/v1/samples/
+data/archives/

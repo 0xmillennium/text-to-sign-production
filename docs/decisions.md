@@ -16,5 +16,10 @@ process decisions that affect implementation, collaboration, or reproducibility.
 - ADR-0003: DVC inclusion
 - ADR-0004: English as the project language
 - ADR-0005: Sprint 1 excludes ML implementation
+- ADR-0006: Sprint 2 is data-first
+- ADR-0007: preserve official How2Sign splits
+- ADR-0008: manifest-driven processed dataset
+- ADR-0009: `.npz` processed sample format
+- ADR-0010: face is optional in v1
 
 Use the template in this section for future records.
