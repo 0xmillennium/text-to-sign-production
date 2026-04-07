@@ -15,7 +15,7 @@ from .schemas import (
     RawManifestEntry,
     ValidationIssue,
 )
-from .utils import resolve_repo_path
+from .utils import resolve_processed_sample_path
 
 RAW_REQUIRED_FIELDS = frozenset(
     {
@@ -303,13 +303,15 @@ def validate_processed_records(
                 )
             )
 
-        raw_sample_path = Path(entry.sample_path)
-        if raw_sample_path.is_absolute():
+        sample_path_value = str(entry.sample_path)
+        if Path(sample_path_value.strip()).is_absolute():
             issues.append(
                 ValidationIssue(
                     severity="error",
                     code="absolute_sample_path",
-                    message=f"Processed sample_path must be repo-relative: {entry.sample_path}",
+                    message=(
+                        f"Processed sample_path must be repo-relative: {sample_path_value.strip()}"
+                    ),
                     sample_id=entry.sample_id,
                     split=entry.split,
                     path=path.as_posix(),
@@ -318,7 +320,7 @@ def validate_processed_records(
             continue
 
         try:
-            sample_path = resolve_repo_path(entry.sample_path)
+            sample_path = resolve_processed_sample_path(sample_path_value)
         except ValueError as exc:
             issues.append(
                 ValidationIssue(

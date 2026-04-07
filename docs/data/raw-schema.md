@@ -23,7 +23,7 @@ status.
 | `start_time` | float | Parsed `START_REALIGNED` value in seconds. |
 | `end_time` | float | Parsed `END_REALIGNED` value in seconds. |
 | `keypoints_dir` | string or null | Repo-relative clip directory for frame JSONs. |
-| `source_metadata_path` | string | Repo-relative translation TSV path for the row source. |
+| `source_metadata_path` | string | Repo-relative path to the tab-delimited translation `.csv` source. |
 | `has_face` | boolean or null | Whether first-frame inspection found a usable face channel. |
 | `num_frames` | integer | Number of JSON frame files in the matched clip directory. |
 

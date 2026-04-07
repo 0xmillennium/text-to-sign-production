@@ -32,6 +32,26 @@ def resolve_repo_path(path: Path | str) -> Path:
     return resolved
 
 
+def resolve_processed_sample_path(path: Path | str) -> Path:
+    """Resolve and validate a processed sample path stored in a manifest."""
+
+    raw_value = str(path)
+    normalized_value = raw_value.strip()
+    if not normalized_value:
+        raise ValueError("Processed sample_path must be a non-empty repo-relative .npz path.")
+
+    candidate = Path(normalized_value)
+    if candidate.is_absolute():
+        raise ValueError(f"Processed sample_path must be repo-relative: {normalized_value}")
+    if candidate.suffix != ".npz":
+        raise ValueError(f"Processed sample_path must end with .npz: {normalized_value}")
+
+    resolved = resolve_repo_path(candidate)
+    if resolved.exists() and not resolved.is_file():
+        raise ValueError(f"Processed sample_path must resolve to a file: {normalized_value}")
+    return resolved
+
+
 def ensure_directory(path: Path) -> None:
     """Create a directory tree if it does not exist yet."""
 

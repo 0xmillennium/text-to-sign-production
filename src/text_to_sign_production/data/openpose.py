@@ -69,14 +69,14 @@ def zero_confidence(channel: str) -> FloatArray:
 
 def _reshape_flat_keypoints(
     flat_values: list[float], expected_points: int
-) -> tuple[FloatArray, FloatArray]:
+) -> tuple[FloatArray, FloatArray, FloatArray]:
     if len(flat_values) != expected_points * 3:
         raise ValueError(f"Expected {expected_points * 3} values, got {len(flat_values)}.")
 
     raw = np.asarray(flat_values, dtype=np.float32).reshape(expected_points, 3)
     coords = raw[:, :2].copy()
     confidence = raw[:, 2].copy()
-    return coords, confidence
+    return raw, coords, confidence
 
 
 def inspect_first_frame(path: Path) -> FirstFrameInspection:
@@ -302,11 +302,11 @@ def parse_frame(
                 face_missing = True
             continue
 
-        parsed_coords, parsed_confidence = _reshape_flat_keypoints(raw_values, expected_points)
+        raw_array, parsed_coords, parsed_confidence = _reshape_flat_keypoints(
+            raw_values, expected_points
+        )
         parsed_coords[:, 0] = parsed_coords[:, 0] / np.float32(canvas_width)
         parsed_coords[:, 1] = parsed_coords[:, 1] / np.float32(canvas_height)
-
-        raw_array = np.asarray(raw_values, dtype=np.float32).reshape(expected_points, 3)
         x_values = raw_array[:, 0]
         y_values = raw_array[:, 1]
         out_of_bounds_coordinate_count += int(

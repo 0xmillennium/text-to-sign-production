@@ -1,10 +1,12 @@
 # Translation TSV Schema
 
-Sprint 2 reads the translation files as tab-separated values only.
+Sprint 2 reads the translation files as tab-separated values only, even though the canonical
+How2Sign filenames keep the `.csv` extension.
 
 ## Verified Delimiter
 
-The real translation files under `data/raw/how2sign/translations/` are tab-separated.
+The real translation files under `data/raw/how2sign/translations/` are tab-separated rather than
+comma-separated.
 
 ## Verified Columns
 

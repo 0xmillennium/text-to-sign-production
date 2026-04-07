@@ -63,7 +63,7 @@ def _ensure_raw_layout(paths: SplitPaths) -> None:
 
 
 def read_translation_rows(paths: SplitPaths) -> list[dict[str, str]]:
-    """Read and validate one translation TSV file."""
+    """Read and validate one tab-delimited translation file stored with a `.csv` name."""
 
     _ensure_raw_layout(paths)
     with paths.translation_path.open("r", encoding="utf-8", newline="") as handle:
@@ -117,12 +117,12 @@ def build_raw_manifest_for_split(split: str) -> tuple[list[RawManifestEntry], di
         if keypoints_dir_value is None:
             unmatched_examples.append(sentence_name)
         else:
-            frame_paths = sorted(keypoints_dir.glob("*.json"))
+            frame_paths = list(keypoints_dir.glob("*.json"))
             num_frames = len(frame_paths)
             if num_frames == 0:
                 schema_deviation_counter["missing_frame_json_files"] += 1
             else:
-                inspection = inspect_first_frame(frame_paths[0])
+                inspection = inspect_first_frame(min(frame_paths, key=lambda path: path.name))
                 has_face = inspection.has_face
                 first_frame_people_counter[str(inspection.people_count)] += 1
                 top_level_key_counter.update(inspection.top_level_keys)

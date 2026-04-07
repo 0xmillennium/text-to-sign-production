@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import struct
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -224,6 +225,37 @@ def _create_fixture_dataset(root: Path) -> None:
         _write_minimal_mp4(video_dir / f"{sentence_name}.mp4")
 
 
+def _processed_record(sample_path: str) -> dict[str, Any]:
+    return {
+        "sample_id": "sample",
+        "processed_schema_version": PROCESSED_SCHEMA_VERSION,
+        "text": "text",
+        "split": "train",
+        "fps": 24.0,
+        "num_frames": 2,
+        "sample_path": sample_path,
+        "source_video_id": "video",
+        "source_sentence_id": "sentence",
+        "source_sentence_name": "sample",
+        "selected_person_index": 0,
+        "multi_person_frame_count": 0,
+        "max_people_per_frame": 1,
+        "source_metadata_path": "data/raw/how2sign/translations/train.tsv",
+        "source_keypoints_dir": "data/raw/how2sign/bfh_keypoints/train/sample",
+        "source_video_path": "data/raw/how2sign/bfh_keypoints/train/sample.mp4",
+        "video_width": 1280,
+        "video_height": 720,
+        "video_metadata_error": None,
+        "frame_valid_count": 2,
+        "frame_invalid_count": 0,
+        "face_missing_frame_count": 0,
+        "out_of_bounds_coordinate_count": 0,
+        "frames_with_any_zeroed_required_joint": 0,
+        "frame_issue_counts": {},
+        "core_channel_nonzero_frames": {"body": 2, "left_hand": 2, "right_hand": 2},
+    }
+
+
 def test_parse_frame_tracks_multi_person_and_any_zeroed_required_joint(tmp_path: Path) -> None:
     frame_path = tmp_path / "frame.json"
     _write_openpose_frame(
@@ -250,6 +282,50 @@ def test_parse_frame_counts_canvas_edge_coordinates_as_out_of_bounds(tmp_path: P
     parsed = parse_frame(frame_path)
 
     assert parsed.out_of_bounds_coordinate_count == 2
+
+
+def test_parse_frame_marks_face_missing_when_face_channel_has_no_confidence(tmp_path: Path) -> None:
+    frame_path = tmp_path / "frame.json"
+    payload = _person_payload()
+    payload["face_keypoints_2d"] = [0.0] * (70 * 3)
+    _write_openpose_frame(frame_path, people=[payload])
+
+    parsed = parse_frame(frame_path)
+
+    assert parsed.face_missing is True
+    assert parsed.frame_valid is True
+
+
+def test_build_raw_manifest_for_split_uses_deterministic_first_frame_without_sorting(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    _create_fixture_dataset(tmp_path)
+    _patch_pipeline_paths(monkeypatch, tmp_path)
+    split_paths = raw_mod.get_split_paths("train")
+    sentence_name = "train_sample_0-1-rgb_front"
+    keypoints_dir = split_paths.keypoints_json_root / sentence_name
+    later_frame = keypoints_dir / f"{sentence_name}_000000000001_keypoints.json"
+    earlier_frame = keypoints_dir / f"{sentence_name}_000000000000_keypoints.json"
+    _write_openpose_frame(later_frame, people=[_person_payload()])
+    _write_openpose_frame(
+        earlier_frame,
+        people=[_person_payload(), _person_payload()],
+    )
+
+    original_glob = keypoints_dir.__class__.glob
+
+    def fake_glob(self: Path, pattern: str) -> Iterator[Path]:
+        if self == keypoints_dir and pattern == "*.json":
+            return iter([later_frame, earlier_frame])
+        return original_glob(self, pattern)
+
+    monkeypatch.setattr(keypoints_dir.__class__, "glob", fake_glob)
+
+    manifest_entries, report = raw_mod.build_raw_manifest_for_split("train")
+
+    matched_entry = next(entry for entry in manifest_entries if entry.sample_id == sentence_name)
+    assert matched_entry.num_frames == 2
+    assert report["first_frame_people_counter"] == {"2": 1}
 
 
 @pytest.mark.parametrize("schema_version", [None, 2])
@@ -363,36 +439,7 @@ def test_validate_processed_records_resolves_repo_relative_sample_paths(
 
     issues = validate_processed_records(
         root / "data/processed/v1/manifests/train.jsonl",
-        [
-            {
-                "sample_id": "sample",
-                "processed_schema_version": PROCESSED_SCHEMA_VERSION,
-                "text": "text",
-                "split": "train",
-                "fps": 24.0,
-                "num_frames": 2,
-                "sample_path": "data/processed/v1/samples/train/sample.npz",
-                "source_video_id": "video",
-                "source_sentence_id": "sentence",
-                "source_sentence_name": "sample",
-                "selected_person_index": 0,
-                "multi_person_frame_count": 0,
-                "max_people_per_frame": 1,
-                "source_metadata_path": "data/raw/how2sign/translations/train.tsv",
-                "source_keypoints_dir": "data/raw/how2sign/bfh_keypoints/train/sample",
-                "source_video_path": "data/raw/how2sign/bfh_keypoints/train/sample.mp4",
-                "video_width": 1280,
-                "video_height": 720,
-                "video_metadata_error": None,
-                "frame_valid_count": 2,
-                "frame_invalid_count": 0,
-                "face_missing_frame_count": 0,
-                "out_of_bounds_coordinate_count": 0,
-                "frames_with_any_zeroed_required_joint": 0,
-                "frame_issue_counts": {},
-                "core_channel_nonzero_frames": {"body": 2, "left_hand": 2, "right_hand": 2},
-            }
-        ],
+        [_processed_record("data/processed/v1/samples/train/sample.npz")],
     )
 
     assert [issue.code for issue in issues] == []
@@ -441,36 +488,7 @@ def test_validate_processed_records_reports_missing_required_fields() -> None:
 def test_validate_processed_records_rejects_absolute_sample_paths() -> None:
     issues = validate_processed_records(
         Path("processed.jsonl"),
-        [
-            {
-                "sample_id": "sample",
-                "processed_schema_version": PROCESSED_SCHEMA_VERSION,
-                "text": "text",
-                "split": "train",
-                "fps": 24.0,
-                "num_frames": 2,
-                "sample_path": "/tmp/sample.npz",
-                "source_video_id": "video",
-                "source_sentence_id": "sentence",
-                "source_sentence_name": "sample",
-                "selected_person_index": 0,
-                "multi_person_frame_count": 0,
-                "max_people_per_frame": 1,
-                "source_metadata_path": "data/raw/how2sign/translations/train.tsv",
-                "source_keypoints_dir": "data/raw/how2sign/bfh_keypoints/train/sample",
-                "source_video_path": "data/raw/how2sign/bfh_keypoints/train/sample.mp4",
-                "video_width": 1280,
-                "video_height": 720,
-                "video_metadata_error": None,
-                "frame_valid_count": 2,
-                "frame_invalid_count": 0,
-                "face_missing_frame_count": 0,
-                "out_of_bounds_coordinate_count": 0,
-                "frames_with_any_zeroed_required_joint": 0,
-                "frame_issue_counts": {},
-                "core_channel_nonzero_frames": {"body": 2, "left_hand": 2, "right_hand": 2},
-            }
-        ],
+        [_processed_record("/tmp/sample.npz")],
     )
 
     assert any(issue.code == "absolute_sample_path" for issue in issues)
@@ -479,39 +497,44 @@ def test_validate_processed_records_rejects_absolute_sample_paths() -> None:
 def test_validate_processed_records_rejects_repo_escaping_sample_paths() -> None:
     issues = validate_processed_records(
         Path("processed.jsonl"),
-        [
-            {
-                "sample_id": "sample",
-                "processed_schema_version": PROCESSED_SCHEMA_VERSION,
-                "text": "text",
-                "split": "train",
-                "fps": 24.0,
-                "num_frames": 2,
-                "sample_path": "../../outside/sample.npz",
-                "source_video_id": "video",
-                "source_sentence_id": "sentence",
-                "source_sentence_name": "sample",
-                "selected_person_index": 0,
-                "multi_person_frame_count": 0,
-                "max_people_per_frame": 1,
-                "source_metadata_path": "data/raw/how2sign/translations/train.tsv",
-                "source_keypoints_dir": "data/raw/how2sign/bfh_keypoints/train/sample",
-                "source_video_path": "data/raw/how2sign/bfh_keypoints/train/sample.mp4",
-                "video_width": 1280,
-                "video_height": 720,
-                "video_metadata_error": None,
-                "frame_valid_count": 2,
-                "frame_invalid_count": 0,
-                "face_missing_frame_count": 0,
-                "out_of_bounds_coordinate_count": 0,
-                "frames_with_any_zeroed_required_joint": 0,
-                "frame_issue_counts": {},
-                "core_channel_nonzero_frames": {"body": 2, "left_hand": 2, "right_hand": 2},
-            }
-        ],
+        [_processed_record("../../outside/sample.npz")],
     )
 
     assert any(issue.code == "invalid_sample_path" for issue in issues)
+
+
+@pytest.mark.parametrize(
+    ("sample_path", "message_fragment"),
+    [
+        ("", "non-empty"),
+        ("   ", "non-empty"),
+        ("data/processed/v1/samples/train/sample.txt", "must end with .npz"),
+    ],
+)
+def test_validate_processed_records_rejects_blank_or_non_npz_sample_paths(
+    sample_path: str, message_fragment: str
+) -> None:
+    issues = validate_processed_records(Path("processed.jsonl"), [_processed_record(sample_path)])
+
+    issue = next(issue for issue in issues if issue.code == "invalid_sample_path")
+    assert message_fragment in issue.message
+
+
+def test_validate_processed_records_rejects_directory_sample_paths(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "repo"
+    sample_dir = root / "data/processed/v1/samples/train/sample_dir.npz"
+    sample_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+
+    issues = validate_processed_records(
+        Path("processed.jsonl"),
+        [_processed_record("data/processed/v1/samples/train/sample_dir.npz")],
+    )
+
+    issue = next(issue for issue in issues if issue.code == "invalid_sample_path")
+    assert "resolve to a file" in issue.message
 
 
 def test_export_final_manifests_rejects_missing_source_keypoints_dir(
@@ -741,6 +764,25 @@ def test_export_final_manifests_rejects_missing_requested_report_splits(
             filter_report={"generated_at": "2026-04-07T00:00:00+00:00", "splits": {}},
             splits=("train",),
         )
+
+
+def test_view_sample_rejects_invalid_processed_sample_path(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    manifest_root = tmp_path / "data/processed/v1/manifests"
+    manifest_root.mkdir(parents=True, exist_ok=True)
+    (manifest_root / "train.jsonl").write_text(
+        json.dumps(_processed_record("data/processed/v1/samples/train/sample.txt")) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(view_sample_script, "PROCESSED_MANIFESTS_ROOT", manifest_root)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["view_sample.py", "--split", "train", "--sample-id", "sample"],
+    )
+
+    assert view_sample_script.main() == 1
 
 
 def test_cli_pipeline_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:

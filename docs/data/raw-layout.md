@@ -12,6 +12,9 @@ Translations:
 - `data/raw/how2sign/translations/how2sign_realigned_val.csv`
 - `data/raw/how2sign/translations/how2sign_realigned_test.csv`
 
+These translation files are tab-delimited even though the observed How2Sign filenames use the
+`.csv` extension.
+
 BFH keypoints:
 
 - `data/raw/how2sign/bfh_keypoints/train_2D_keypoints/openpose_output/json/<clip_id>/*.json`

@@ -160,7 +160,8 @@ forcing `dvc repro` over very large raw trees. DVC remains the pipeline-definiti
 The repository currently targets the manually downloaded raw data under `data/raw/how2sign/`.
 Local inspection confirmed:
 
-- Translation files are tab-separated.
+- Translation files are tab-separated even though the canonical filenames use the `.csv`
+  extension.
 - Translation columns are exactly:
   - `VIDEO_ID`
   - `VIDEO_NAME`
