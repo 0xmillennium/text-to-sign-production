@@ -26,19 +26,20 @@ packages outputs, and optionally copies archives to a private/shared Google Driv
 
 1. Open the notebook in the Google Colab website.
 2. Edit the repository ref if you need something other than `master`.
-3. Choose a raw-input mode:
+3. Edit `PIPELINE_SPLITS` in the notebook if you only want a subset such as `["train"]`.
+4. Choose a raw-input mode:
    - public source URLs that you provide in the notebook
    - already available mounted/local paths that you provide in the notebook
-4. Stage raw data into:
+5. Stage raw data into:
    - `data/raw/how2sign/translations/`
    - `data/raw/how2sign/bfh_keypoints/`
-5. Run the existing Sprint 2 scripts directly:
-   - `python scripts/prepare_raw.py`
-   - `python scripts/normalize_keypoints.py`
-   - `python scripts/filter_samples.py --config configs/data/filter-v1.yaml`
-   - `python scripts/export_training_manifest.py`
-6. Run `python scripts/package_sprint2_outputs.py`.
-7. Download selected archives locally or copy them to private/shared storage.
+6. Run the existing Sprint 2 scripts directly for the selected splits:
+   - `python scripts/prepare_raw.py --splits ...`
+   - `python scripts/normalize_keypoints.py --splits ...`
+   - `python scripts/filter_samples.py --config configs/data/filter-v1.yaml --splits ...`
+   - `python scripts/export_training_manifest.py --splits ...`
+7. Run `python scripts/package_sprint2_outputs.py --splits ...`.
+8. Download selected archives locally or copy them to private/shared storage.
 
 ## Why Script-Based Execution Is Preferred In Colab
 
@@ -57,6 +58,8 @@ The notebook intentionally keeps raw source locations user-editable.
 - Public How2Sign URLs are not hardcoded unless you supply them in the notebook.
 - Public Google Drive-hosted files in `public_urls` mode use `gdown` instead of a plain direct
   download call so common public-share links are handled more reliably.
+- The notebook validates only the selected `PIPELINE_SPLITS`, so subset runs do not require you to
+  stage every official split.
 - Mounted or copied raw inputs can come from Google Drive or another user-controlled location.
 - The canonical in-repo layout must still be produced before the pipeline runs.
 
@@ -68,6 +71,9 @@ The notebook packages outputs into explicit `.tar.zst` archives:
 - `sprint2_samples_train.tar.zst`
 - `sprint2_samples_val.tar.zst`
 - `sprint2_samples_test.tar.zst`
+
+When `PIPELINE_SPLITS` is a subset, the notebook passes that subset to the packaging helper and
+only the requested split archives are regenerated.
 
 These archives are meant for manual download, private/shared storage, or future reuse in later
 thesis work. They are not meant to be committed to GitHub.

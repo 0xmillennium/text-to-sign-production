@@ -73,6 +73,40 @@ def test_package_sprint2_outputs_creates_expected_archives(tmp_path: Path) -> No
     assert "data/processed/v1/samples/train/train_sample.npz" in train_listing
 
 
+@pytest.mark.skipif(
+    shutil.which("zstd") is None or not package_outputs_script._tar_supports_zstd(),
+    reason="tar with --zstd support and zstd are required for archive tests",
+)
+def test_package_sprint2_outputs_respects_requested_splits(tmp_path: Path) -> None:
+    for relative_path in (
+        "data/interim/raw_manifests/raw_train.jsonl",
+        "data/interim/normalized_manifests/normalized_train.jsonl",
+        "data/interim/filtered_manifests/filtered_train.jsonl",
+        "data/interim/reports/assumption-report.json",
+        "data/processed/v1/manifests/train.jsonl",
+        "data/processed/v1/reports/data-quality-report.md",
+    ):
+        _write(tmp_path / relative_path, "placeholder\n")
+
+    _write(tmp_path / "data/processed/v1/samples/train/train_sample.npz", "train-sample")
+    output_dir = tmp_path / "data/archives"
+    _write(output_dir / "sprint2_samples_val.tar.zst", "stale-val")
+    _write(output_dir / "sprint2_samples_test.tar.zst", "stale-test")
+
+    archives = package_outputs_script.package_outputs(
+        project_root=tmp_path,
+        output_dir=output_dir,
+        splits=("train",),
+    )
+
+    assert {archive.name for archive in archives} == {
+        "sprint2_manifests_reports.tar.zst",
+        "sprint2_samples_train.tar.zst",
+    }
+    assert not (output_dir / "sprint2_samples_val.tar.zst").exists()
+    assert not (output_dir / "sprint2_samples_test.tar.zst").exists()
+
+
 def test_colab_notebook_contains_required_stages_and_script_calls() -> None:
     notebook_path = (
         Path(__file__).resolve().parents[1] / "notebooks/colab/sprint2_pipeline_colab.ipynb"
@@ -106,6 +140,7 @@ def test_colab_notebook_contains_required_stages_and_script_calls() -> None:
     expected_snippets = (
         "https://github.com/0xmillennium/text-to-sign-production.git",
         'REPO_REF = "master"',
+        'PIPELINE_SPLITS = ["train", "val", "test"]',
         "configs/storage.local.yaml",
         "gdown",
         "gdown.download",
@@ -119,6 +154,8 @@ def test_colab_notebook_contains_required_stages_and_script_calls() -> None:
         "configs/data/filter-v1.yaml",
         "scripts/export_training_manifest.py",
         "scripts/package_sprint2_outputs.py",
+        "--splits",
+        "*PIPELINE_SPLITS",
     )
     for snippet in expected_snippets:
         assert snippet in code_source

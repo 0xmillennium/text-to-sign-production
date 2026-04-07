@@ -120,6 +120,8 @@ dvc repro
 - `dvc repro` executes the full Sprint 2 data pipeline against the canonical raw dataset layout.
 - `python scripts/package_sprint2_outputs.py` creates explicit `.tar.zst` archives for transfer or
   private/shared storage.
+- Split-aware script runs are supported throughout Sprint 2 via `--splits`, including export and
+  packaging for subset Colab workflows.
 
 ## Colab Usage Philosophy
 

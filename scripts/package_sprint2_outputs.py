@@ -14,6 +14,7 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from text_to_sign_production.data.constants import SPLITS  # noqa: E402
+from text_to_sign_production.data.utils import remove_stale_split_files  # noqa: E402
 
 DEFAULT_OUTPUT_DIR = Path("data/archives")
 MANIFESTS_AND_REPORTS_MEMBERS = (
@@ -146,6 +147,12 @@ def package_outputs(
                 project_root=project_root,
             )
         )
+    remove_stale_split_files(
+        resolved_output_dir,
+        filename_template=SAMPLE_ARCHIVE_NAME_TEMPLATE,
+        requested_splits=splits,
+        all_splits=SPLITS,
+    )
     return archives
 
 

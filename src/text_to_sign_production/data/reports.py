@@ -14,7 +14,12 @@ from .constants import (
 )
 from .jsonl import read_jsonl, write_json, write_jsonl
 from .schemas import NormalizedManifestEntry, ProcessedManifestEntry, RawManifestEntry
-from .utils import ensure_directory, summarize_numbers, utc_timestamp
+from .utils import (
+    ensure_directory,
+    summarize_numbers,
+    utc_timestamp,
+    validate_processed_sample_path,
+)
 
 
 def _load_raw_records(split: str) -> list[RawManifestEntry]:
@@ -55,6 +60,11 @@ def _build_processed_manifest_entry(entry: NormalizedManifestEntry) -> Processed
         raise ValueError(f"Filtered entry {entry.sample_id} is missing sample_path.")
     if entry.source_keypoints_dir is None:
         raise ValueError(f"Filtered entry {entry.sample_id} is missing source_keypoints_dir.")
+    validate_processed_sample_path(
+        entry.sample_path,
+        split=entry.split,
+        sample_id=entry.sample_id,
+    )
 
     return ProcessedManifestEntry(
         sample_id=entry.sample_id,
@@ -96,6 +106,18 @@ def _validate_report_splits(
         raise ValueError(f"{report_name} is missing requested splits: {missing_display}")
 
 
+def _remove_stale_manifest_files(requested_splits: tuple[str, ...]) -> None:
+    for split in SPLITS:
+        if split in requested_splits:
+            continue
+        manifest_path = PROCESSED_MANIFESTS_ROOT / f"{split}.jsonl"
+        if not manifest_path.exists():
+            continue
+        if not manifest_path.is_file():
+            raise ValueError(f"Expected processed manifest path to be a file: {manifest_path}")
+        manifest_path.unlink()
+
+
 def export_final_manifests(
     assumption_report: dict[str, Any],
     filter_report: dict[str, Any],
@@ -117,12 +139,7 @@ def export_final_manifests(
     for split in requested_splits:
         filtered_entries = _load_filtered_records(split)
         raw_entries = _load_raw_records(split)
-        final_records = [
-            _build_processed_manifest_entry(entry)
-            for entry in filtered_entries
-            if entry.sample_path is not None
-        ]
-        write_jsonl(PROCESSED_MANIFESTS_ROOT / f"{split}.jsonl", final_records)
+        final_records = [_build_processed_manifest_entry(entry) for entry in filtered_entries]
         final_records_by_split[split] = final_records
 
         video_ids = {record.source_video_id for record in final_records}
@@ -140,7 +157,7 @@ def export_final_manifests(
             "processed_samples": len(final_records),
             "raw_video_count": len({entry.video_id for entry in raw_entries}),
             "processed_video_count": len(video_ids),
-            "sample_id_overlap_with_other_splits": [],
+            "sample_id_overlap_with_other_splits": {},
         }
         quality_report["splits"][split] = {
             "processed_sample_count": len(final_records),
@@ -172,6 +189,10 @@ def export_final_manifests(
                 if record.video_metadata_error is None and record.fps is not None
             ),
         }
+
+    _remove_stale_manifest_files(requested_splits)
+    for split, final_records in final_records_by_split.items():
+        write_jsonl(PROCESSED_MANIFESTS_ROOT / f"{split}.jsonl", final_records)
 
     split_names = {
         split: {record.sample_id for record in records}

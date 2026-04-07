@@ -18,7 +18,13 @@ from .constants import (
 )
 from .jsonl import iter_jsonl, write_json, write_jsonl
 from .schemas import NormalizedManifestEntry
-from .utils import ensure_directory, repo_relative_path, resolve_repo_path, utc_timestamp
+from .utils import (
+    ensure_directory,
+    remove_stale_split_files,
+    repo_relative_path,
+    resolve_repo_path,
+    utc_timestamp,
+)
 
 FILTER_CONFIG_SCHEMA_VERSION = 1
 
@@ -36,6 +42,50 @@ class FilterConfig:
     minimum_nonzero_frames_per_core_channel: int
 
 
+def _require_boolean_config_value(payload: dict[str, Any], field_name: str) -> bool:
+    value = _require_config_field(payload, field_name)
+    if not isinstance(value, bool):
+        raise ValueError(
+            f"Filter config field {field_name!r} must be a boolean, got {type(value).__name__}."
+        )
+    return value
+
+
+def _require_nonnegative_int_config_value(payload: dict[str, Any], field_name: str) -> int:
+    value = _require_config_field(payload, field_name)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(
+            "Filter config field "
+            f"{field_name!r} must be a non-negative integer, got {type(value).__name__}."
+        )
+    if value < 0:
+        raise ValueError(
+            f"Filter config field {field_name!r} must be a non-negative integer, got {value}."
+        )
+    return int(value)
+
+
+def _require_config_field(payload: dict[str, Any], field_name: str) -> Any:
+    if field_name not in payload:
+        raise ValueError(f"Filter config is missing required field {field_name!r}.")
+    return payload[field_name]
+
+
+def _require_schema_version(payload: dict[str, Any], path: Path) -> int:
+    schema_version = _require_config_field(payload, "schema_version")
+    if isinstance(schema_version, bool) or not isinstance(schema_version, int):
+        raise ValueError(
+            "Filter config field 'schema_version' must be an integer, "
+            f"got {type(schema_version).__name__} in {path}."
+        )
+    if schema_version != FILTER_CONFIG_SCHEMA_VERSION:
+        raise ValueError(
+            f"Unsupported filter config schema_version {schema_version!r} in {path}; "
+            f"expected {FILTER_CONFIG_SCHEMA_VERSION}."
+        )
+    return int(schema_version)
+
+
 def load_filter_config(path: Path) -> FilterConfig:
     """Load the v1 filtering policy from YAML."""
 
@@ -43,21 +93,23 @@ def load_filter_config(path: Path) -> FilterConfig:
         payload = yaml.safe_load(handle)
     if not isinstance(payload, dict):
         raise ValueError(f"Expected mapping in filter config {path}.")
-    schema_version = payload.get("schema_version")
-    if schema_version != FILTER_CONFIG_SCHEMA_VERSION:
-        raise ValueError(
-            f"Unsupported filter config schema_version {schema_version!r} in {path}; "
-            f"expected {FILTER_CONFIG_SCHEMA_VERSION}."
-        )
+    _require_schema_version(payload, path)
     return FilterConfig(
-        require_nonempty_text=bool(payload["require_nonempty_text"]),
-        require_positive_duration=bool(payload["require_positive_duration"]),
-        require_keypoints_dir=bool(payload["require_keypoints_dir"]),
-        require_frames=bool(payload["require_frames"]),
-        drop_on_sample_parse_error=bool(payload["drop_on_sample_parse_error"]),
-        require_at_least_one_valid_frame=bool(payload["require_at_least_one_valid_frame"]),
-        minimum_nonzero_frames_per_core_channel=int(
-            payload["minimum_nonzero_frames_per_core_channel"]
+        require_nonempty_text=_require_boolean_config_value(payload, "require_nonempty_text"),
+        require_positive_duration=_require_boolean_config_value(
+            payload, "require_positive_duration"
+        ),
+        require_keypoints_dir=_require_boolean_config_value(payload, "require_keypoints_dir"),
+        require_frames=_require_boolean_config_value(payload, "require_frames"),
+        drop_on_sample_parse_error=_require_boolean_config_value(
+            payload, "drop_on_sample_parse_error"
+        ),
+        require_at_least_one_valid_frame=_require_boolean_config_value(
+            payload, "require_at_least_one_valid_frame"
+        ),
+        minimum_nonzero_frames_per_core_channel=_require_nonnegative_int_config_value(
+            payload,
+            "minimum_nonzero_frames_per_core_channel",
         ),
     )
 
@@ -154,6 +206,12 @@ def filter_all_splits(config_path: Path, *, splits: tuple[str, ...] = SPLITS) ->
     for split in splits:
         _, split_report = filter_split(split, config)
         report["splits"][split] = split_report
+    remove_stale_split_files(
+        FILTERED_MANIFESTS_ROOT,
+        filename_template="filtered_{split}.jsonl",
+        requested_splits=splits,
+        all_splits=SPLITS,
+    )
 
     write_json(INTERIM_REPORTS_ROOT / "filter-report.json", report)
     return report

@@ -66,6 +66,12 @@ Use the packaging helper after the Sprint 2 scripts finish:
 python scripts/package_sprint2_outputs.py
 ```
 
+For subset runs, pass the same selected splits used by the earlier script stages:
+
+```bash
+python scripts/package_sprint2_outputs.py --splits train
+```
+
 The helper creates:
 
 - `sprint2_manifests_reports.tar.zst`
@@ -74,7 +80,8 @@ The helper creates:
 - `sprint2_samples_test.tar.zst`
 
 This packaging step reduces the operational pain of handling many small files and makes later
-transfer or reuse more practical.
+transfer or reuse more practical. Subset packaging also removes stale unrequested sample archives
+from earlier runs so the archive directory reflects the current selection.
 
 ## Future Sprint Reuse
 

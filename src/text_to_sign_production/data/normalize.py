@@ -19,7 +19,7 @@ from .constants import (
 from .jsonl import iter_jsonl, write_jsonl
 from .openpose import parse_frame
 from .schemas import NormalizedManifestEntry, RawManifestEntry
-from .utils import ensure_directory, repo_relative_path, resolve_repo_path
+from .utils import ensure_directory, remove_stale_split_files, repo_relative_path, resolve_repo_path
 
 
 def _empty_channel_tensor(
@@ -57,6 +57,12 @@ def normalize_all_splits(*, splits: tuple[str, ...] = SPLITS) -> None:
 
     for split in splits:
         normalize_split(split)
+    remove_stale_split_files(
+        NORMALIZED_MANIFESTS_ROOT,
+        filename_template="normalized_{split}.jsonl",
+        requested_splits=splits,
+        all_splits=SPLITS,
+    )
 
 
 def normalize_sample(raw_entry: RawManifestEntry) -> NormalizedManifestEntry:

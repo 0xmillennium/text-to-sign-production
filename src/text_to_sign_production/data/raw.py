@@ -22,7 +22,7 @@ from .jsonl import write_json, write_jsonl
 from .mp4 import read_video_metadata
 from .openpose import counter_to_sorted_mapping, inspect_first_frame
 from .schemas import RawManifestEntry
-from .utils import ensure_directory, repo_relative_path, utc_timestamp
+from .utils import ensure_directory, remove_stale_split_files, repo_relative_path, utc_timestamp
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +68,8 @@ def read_translation_rows(paths: SplitPaths) -> list[dict[str, str]]:
     _ensure_raw_layout(paths)
     with paths.translation_path.open("r", encoding="utf-8", newline="") as handle:
         first_line = handle.readline().rstrip("\r\n")
+        if first_line == "":
+            raise ValueError(f"Translation file {paths.translation_path} is empty.")
         if "\t" not in first_line:
             raise ValueError(f"Translation file {paths.translation_path} is not tab-delimited.")
         handle.seek(0)
@@ -87,6 +89,17 @@ def build_raw_manifest_for_split(split: str) -> tuple[list[RawManifestEntry], di
 
     paths = get_split_paths(split)
     rows = read_translation_rows(paths)
+    translation_path_value = repo_relative_path(paths.translation_path)
+    keypoints_json_root_value = repo_relative_path(paths.keypoints_json_root)
+    video_root_value = repo_relative_path(paths.video_root)
+    if (
+        translation_path_value is None
+        or keypoints_json_root_value is None
+        or video_root_value is None
+    ):
+        raise ValueError(
+            f"Expected canonical raw paths to stay under the repo root for split {split}."
+        )
 
     top_level_key_counter: Counter[str] = Counter()
     person_key_counter: Counter[str] = Counter()
@@ -159,8 +172,7 @@ def build_raw_manifest_for_split(split: str) -> tuple[list[RawManifestEntry], di
                 start_time=float(row["START_REALIGNED"]),
                 end_time=float(row["END_REALIGNED"]),
                 keypoints_dir=keypoints_dir_value,
-                source_metadata_path=repo_relative_path(paths.translation_path)
-                or paths.translation_path.as_posix(),
+                source_metadata_path=translation_path_value,
                 has_face=has_face,
                 num_frames=num_frames,
                 source_video_path=repo_relative_path(video_path),
@@ -177,9 +189,9 @@ def build_raw_manifest_for_split(split: str) -> tuple[list[RawManifestEntry], di
 
     report: dict[str, Any] = {
         "split": split,
-        "translation_path": repo_relative_path(paths.translation_path),
-        "keypoints_json_root": repo_relative_path(paths.keypoints_json_root),
-        "video_root": repo_relative_path(paths.video_root),
+        "translation_path": translation_path_value,
+        "keypoints_json_root": keypoints_json_root_value,
+        "video_root": video_root_value,
         "translation_row_count": len(rows),
         "matched_sample_count": matched_count,
         "unmatched_sample_count": len(rows) - matched_count,
@@ -209,10 +221,13 @@ def build_raw_manifests(*, splits: tuple[str, ...] = SPLITS) -> dict[str, Any]:
 
     ensure_directory(RAW_MANIFESTS_ROOT)
     ensure_directory(INTERIM_REPORTS_ROOT)
+    raw_root_value = repo_relative_path(BFH_KEYPOINTS_ROOT.parent)
+    if raw_root_value is None:
+        raise ValueError("Expected the canonical raw root to stay under the repo root.")
 
     report: dict[str, Any] = {
         "generated_at": utc_timestamp(),
-        "raw_root": repo_relative_path(BFH_KEYPOINTS_ROOT.parent),
+        "raw_root": raw_root_value,
         "translation_columns": list(EXPECTED_TRANSLATION_COLUMNS),
         "splits": {},
     }
@@ -228,6 +243,12 @@ def build_raw_manifests(*, splits: tuple[str, ...] = SPLITS) -> dict[str, Any]:
                 duplicate_sample_ids.append(entry.sample_id)
             all_sample_ids.add(entry.sample_id)
 
+    remove_stale_split_files(
+        RAW_MANIFESTS_ROOT,
+        filename_template="raw_{split}.jsonl",
+        requested_splits=splits,
+        all_splits=SPLITS,
+    )
     report["split_integrity"] = {
         "sample_id_overlap_detected": bool(duplicate_sample_ids),
         "duplicate_sample_ids": duplicate_sample_ids[:20],

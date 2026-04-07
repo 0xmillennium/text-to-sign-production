@@ -11,6 +11,7 @@ from typing import Any
 
 import numpy as np
 import pytest
+import yaml
 
 import scripts.export_training_manifest as export_training_manifest_script
 import scripts.filter_samples as filter_samples_script
@@ -32,6 +33,7 @@ from text_to_sign_production.data.filtering import (
 from text_to_sign_production.data.openpose import parse_frame
 from text_to_sign_production.data.schemas import NormalizedManifestEntry, RawManifestEntry
 from text_to_sign_production.data.validate import (
+    validate_manifest,
     validate_normalized_records,
     validate_processed_records,
     validate_raw_records,
@@ -256,6 +258,34 @@ def _processed_record(sample_path: str) -> dict[str, Any]:
     }
 
 
+def _write_processed_sample_npz(
+    path: Path,
+    *,
+    drop_keys: tuple[str, ...] = (),
+    overrides: dict[str, Any] | None = None,
+) -> None:
+    payload: dict[str, Any] = {
+        "processed_schema_version": np.asarray(PROCESSED_SCHEMA_VERSION),
+        "body": np.zeros((2, 25, 2), dtype=np.float32),
+        "body_confidence": np.ones((2, 25), dtype=np.float32),
+        "left_hand": np.zeros((2, 21, 2), dtype=np.float32),
+        "left_hand_confidence": np.ones((2, 21), dtype=np.float32),
+        "right_hand": np.zeros((2, 21, 2), dtype=np.float32),
+        "right_hand_confidence": np.ones((2, 21), dtype=np.float32),
+        "face": np.zeros((2, 70, 2), dtype=np.float32),
+        "face_confidence": np.zeros((2, 70), dtype=np.float32),
+        "people_per_frame": np.ones((2,), dtype=np.int16),
+        "selected_person_index": np.asarray(0, dtype=np.int16),
+        "frame_valid_mask": np.ones((2,), dtype=np.bool_),
+    }
+    if overrides is not None:
+        payload.update(overrides)
+    for key in drop_keys:
+        payload.pop(key)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(path, **payload)
+
+
 def test_parse_frame_tracks_multi_person_and_any_zeroed_required_joint(tmp_path: Path) -> None:
     frame_path = tmp_path / "frame.json"
     _write_openpose_frame(
@@ -328,10 +358,26 @@ def test_build_raw_manifest_for_split_uses_deterministic_first_frame_without_sor
     assert report["first_frame_people_counter"] == {"2": 1}
 
 
-@pytest.mark.parametrize("schema_version", [None, 2])
-def test_load_filter_config_requires_supported_schema_version(
-    tmp_path: Path, schema_version: int | None
-) -> None:
+def test_read_translation_rows_reports_empty_files_before_delimiter_errors(tmp_path: Path) -> None:
+    translation_path = tmp_path / "translations.csv"
+    translation_path.write_text("", encoding="utf-8")
+    keypoints_root = tmp_path / "json"
+    video_root = tmp_path / "video"
+    keypoints_root.mkdir(parents=True)
+    video_root.mkdir(parents=True)
+
+    with pytest.raises(ValueError, match="is empty"):
+        raw_mod.read_translation_rows(
+            raw_mod.SplitPaths(
+                split="train",
+                translation_path=translation_path,
+                keypoints_json_root=keypoints_root,
+                video_root=video_root,
+            )
+        )
+
+
+def test_load_filter_config_requires_schema_version_field(tmp_path: Path) -> None:
     config_path = tmp_path / "filter.yaml"
     lines = [
         "require_nonempty_text: true",
@@ -342,11 +388,124 @@ def test_load_filter_config_requires_supported_schema_version(
         "require_at_least_one_valid_frame: true",
         "minimum_nonzero_frames_per_core_channel: 1",
     ]
-    if schema_version is not None:
-        lines.insert(0, f"schema_version: {schema_version}")
     config_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+    with pytest.raises(ValueError, match="missing required field 'schema_version'"):
+        load_filter_config(config_path)
+
+
+def test_load_filter_config_requires_supported_schema_version(tmp_path: Path) -> None:
+    config_path = tmp_path / "filter.yaml"
+    payload = {
+        "schema_version": 2,
+        "require_nonempty_text": True,
+        "require_positive_duration": True,
+        "require_keypoints_dir": True,
+        "require_frames": True,
+        "drop_on_sample_parse_error": True,
+        "require_at_least_one_valid_frame": True,
+        "minimum_nonzero_frames_per_core_channel": 1,
+    }
+    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
     with pytest.raises(ValueError, match="Unsupported filter config schema_version"):
+        load_filter_config(config_path)
+
+
+@pytest.mark.parametrize("schema_version", [True, 1.0])
+def test_load_filter_config_rejects_non_integer_schema_version(
+    tmp_path: Path, schema_version: Any
+) -> None:
+    config_path = tmp_path / "filter.yaml"
+    payload: dict[str, Any] = {
+        "schema_version": schema_version,
+        "require_nonempty_text": True,
+        "require_positive_duration": True,
+        "require_keypoints_dir": True,
+        "require_frames": True,
+        "drop_on_sample_parse_error": True,
+        "require_at_least_one_valid_frame": True,
+        "minimum_nonzero_frames_per_core_channel": 1,
+    }
+    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="schema_version.*integer"):
+        load_filter_config(config_path)
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        "require_nonempty_text",
+        "require_positive_duration",
+        "require_keypoints_dir",
+        "require_frames",
+        "drop_on_sample_parse_error",
+        "require_at_least_one_valid_frame",
+    ],
+)
+def test_load_filter_config_rejects_non_boolean_flags(tmp_path: Path, field_name: str) -> None:
+    config_path = tmp_path / "filter.yaml"
+    payload: dict[str, Any] = {
+        "schema_version": 1,
+        "require_nonempty_text": True,
+        "require_positive_duration": True,
+        "require_keypoints_dir": True,
+        "require_frames": True,
+        "drop_on_sample_parse_error": True,
+        "require_at_least_one_valid_frame": True,
+        "minimum_nonzero_frames_per_core_channel": 1,
+    }
+    payload[field_name] = "false"
+    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=rf"{field_name}.*boolean"):
+        load_filter_config(config_path)
+
+
+@pytest.mark.parametrize("invalid_value", [True, 1.5, "1", -1])
+def test_load_filter_config_rejects_invalid_nonnegative_integer_threshold(
+    tmp_path: Path, invalid_value: Any
+) -> None:
+    config_path = tmp_path / "filter.yaml"
+    payload: dict[str, Any] = {
+        "schema_version": 1,
+        "require_nonempty_text": True,
+        "require_positive_duration": True,
+        "require_keypoints_dir": True,
+        "require_frames": True,
+        "drop_on_sample_parse_error": True,
+        "require_at_least_one_valid_frame": True,
+        "minimum_nonzero_frames_per_core_channel": invalid_value,
+    }
+    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="non-negative integer"):
+        load_filter_config(config_path)
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    ["require_positive_duration", "minimum_nonzero_frames_per_core_channel"],
+)
+def test_load_filter_config_reports_missing_required_fields(
+    tmp_path: Path, field_name: str
+) -> None:
+    config_path = tmp_path / "filter.yaml"
+    payload: dict[str, Any] = {
+        "schema_version": 1,
+        "require_nonempty_text": True,
+        "require_positive_duration": True,
+        "require_keypoints_dir": True,
+        "require_frames": True,
+        "drop_on_sample_parse_error": True,
+        "require_at_least_one_valid_frame": True,
+        "minimum_nonzero_frames_per_core_channel": 1,
+    }
+    payload.pop(field_name)
+    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=field_name):
         load_filter_config(config_path)
 
 
@@ -409,6 +568,59 @@ def test_validate_normalized_records_reports_parse_errors() -> None:
 
 
 @pytest.mark.parametrize(
+    ("kind", "record_payload", "expected_followup_code"),
+    [
+        ("raw", {"sample_id": "sample"}, "raw_record_parse_error"),
+        ("normalized", {"sample_id": "sample"}, "normalized_record_parse_error"),
+        ("processed", {"sample_id": "sample"}, "processed_record_parse_error"),
+    ],
+)
+def test_validate_manifest_reports_invalid_jsonl_lines_and_continues(
+    tmp_path: Path,
+    kind: str,
+    record_payload: dict[str, Any],
+    expected_followup_code: str,
+) -> None:
+    manifest_path = tmp_path / f"{kind}.jsonl"
+    manifest_path.write_text(
+        "{broken\n" + json.dumps(record_payload, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    issues = validate_manifest(manifest_path, kind=kind)
+
+    assert any(issue.code == "invalid_jsonl_line" and "Line 1" in issue.message for issue in issues)
+    assert any(issue.code == expected_followup_code for issue in issues)
+
+
+def test_validate_manifest_reports_non_object_records_and_continues_for_raw(
+    tmp_path: Path,
+) -> None:
+    manifest_path = tmp_path / "raw.jsonl"
+    manifest_path.write_text("[]\n" + json.dumps({"sample_id": "sample"}) + "\n", encoding="utf-8")
+
+    issues = validate_manifest(manifest_path, kind="raw")
+
+    assert any(issue.code == "non_object_record" and "Line 1" in issue.message for issue in issues)
+    assert any(issue.code == "raw_record_parse_error" for issue in issues)
+
+
+def test_validate_manifest_reports_non_object_records_and_continues_for_processed(
+    tmp_path: Path,
+) -> None:
+    manifest_path = tmp_path / "processed.jsonl"
+    manifest_path.write_text(
+        "[]\n" + json.dumps({"sample_id": "sample"}) + "\n",
+        encoding="utf-8",
+    )
+
+    issues = validate_manifest(manifest_path, kind="processed")
+
+    assert any(issue.code == "non_object_record" and "Line 1" in issue.message for issue in issues)
+    assert any(issue.code == "processed_record_parse_error" for issue in issues)
+
+
+@pytest.mark.parametrize(
     ("validator", "path"),
     [
         (validate_raw_records, Path("raw.jsonl")),
@@ -429,8 +641,7 @@ def test_validate_processed_records_resolves_repo_relative_sample_paths(
 ) -> None:
     root = tmp_path / "repo"
     sample_path = root / "data/processed/v1/samples/train/sample.npz"
-    sample_path.parent.mkdir(parents=True, exist_ok=True)
-    sample_path.write_text("placeholder", encoding="utf-8")
+    _write_processed_sample_npz(sample_path)
     monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
 
     outside_dir = tmp_path / "outside"
@@ -537,6 +748,198 @@ def test_validate_processed_records_rejects_directory_sample_paths(
     assert "resolve to a file" in issue.message
 
 
+def test_validate_processed_records_rejects_in_repo_npz_outside_processed_samples_root(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "repo"
+    sample_path = root / "data/interim/sample.npz"
+    _write_processed_sample_npz(sample_path)
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+
+    issues = validate_processed_records(
+        Path("processed.jsonl"),
+        [_processed_record("data/interim/sample.npz")],
+    )
+
+    issue = next(issue for issue in issues if issue.code == "invalid_sample_path")
+    assert "data/processed/v1/samples" in issue.message
+
+
+def test_validate_processed_records_rejects_processed_sample_path_with_wrong_split(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "repo"
+    sample_path = root / "data/processed/v1/samples/val/sample.npz"
+    _write_processed_sample_npz(sample_path)
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+
+    issues = validate_processed_records(
+        Path("processed.jsonl"),
+        [_processed_record("data/processed/v1/samples/val/sample.npz")],
+    )
+
+    issue = next(issue for issue in issues if issue.code == "invalid_sample_path")
+    assert "split does not match manifest split" in issue.message
+
+
+def test_validate_processed_records_rejects_processed_sample_path_with_wrong_filename(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "repo"
+    sample_path = root / "data/processed/v1/samples/train/other_sample.npz"
+    _write_processed_sample_npz(sample_path)
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+
+    issues = validate_processed_records(
+        Path("processed.jsonl"),
+        [_processed_record("data/processed/v1/samples/train/other_sample.npz")],
+    )
+
+    issue = next(issue for issue in issues if issue.code == "invalid_sample_path")
+    assert "filename does not match manifest sample_id" in issue.message
+
+
+def test_validate_processed_records_rejects_unreadable_npz_payload(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "repo"
+    sample_path = root / "data/processed/v1/samples/train/sample.npz"
+    sample_path.parent.mkdir(parents=True, exist_ok=True)
+    sample_path.write_text("not-an-npz", encoding="utf-8")
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+
+    issues = validate_processed_records(
+        Path("processed.jsonl"),
+        [_processed_record("data/processed/v1/samples/train/sample.npz")],
+    )
+
+    issue = next(issue for issue in issues if issue.code == "invalid_sample_file")
+    assert ".npz" in issue.message
+
+
+def test_validate_processed_records_rejects_missing_required_sample_arrays(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "repo"
+    sample_path = root / "data/processed/v1/samples/train/sample.npz"
+    _write_processed_sample_npz(sample_path, drop_keys=("face", "frame_valid_mask"))
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+
+    issues = validate_processed_records(
+        Path("processed.jsonl"),
+        [_processed_record("data/processed/v1/samples/train/sample.npz")],
+    )
+
+    issue = next(issue for issue in issues if issue.code == "missing_sample_arrays")
+    assert "face" in issue.message
+    assert "frame_valid_mask" in issue.message
+
+
+def test_validate_processed_records_rejects_unexpected_sample_payload_schema_version(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "repo"
+    sample_path = root / "data/processed/v1/samples/train/sample.npz"
+    _write_processed_sample_npz(
+        sample_path,
+        overrides={"processed_schema_version": np.asarray("t2sp-processed-v999")},
+    )
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+
+    issues = validate_processed_records(
+        Path("processed.jsonl"),
+        [_processed_record("data/processed/v1/samples/train/sample.npz")],
+    )
+
+    issue = next(issue for issue in issues if issue.code == "unexpected_sample_schema_version")
+    assert "t2sp-processed-v999" in issue.message
+
+
+def test_validate_processed_records_rejects_invalid_sample_array_shapes(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "repo"
+    sample_path = root / "data/processed/v1/samples/train/sample.npz"
+    _write_processed_sample_npz(
+        sample_path,
+        overrides={"body": np.zeros((3, 25, 2), dtype=np.float32)},
+    )
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+
+    issues = validate_processed_records(
+        Path("processed.jsonl"),
+        [_processed_record("data/processed/v1/samples/train/sample.npz")],
+    )
+
+    issue = next(issue for issue in issues if issue.code == "invalid_sample_array_shape")
+    assert "'body'" in issue.message
+    assert "(3, 25, 2)" in issue.message
+
+
+def test_validate_processed_records_rejects_unexpected_sample_selected_person_index(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "repo"
+    sample_path = root / "data/processed/v1/samples/train/sample.npz"
+    _write_processed_sample_npz(
+        sample_path,
+        overrides={"selected_person_index": np.asarray(1, dtype=np.int16)},
+    )
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+
+    issues = validate_processed_records(
+        Path("processed.jsonl"),
+        [_processed_record("data/processed/v1/samples/train/sample.npz")],
+    )
+
+    issue = next(
+        issue for issue in issues if issue.code == "unexpected_sample_selected_person_index"
+    )
+    assert "payload=1" in issue.message
+
+
+def test_validate_processed_records_allows_matching_nonzero_selected_person_index_with_warning(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "repo"
+    sample_path = root / "data/processed/v1/samples/train/sample.npz"
+    _write_processed_sample_npz(
+        sample_path,
+        overrides={"selected_person_index": np.asarray(1, dtype=np.int16)},
+    )
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+    record = _processed_record("data/processed/v1/samples/train/sample.npz")
+    record["selected_person_index"] = 1
+
+    issues = validate_processed_records(Path("processed.jsonl"), [record])
+
+    assert all(issue.code != "unexpected_sample_selected_person_index" for issue in issues)
+    warning = next(issue for issue in issues if issue.code == "unexpected_selected_person_index")
+    assert warning.severity == "warning"
+
+
+def test_validate_processed_records_rejects_frame_valid_count_mismatch(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "repo"
+    sample_path = root / "data/processed/v1/samples/train/sample.npz"
+    _write_processed_sample_npz(
+        sample_path,
+        overrides={"frame_valid_mask": np.asarray([True, False], dtype=np.bool_)},
+    )
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+
+    issues = validate_processed_records(
+        Path("processed.jsonl"),
+        [_processed_record("data/processed/v1/samples/train/sample.npz")],
+    )
+
+    valid_issue = next(issue for issue in issues if issue.code == "frame_valid_count_mismatch")
+    invalid_issue = next(issue for issue in issues if issue.code == "frame_invalid_count_mismatch")
+    assert "payload=1" in valid_issue.message
+    assert "payload=1" in invalid_issue.message
+
+
 def test_export_final_manifests_rejects_missing_source_keypoints_dir(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
@@ -615,11 +1018,172 @@ def test_export_final_manifests_rejects_missing_source_keypoints_dir(
         )
 
 
+def test_export_final_manifests_rejects_missing_sample_path(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    monkeypatch.setattr(
+        reports_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+    )
+    monkeypatch.setattr(reports_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports")
+    monkeypatch.setattr(reports_mod, "_load_raw_records", lambda split: [])
+    monkeypatch.setattr(
+        reports_mod,
+        "_load_filtered_records",
+        lambda split: (
+            [
+                NormalizedManifestEntry(
+                    sample_id="sample",
+                    processed_schema_version=PROCESSED_SCHEMA_VERSION,
+                    text="text",
+                    split=split,
+                    start_time=0.0,
+                    end_time=1.0,
+                    num_frames=2,
+                    sample_path=None,
+                    source_video_id="video",
+                    source_sentence_id="sentence",
+                    source_sentence_name="sample",
+                    source_metadata_path="data/raw/how2sign/translations/train.tsv",
+                    source_keypoints_dir="data/raw/how2sign/bfh_keypoints/train/sample",
+                    source_video_path="data/raw/how2sign/bfh_keypoints/train/sample.mp4",
+                    fps=24.0,
+                    video_width=1280,
+                    video_height=720,
+                    video_metadata_error=None,
+                    selected_person_index=0,
+                    multi_person_frame_count=0,
+                    max_people_per_frame=1,
+                    frame_valid_count=2,
+                    frame_invalid_count=0,
+                    face_missing_frame_count=0,
+                    out_of_bounds_coordinate_count=0,
+                    frames_with_any_zeroed_required_joint=0,
+                    frame_issue_counts={},
+                    core_channel_nonzero_frames={"body": 2, "left_hand": 2, "right_hand": 2},
+                    sample_parse_error=None,
+                )
+            ]
+            if split == "train"
+            else []
+        ),
+    )
+
+    with pytest.raises(ValueError, match="missing sample_path"):
+        reports_mod.export_final_manifests(
+            assumption_report={
+                "generated_at": "2026-04-07T00:00:00+00:00",
+                "splits": {
+                    "train": {
+                        "translation_row_count": 1,
+                        "matched_sample_count": 1,
+                        "unmatched_sample_count": 0,
+                        "video_metadata": {"readable_count": 1, "unreadable_count": 0},
+                        "first_frame_people_counter": {"1": 1},
+                        "openpose_schema": {"deviation_counts": {}},
+                    }
+                },
+            },
+            filter_report={
+                "generated_at": "2026-04-07T00:00:00+00:00",
+                "splits": {
+                    "train": {
+                        "dropped_samples": 0,
+                        "drop_reason_counts": {},
+                    }
+                },
+            },
+            splits=("train",),
+        )
+
+
+def test_export_final_manifests_rejects_sample_paths_outside_processed_samples_root(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    monkeypatch.setattr(
+        reports_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+    )
+    monkeypatch.setattr(reports_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports")
+    monkeypatch.setattr(reports_mod, "_load_raw_records", lambda split: [])
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
+    _write_processed_sample_npz(tmp_path / "data/interim/sample.npz")
+    monkeypatch.setattr(
+        reports_mod,
+        "_load_filtered_records",
+        lambda split: (
+            [
+                NormalizedManifestEntry(
+                    sample_id="sample",
+                    processed_schema_version=PROCESSED_SCHEMA_VERSION,
+                    text="text",
+                    split=split,
+                    start_time=0.0,
+                    end_time=1.0,
+                    num_frames=2,
+                    sample_path="data/interim/sample.npz",
+                    source_video_id="video",
+                    source_sentence_id="sentence",
+                    source_sentence_name="sample",
+                    source_metadata_path="data/raw/how2sign/translations/train.tsv",
+                    source_keypoints_dir="data/raw/how2sign/bfh_keypoints/train/sample",
+                    source_video_path="data/raw/how2sign/bfh_keypoints/train/sample.mp4",
+                    fps=24.0,
+                    video_width=1280,
+                    video_height=720,
+                    video_metadata_error=None,
+                    selected_person_index=0,
+                    multi_person_frame_count=0,
+                    max_people_per_frame=1,
+                    frame_valid_count=2,
+                    frame_invalid_count=0,
+                    face_missing_frame_count=0,
+                    out_of_bounds_coordinate_count=0,
+                    frames_with_any_zeroed_required_joint=0,
+                    frame_issue_counts={},
+                    core_channel_nonzero_frames={"body": 2, "left_hand": 2, "right_hand": 2},
+                    sample_parse_error=None,
+                )
+            ]
+            if split == "train"
+            else []
+        ),
+    )
+
+    with pytest.raises(ValueError, match="data/processed/v1/samples"):
+        reports_mod.export_final_manifests(
+            assumption_report={
+                "generated_at": "2026-04-07T00:00:00+00:00",
+                "splits": {
+                    "train": {
+                        "translation_row_count": 1,
+                        "matched_sample_count": 1,
+                        "unmatched_sample_count": 0,
+                        "video_metadata": {"readable_count": 1, "unreadable_count": 0},
+                        "first_frame_people_counter": {"1": 1},
+                        "openpose_schema": {"deviation_counts": {}},
+                    }
+                },
+            },
+            filter_report={
+                "generated_at": "2026-04-07T00:00:00+00:00",
+                "splits": {
+                    "train": {
+                        "dropped_samples": 0,
+                        "drop_reason_counts": {},
+                    }
+                },
+            },
+            splits=("train",),
+        )
+
+
 def test_export_final_manifests_supports_subset_splits(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.setattr(
         reports_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
     )
     monkeypatch.setattr(reports_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports")
+    (tmp_path / "data/processed/manifests").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "data/processed/manifests/val.jsonl").write_text("stale\n", encoding="utf-8")
+    (tmp_path / "data/processed/manifests/test.jsonl").write_text("stale\n", encoding="utf-8")
     monkeypatch.setattr(
         reports_mod,
         "_load_raw_records",
@@ -721,9 +1285,67 @@ def test_export_final_manifests_supports_subset_splits(tmp_path: Path, monkeypat
     assert result["split_report"]["official_split_names"] == ["train"]
     assert result["split_report"]["video_id_overlap"] == {}
     assert set(result["split_report"]["splits"]) == {"train"}
+    assert result["split_report"]["splits"]["train"]["sample_id_overlap_with_other_splits"] == {}
+    assert isinstance(
+        result["split_report"]["splits"]["train"]["sample_id_overlap_with_other_splits"], dict
+    )
     assert (tmp_path / "data/processed/manifests/train.jsonl").exists()
     assert not (tmp_path / "data/processed/manifests/val.jsonl").exists()
     assert not (tmp_path / "data/processed/manifests/test.jsonl").exists()
+
+
+def test_build_raw_manifests_removes_stale_unrequested_split_outputs(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    _create_fixture_dataset(tmp_path)
+    _patch_pipeline_paths(monkeypatch, tmp_path)
+    raw_root = tmp_path / "data/interim/raw_manifests"
+    raw_root.mkdir(parents=True, exist_ok=True)
+    (raw_root / "raw_val.jsonl").write_text("stale\n", encoding="utf-8")
+    (raw_root / "raw_test.jsonl").write_text("stale\n", encoding="utf-8")
+
+    raw_mod.build_raw_manifests(splits=("train",))
+
+    assert (raw_root / "raw_train.jsonl").exists()
+    assert not (raw_root / "raw_val.jsonl").exists()
+    assert not (raw_root / "raw_test.jsonl").exists()
+
+
+def test_normalize_all_splits_removes_stale_unrequested_split_outputs(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    _create_fixture_dataset(tmp_path)
+    _patch_pipeline_paths(monkeypatch, tmp_path)
+    raw_mod.build_raw_manifests(splits=("train",))
+    normalized_root = tmp_path / "data/interim/normalized_manifests"
+    normalized_root.mkdir(parents=True, exist_ok=True)
+    (normalized_root / "normalized_val.jsonl").write_text("stale\n", encoding="utf-8")
+    (normalized_root / "normalized_test.jsonl").write_text("stale\n", encoding="utf-8")
+
+    normalize_mod.normalize_all_splits(splits=("train",))
+
+    assert (normalized_root / "normalized_train.jsonl").exists()
+    assert not (normalized_root / "normalized_val.jsonl").exists()
+    assert not (normalized_root / "normalized_test.jsonl").exists()
+
+
+def test_filter_all_splits_removes_stale_unrequested_split_outputs(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    _create_fixture_dataset(tmp_path)
+    _patch_pipeline_paths(monkeypatch, tmp_path)
+    raw_mod.build_raw_manifests(splits=("train",))
+    normalize_mod.normalize_all_splits(splits=("train",))
+    filtered_root = tmp_path / "data/interim/filtered_manifests"
+    filtered_root.mkdir(parents=True, exist_ok=True)
+    (filtered_root / "filtered_val.jsonl").write_text("stale\n", encoding="utf-8")
+    (filtered_root / "filtered_test.jsonl").write_text("stale\n", encoding="utf-8")
+
+    filtering_mod.filter_all_splits(tmp_path / "configs/data/filter-v1.yaml", splits=("train",))
+
+    assert (filtered_root / "filtered_train.jsonl").exists()
+    assert not (filtered_root / "filtered_val.jsonl").exists()
+    assert not (filtered_root / "filtered_test.jsonl").exists()
 
 
 def test_export_final_manifests_rejects_missing_requested_report_splits(
@@ -775,6 +1397,85 @@ def test_view_sample_rejects_invalid_processed_sample_path(
         json.dumps(_processed_record("data/processed/v1/samples/train/sample.txt")) + "\n",
         encoding="utf-8",
     )
+    monkeypatch.setattr(view_sample_script, "PROCESSED_MANIFESTS_ROOT", manifest_root)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["view_sample.py", "--split", "train", "--sample-id", "sample"],
+    )
+
+    assert view_sample_script.main() == 1
+
+
+def test_view_sample_rejects_processed_sample_path_outside_processed_samples_root(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    manifest_root = tmp_path / "data/processed/v1/manifests"
+    manifest_root.mkdir(parents=True, exist_ok=True)
+    _write_processed_sample_npz(tmp_path / "data/interim/sample.npz")
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
+    (manifest_root / "train.jsonl").write_text(
+        json.dumps(_processed_record("data/interim/sample.npz")) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(view_sample_script, "PROCESSED_MANIFESTS_ROOT", manifest_root)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["view_sample.py", "--split", "train", "--sample-id", "sample"],
+    )
+
+    assert view_sample_script.main() == 1
+
+
+def test_view_sample_rejects_unreadable_processed_sample_file(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    manifest_root = tmp_path / "data/processed/v1/manifests"
+    manifest_root.mkdir(parents=True, exist_ok=True)
+    sample_path = tmp_path / "data/processed/v1/samples/train/sample.npz"
+    sample_path.parent.mkdir(parents=True, exist_ok=True)
+    sample_path.write_text("not-an-npz", encoding="utf-8")
+    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
+    (manifest_root / "train.jsonl").write_text(
+        json.dumps(_processed_record("data/processed/v1/samples/train/sample.npz")) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(view_sample_script, "PROCESSED_MANIFESTS_ROOT", manifest_root)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["view_sample.py", "--split", "train", "--sample-id", "sample"],
+    )
+
+    assert view_sample_script.main() == 1
+
+
+def test_view_sample_reports_missing_sample_id_without_traceback(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    manifest_root = tmp_path / "data/processed/v1/manifests"
+    manifest_root.mkdir(parents=True, exist_ok=True)
+    (manifest_root / "train.jsonl").write_text(
+        json.dumps(_processed_record("data/processed/v1/samples/train/sample.npz")) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(view_sample_script, "PROCESSED_MANIFESTS_ROOT", manifest_root)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["view_sample.py", "--split", "train", "--sample-id", "missing"],
+    )
+
+    assert view_sample_script.main() == 1
+
+
+def test_view_sample_reports_malformed_manifest_without_traceback(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    manifest_root = tmp_path / "data/processed/v1/manifests"
+    manifest_root.mkdir(parents=True, exist_ok=True)
+    (manifest_root / "train.jsonl").write_text("{broken\n", encoding="utf-8")
     monkeypatch.setattr(view_sample_script, "PROCESSED_MANIFESTS_ROOT", manifest_root)
     monkeypatch.setattr(
         sys,
