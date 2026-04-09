@@ -5,7 +5,11 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
+import types
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -15,6 +19,37 @@ import scripts.package_sprint2_outputs as package_outputs_script
 def _write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def _load_colab_raw_setup_namespace() -> dict[str, Any]:
+    notebook_path = (
+        Path(__file__).resolve().parents[1] / "notebooks/colab/sprint2_pipeline_colab.ipynb"
+    )
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    raw_setup_source = next(
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+        and "def _extract_tar_gz_with_progress" in "".join(cell.get("source", []))
+    )
+    helper_source, separator, _ = raw_setup_source.partition("_reset_directory(TRANSLATIONS_DIR)")
+    if not separator:
+        raise AssertionError("Could not isolate raw setup helpers from the notebook cell.")
+
+    original_gdown = sys.modules.get("gdown")
+    gdown_stub = types.ModuleType("gdown")
+    gdown_stub.download = lambda **kwargs: kwargs.get("output")  # type: ignore[attr-defined]
+    sys.modules["gdown"] = gdown_stub
+
+    namespace: dict[str, Any] = {}
+    try:
+        exec(helper_source, namespace)
+    finally:
+        if original_gdown is None:
+            sys.modules.pop("gdown", None)
+        else:
+            sys.modules["gdown"] = original_gdown
+    return namespace
 
 
 @pytest.mark.skipif(
@@ -107,6 +142,94 @@ def test_package_sprint2_outputs_respects_requested_splits(tmp_path: Path) -> No
     assert not (output_dir / "sprint2_samples_test.tar.zst").exists()
 
 
+def test_colab_find_split_dir_handles_supported_layouts_and_ambiguity(tmp_path: Path) -> None:
+    namespace = _load_colab_raw_setup_namespace()
+    find_split_dir = cast(Callable[[Path, str], Path], namespace["_find_split_dir"])
+
+    layout_a_root = tmp_path / "layout_a"
+    (layout_a_root / "train_2D_keypoints" / "openpose_output" / "json").mkdir(parents=True)
+    assert (
+        find_split_dir(layout_a_root, "train_2D_keypoints") == layout_a_root / "train_2D_keypoints"
+    )
+
+    layout_b_root = tmp_path / "layout_b"
+    (layout_b_root / "openpose_output" / "json").mkdir(parents=True)
+    assert find_split_dir(layout_b_root, "val_2D_keypoints") == layout_b_root
+
+    ambiguous_root = tmp_path / "ambiguous"
+    (ambiguous_root / "a" / "openpose_output" / "json").mkdir(parents=True)
+    (ambiguous_root / "b" / "openpose_output" / "json").mkdir(parents=True)
+    with pytest.raises(RuntimeError, match="Ambiguous extracted split directories"):
+        find_split_dir(ambiguous_root, "test_2D_keypoints")
+
+
+@pytest.mark.skipif(
+    shutil.which("tar") is None,
+    reason="tar is required for notebook extraction helper tests",
+)
+def test_colab_extract_tar_gz_with_progress_extracts_archive(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    namespace = _load_colab_raw_setup_namespace()
+    extract_tar_gz_with_progress = cast(
+        Callable[[Path, Path], None], namespace["_extract_tar_gz_with_progress"]
+    )
+
+    source_root = tmp_path / "archive_source"
+    sample_file = source_root / "openpose_output" / "json" / "sample.json"
+    sample_file.parent.mkdir(parents=True)
+    sample_file.write_text("{}", encoding="utf-8")
+
+    archive_path = tmp_path / "sample.tar.gz"
+    subprocess.run(["tar", "-czf", str(archive_path), "-C", str(source_root), "."], check=True)
+
+    destination = tmp_path / "extract_destination"
+    extract_tar_gz_with_progress(archive_path, destination)
+
+    captured = capsys.readouterr()
+    assert "Extraction progress" in captured.out
+    assert (destination / "openpose_output" / "json" / "sample.json").exists()
+
+
+def test_colab_stage_public_split_cleans_temp_artifacts_on_failure(tmp_path: Path) -> None:
+    namespace = _load_colab_raw_setup_namespace()
+    stage_public_split = cast(Callable[[str], None], namespace["_stage_public_split"])
+
+    downloads_root = tmp_path / "downloads"
+    translations_dir = tmp_path / "translations"
+    keypoints_root = tmp_path / "bfh_keypoints"
+    downloads_root.mkdir(parents=True)
+    translations_dir.mkdir(parents=True)
+    keypoints_root.mkdir(parents=True)
+
+    namespace["DOWNLOAD_ROOT"] = downloads_root
+    namespace["TRANSLATIONS_DIR"] = translations_dir
+    namespace["BFH_KEYPOINTS_ROOT"] = keypoints_root
+    namespace["TRANSLATION_URLS"] = {"train": "https://example.invalid/train.csv"}
+    namespace["KEYPOINT_ARCHIVE_URLS"] = {"train": "https://example.invalid/train.tar.gz"}
+    namespace["TRANSLATION_FILE_NAMES"] = {"train": "how2sign_realigned_train.csv"}
+    namespace["SPLIT_DIR_NAMES"] = {"train": "train_2D_keypoints"}
+
+    def fake_download(url: str, destination: Path) -> None:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(url, encoding="utf-8")
+
+    def fake_extract(archive_path: Path, destination: Path) -> None:
+        destination.mkdir(parents=True, exist_ok=True)
+        (destination / "partial").mkdir()
+        raise RuntimeError("boom")
+
+    namespace["_download_file"] = fake_download
+    namespace["_extract_tar_gz_with_progress"] = fake_extract
+
+    with pytest.raises(RuntimeError, match="boom"):
+        stage_public_split("train")
+
+    assert (translations_dir / "how2sign_realigned_train.csv").exists()
+    assert not (downloads_root / "train_keypoints_archive.tar.gz").exists()
+    assert not (downloads_root / "train_extract").exists()
+
+
 def test_colab_notebook_contains_required_stages_and_script_calls() -> None:
     notebook_path = (
         Path(__file__).resolve().parents[1] / "notebooks/colab/sprint2_pipeline_colab.ipynb"
@@ -145,6 +268,19 @@ def test_colab_notebook_contains_required_stages_and_script_calls() -> None:
         "gdown",
         "gdown.download",
         "_is_google_drive_url",
+        "_close_process_stdin",
+        "_stop_process",
+        "_extract_tar_gz_with_progress",
+        "_find_split_dir",
+        'f"{split}_keypoints_archive.tar.gz"',
+        '["tar", "-xzf", "-", "-C", str(destination)]',
+        "stderr=subprocess.STDOUT",
+        "search_root.rglob(expected_dir_name)",
+        'search_root.rglob("openpose_output")',
+        "if archive_path.exists() or extract_root.exists():",
+        "openpose_output",
+        "json",
+        "shutil.move",
         "drive.google.com",
         "docs.google.com",
         "drive.usercontent.google.com",

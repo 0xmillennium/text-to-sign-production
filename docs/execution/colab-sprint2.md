@@ -20,7 +20,9 @@ The main Colab entry point is:
 
 The notebook is runner-only. It does not own business logic. It clones the repository, installs
 dependencies, stages raw inputs into the canonical layout, calls the existing Sprint 2 scripts,
-packages outputs, and optionally copies archives to a private/shared Google Drive location.
+packages outputs, and optionally copies archives to a private/shared Google Drive location. In
+`public_urls` mode it stages split-scoped keypoint archives with visible in-notebook extraction
+progress before moving the extracted split into the canonical raw layout.
 
 ## Execution Flow
 
@@ -30,7 +32,7 @@ packages outputs, and optionally copies archives to a private/shared Google Driv
 4. Choose a raw-input mode:
    - public source URLs that you provide in the notebook
    - already available mounted/local paths that you provide in the notebook
-5. Stage raw data into:
+5. Stage the selected split raw data into:
    - `data/raw/how2sign/translations/`
    - `data/raw/how2sign/bfh_keypoints/`
 6. Run the existing Sprint 2 scripts directly for the selected splits:
@@ -60,6 +62,9 @@ The notebook intentionally keeps raw source locations user-editable.
   download call so common public-share links are handled more reliably.
 - The notebook validates only the selected `PIPELINE_SPLITS`, so subset runs do not require you to
   stage every official split.
+- Current keypoint extraction in `public_urls` mode is optimized for the operational `.tar.gz`
+  archives used in Colab, streams them through native `tar`, shows extraction progress in the
+  notebook output, and moves the extracted split tree into canonical layout instead of copying it.
 - Mounted or copied raw inputs can come from Google Drive or another user-controlled location.
 - The canonical in-repo layout must still be produced before the pipeline runs.
 
