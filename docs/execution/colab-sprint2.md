@@ -22,7 +22,9 @@ The notebook is runner-only. It does not own business logic. It clones the repos
 dependencies, stages raw inputs into the canonical layout, calls the existing Sprint 2 scripts,
 packages outputs, and optionally copies archives to a private/shared Google Drive location. In
 `public_urls` mode it stages split-scoped keypoint archives with visible in-notebook extraction
-progress before moving the extracted split into the canonical raw layout.
+progress before moving the extracted split into the canonical raw layout. In `mounted_paths` mode
+it either copies mounted keypoint archives into local Colab runtime storage before extraction or
+copies already extracted split trees into the canonical raw layout.
 
 ## Execution Flow
 
@@ -30,8 +32,13 @@ progress before moving the extracted split into the canonical raw layout.
 2. Edit the repository ref if you need something other than `master`.
 3. Edit `PIPELINE_SPLITS` in the notebook if you only want a subset such as `["train"]`.
 4. Choose a raw-input mode:
-   - public source URLs that you provide in the notebook
-   - already available mounted/local paths that you provide in the notebook
+   - `RAW_INPUT_MODE = "public_urls"` for public/shared translation URLs plus public/shared
+     keypoint archive URLs
+   - `RAW_INPUT_MODE = "mounted_paths"` with `MOUNTED_KEYPOINT_SOURCE_KIND = "archive"` for
+     translation files plus keypoint archives already available in mounted Drive or another local
+     path
+   - `RAW_INPUT_MODE = "mounted_paths"` with `MOUNTED_KEYPOINT_SOURCE_KIND = "extracted_dir"` for
+     translation files plus already extracted keypoint split roots or parent directories
 5. Stage the selected split raw data into:
    - `data/raw/how2sign/translations/`
    - `data/raw/how2sign/bfh_keypoints/`
@@ -55,16 +62,40 @@ This keeps the processing logic consistent while making the heavy execution path
 
 ## Raw Input Configuration
 
-The notebook intentionally keeps raw source locations user-editable.
+The notebook intentionally keeps raw source locations user-editable and explicit.
+
+- `RAW_INPUT_MODE` chooses between public/shared URLs and mounted/local paths.
+- `MOUNTED_KEYPOINT_SOURCE_KIND` is used only with `RAW_INPUT_MODE = "mounted_paths"` and applies
+  to all selected `PIPELINE_SPLITS` in that notebook run.
+- The notebook keeps separate per-split mappings for:
+  - `TRANSLATION_URLS`
+  - `KEYPOINT_ARCHIVE_URLS`
+  - `MOUNTED_TRANSLATION_FILES`
+  - `MOUNTED_KEYPOINT_ARCHIVE_FILES`
+  - `MOUNTED_KEYPOINT_EXTRACTED_SPLIT_ROOTS`
 
 - Public How2Sign URLs are not hardcoded unless you supply them in the notebook.
 - Public Google Drive-hosted files in `public_urls` mode use `gdown` instead of a plain direct
   download call so common public-share links are handled more reliably.
+- Translation files can therefore come from either:
+  - direct URL download into `data/raw/how2sign/translations/`
+  - mounted/local file copy into `data/raw/how2sign/translations/`
+- Keypoint data can therefore come from either:
+  - public/shared archive URLs
+  - mounted/local archive files
+  - mounted/local already extracted split roots
 - The notebook validates only the selected `PIPELINE_SPLITS`, so subset runs do not require you to
   stage every official split.
-- Current keypoint extraction in `public_urls` mode is optimized for the operational `.tar.gz`
-  archives used in Colab, streams them through native `tar`, shows extraction progress in the
-  notebook output, and moves the extracted split tree into canonical layout instead of copying it.
+- Archive-based keypoint staging explicitly supports both `.tar.gz` and `.tar.zst`.
+- Archive-based keypoint staging streams archives through native `tar`, shows extraction progress in
+  the notebook output, and moves the extracted split tree into canonical layout instead of copying
+  it.
+- Mounted extracted keypoint inputs can point either at the split root itself or a parent directory
+  containing the split tree. The notebook keeps the previously fixed split-root detection behavior
+  for `openpose_output/json`.
+- Large keypoint archives should still be copied or downloaded into local Colab runtime storage
+  under `/content/...` before extraction. That keeps extraction progress visible and avoids reading
+  very large keypoint trees directly from mounted Google Drive during heavy processing.
 - Mounted or copied raw inputs can come from Google Drive or another user-controlled location.
 - The canonical in-repo layout must still be produced before the pipeline runs.
 
