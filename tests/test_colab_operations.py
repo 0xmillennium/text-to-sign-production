@@ -263,6 +263,10 @@ def test_colab_notebook_contains_required_stages_and_script_calls() -> None:
     expected_snippets = (
         "https://github.com/0xmillennium/text-to-sign-production.git",
         'REPO_REF = "master"',
+        "RUNTIME_ROOT = WORKTREE_ROOT.parent",
+        "except FileNotFoundError",
+        "os.chdir(RUNTIME_ROOT)",
+        "Changed working directory to",
         'PIPELINE_SPLITS = ["train", "val", "test"]',
         "configs/storage.local.yaml",
         "gdown",
