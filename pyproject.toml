@@ -30,7 +30,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "dvc>=3.60,<4",
+  "dvc>=3.67.1,<4",
   "mypy>=1.12,<2",
   "pip-audit>=2.8,<3",
   "pre-commit>=4.0,<5",
