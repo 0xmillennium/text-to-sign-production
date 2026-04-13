@@ -10,9 +10,7 @@ from pathlib import Path
 from typing import BinaryIO, NoReturn
 
 from ..data.utils import ensure_directory
-from .progress import ProgressReporter
-
-CHUNK_SIZE = 8 * 1024 * 1024
+from .progress import stream_file_with_progress
 
 
 def tar_supports_zstd() -> bool:
@@ -55,17 +53,10 @@ def copy_file_with_progress(source: Path, destination: Path, *, label: str) -> P
 
     ensure_directory(destination.parent)
     total_bytes = source.stat().st_size
-    reporter = ProgressReporter(label=label, total_bytes=total_bytes)
-    reporter.update(0)
-    completed = 0
 
     with source.open("rb") as source_handle, destination.open("wb") as destination_handle:
-        while chunk := source_handle.read(CHUNK_SIZE):
-            destination_handle.write(chunk)
-            completed += len(chunk)
-            reporter.update(completed)
+        stream_file_with_progress(source_handle, destination_handle, total_bytes, desc=label)
     shutil.copystat(source, destination)
-    reporter.finish(total_bytes)
     return destination
 
 
@@ -81,8 +72,6 @@ def extract_tar_zst_with_progress(archive_path: Path, destination: Path, *, labe
     ensure_tar_zst_extract_prerequisites()
     ensure_directory(destination)
     total_bytes = archive_path.stat().st_size
-    reporter = ProgressReporter(label=label, total_bytes=total_bytes)
-    reporter.update(0)
     with tempfile.TemporaryFile() as stderr_file:
         process = subprocess.Popen(
             ["tar", "--zstd", "-xf", "-", "-C", str(destination)],
@@ -91,34 +80,33 @@ def extract_tar_zst_with_progress(archive_path: Path, destination: Path, *, labe
             stderr=stderr_file,
         )
 
-        completed = 0
         stream_error: OSError | None = None
+
+        def write_to_tar(chunk: bytes) -> None:
+            if process.stdin is None:
+                raise RuntimeError(f"tar stdin was not available for {archive_path}")
+            if process.poll() is not None:
+                raise BrokenPipeError("tar exited before the full archive stream was written")
+            process.stdin.write(chunk)
+
         try:
             with archive_path.open("rb") as archive_handle:
-                while chunk := archive_handle.read(CHUNK_SIZE):
-                    if process.stdin is None:
-                        raise RuntimeError(f"tar stdin was not available for {archive_path}")
-                    if process.poll() is not None:
-                        stream_error = BrokenPipeError(
-                            "tar exited before the full archive stream was written"
-                        )
-                        break
-                    try:
-                        process.stdin.write(chunk)
-                    except OSError as exc:
-                        stream_error = exc
-                        break
-                    completed += len(chunk)
-                    reporter.update(completed)
+                try:
+                    stream_file_with_progress(
+                        archive_handle,
+                        write_to_tar,
+                        total_bytes,
+                        desc=label,
+                    )
+                except OSError as exc:
+                    stream_error = exc
         except BaseException:
             _close_process_stdin(process)
             _stop_process(process)
-            reporter.finish(completed)
             raise
 
         _close_process_stdin(process)
         returncode = process.wait()
-        reporter.finish(completed if stream_error is not None else total_bytes)
         if stream_error is not None or returncode != 0:
             stderr_text = _read_stderr_file(stderr_file)
             _raise_tar_extraction_error(
@@ -138,6 +126,9 @@ def create_tar_zst_archive(
 ) -> Path:
     """Create a `.tar.zst` archive while reporting streamed tar progress."""
 
+    if not archive_path.name.endswith(".tar.zst"):
+        raise ValueError(f"Expected a .tar.zst archive, got: {archive_path.name}")
+
     ensure_tar_zst_create_prerequisites()
     member_names = [str(_relative_member_path(member, cwd)) for member in members]
     _assert_required_members(cwd, members)
@@ -145,8 +136,6 @@ def create_tar_zst_archive(
     if archive_path.exists():
         archive_path.unlink()
 
-    reporter = ProgressReporter(label=label, total_bytes=None)
-    reporter.update(0)
     with (
         tempfile.TemporaryFile() as tar_stderr_file,
         tempfile.TemporaryFile() as zstd_stderr_file,
@@ -164,32 +153,32 @@ def create_tar_zst_archive(
             stderr=zstd_stderr_file,
         )
 
-        completed = 0
         stream_error: OSError | None = None
+
+        def write_to_zstd(chunk: bytes) -> None:
+            if zstd_process.stdin is None:
+                raise RuntimeError("zstd stdin was not available while creating the archive.")
+            if zstd_process.poll() is not None:
+                raise BrokenPipeError("zstd exited before the full tar stream was written")
+            zstd_process.stdin.write(chunk)
+
         try:
             if tar_process.stdout is None:
                 raise RuntimeError("tar stdout was not available while creating the archive.")
-            while chunk := tar_process.stdout.read(CHUNK_SIZE):
-                if zstd_process.stdin is None:
-                    raise RuntimeError("zstd stdin was not available while creating the archive.")
-                if zstd_process.poll() is not None:
-                    stream_error = BrokenPipeError(
-                        "zstd exited before the full tar stream was written"
-                    )
-                    break
-                try:
-                    zstd_process.stdin.write(chunk)
-                except OSError as exc:
-                    stream_error = exc
-                    break
-                completed += len(chunk)
-                reporter.update(completed)
+            try:
+                stream_file_with_progress(
+                    tar_process.stdout,
+                    write_to_zstd,
+                    None,
+                    desc=label,
+                )
+            except OSError as exc:
+                stream_error = exc
         except BaseException:
             _close_process_stdin(zstd_process)
             _stop_process(tar_process)
             _stop_process(zstd_process)
             archive_path.unlink(missing_ok=True)
-            reporter.finish(completed)
             raise
 
         _close_process_stdin(zstd_process)
@@ -197,7 +186,6 @@ def create_tar_zst_archive(
             _stop_process(tar_process) if stream_error is not None else tar_process.wait()
         )
         zstd_returncode = zstd_process.wait()
-        reporter.finish(completed)
 
         if stream_error is not None or tar_returncode != 0 or zstd_returncode != 0:
             tar_stderr = _read_stderr_file(tar_stderr_file)

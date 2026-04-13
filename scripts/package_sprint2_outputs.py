@@ -21,11 +21,6 @@ DEFAULT_OUTPUT_DIR = ARCHIVES_RELATIVE_ROOT
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--output-dir",
-        default=str(DEFAULT_OUTPUT_DIR),
-        help="Directory that will receive the generated `.tar.zst` archives.",
-    )
-    parser.add_argument(
         "--splits",
         nargs="+",
         choices=SPLITS,
@@ -33,11 +28,6 @@ def parse_args() -> argparse.Namespace:
         help="Processed sample splits to archive individually.",
     )
     return parser.parse_args()
-
-
-def _resolve_output_dir(output_dir: str, *, project_root: Path) -> Path:
-    candidate = Path(output_dir)
-    return candidate if candidate.is_absolute() else project_root / candidate
 
 
 def _format_size(num_bytes: int) -> str:
@@ -64,20 +54,17 @@ def _tar_supports_zstd() -> bool:
 def package_outputs(
     *,
     project_root: Path = PROJECT_ROOT,
-    output_dir: Path | None = None,
     splits: tuple[str, ...] = SPLITS,
 ) -> list[Path]:
     return package_sprint2_outputs(
         project_root=project_root,
-        output_dir=output_dir,
         splits=splits,
     )
 
 
 def main() -> int:
     args = parse_args()
-    output_dir = _resolve_output_dir(args.output_dir, project_root=PROJECT_ROOT)
-    archives = package_outputs(output_dir=output_dir, splits=tuple(args.splits))
+    archives = package_outputs(splits=tuple(args.splits))
     for archive_path in archives:
         print(
             f"created: {_display_path(archive_path, project_root=PROJECT_ROOT)} "

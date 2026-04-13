@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ..ops.progress import iter_with_progress
 from .constants import (
     BFH_KEYPOINTS_ROOT,
     EXPECTED_TRANSLATION_COLUMNS,
@@ -124,7 +125,12 @@ def build_raw_manifest_for_split(split: str) -> tuple[list[RawManifestEntry], di
     readable_video_metadata = 0
     unreadable_video_metadata = 0
 
-    for row in rows:
+    for row in iter_with_progress(
+        rows,
+        total=len(rows),
+        desc=f"Raw manifest {split}",
+        unit="rows",
+    ):
         sentence_name = row["SENTENCE_NAME"]
         keypoints_dir = paths.keypoints_json_root / sentence_name
         video_path = paths.video_root / f"{sentence_name}.mp4"

@@ -40,9 +40,18 @@
 - `tests/` holds deterministic tests for the package and fixture-backed Sprint 2 pipeline checks.
 - `dvc.yaml` defines the implemented Sprint 2 stages.
 
+## Sprint 2 Package Boundaries
+
+The `data` package stays narrow: constants, schemas, JSONL I/O, MP4 metadata, OpenPose parsing,
+raw manifest creation, normalization, filtering, processed-manifest export, report rendering,
+validation, and small generic utilities are kept in separate modules. Long-running Colab copy,
+extract, archive, publish, and shared progress helpers live in `src/text_to_sign_production/ops/`.
+
 ## Structural Principles
 
 - Critical logic belongs in `src/`, not notebooks.
+- The Sprint 2 Colab notebook supports only the fixed mounted-Drive workflow and exposes only
+  `PIPELINE_SPLITS`.
 - Documentation is versioned with the codebase.
 - Research process artifacts such as ADRs and experiment logs are first-class repository assets.
 - Models must read processed manifests, not raw files.

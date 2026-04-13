@@ -10,7 +10,7 @@ The main Colab entry point is:
 `notebooks/colab/sprint2_pipeline_colab.ipynb`
 
 The notebook is orchestration-only. It mounts Google Drive, clones the repository, calls thin
-repository scripts, and shows their progress-bearing output.
+repository scripts, and shows their shared `tqdm` progress output.
 
 ## Fixed Inputs
 
@@ -23,7 +23,8 @@ The notebook reads only from these fixed Google Drive paths:
 - `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/archives/val_2D_keypoints.tar.zst`
 - `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/archives/test_2D_keypoints.tar.zst`
 
-Translations are CSV files only. Keypoints are `.tar.zst` archives only.
+Translations are CSV files only. Keypoints are `.tar.zst` archives only. Public URLs, `gdown`,
+mounted extracted keypoint directories, and alternate archive formats are not supported.
 
 ## Execution Flow
 
@@ -66,7 +67,8 @@ The important boundary is fixed:
 
 - notebooks orchestrate
 - scripts coordinate
-- reusable Python modules implement the long-running copy, extract, archive, and publish logic
+- reusable Python modules implement the long-running copy, extract, archive, publish, and
+  item-loop progress logic
 
 ## Manual Limits
 

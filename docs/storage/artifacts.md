@@ -27,7 +27,7 @@ The supported Colab workflow uses exactly one Drive layout:
   `/content/drive/MyDrive/text-to-sign-production/artifacts/sprint2/processed-v1/`
 
 There is no storage-provider switch, no local-vs-Drive branch in the notebook, and no user-edited
-artifact destination configuration.
+artifact destination configuration. The notebook does not support public download URLs or `gdown`.
 
 ## Archive Packaging
 
@@ -36,6 +36,8 @@ For local packaging, use:
 ```bash
 python scripts/package_sprint2_outputs.py
 ```
+
+Local packaging always writes to `data/archives/`.
 
 For subset runs:
 

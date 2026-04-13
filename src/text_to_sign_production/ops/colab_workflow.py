@@ -108,17 +108,11 @@ def stage_colab_inputs(
 def package_sprint2_outputs(
     *,
     project_root: Path = REPO_ROOT,
-    output_dir: Path | None = None,
     splits: tuple[str, ...] = SPLITS,
 ) -> list[Path]:
-    """Create the Sprint 2 output archives under the requested output directory."""
+    """Create the Sprint 2 output archives under the fixed local archive directory."""
 
-    selected_output_dir = output_dir or ARCHIVES_RELATIVE_ROOT
-    resolved_output_dir = (
-        selected_output_dir
-        if selected_output_dir.is_absolute()
-        else project_root / selected_output_dir
-    )
+    resolved_output_dir = project_root / ARCHIVES_RELATIVE_ROOT
     ensure_directory(resolved_output_dir)
 
     archives = [

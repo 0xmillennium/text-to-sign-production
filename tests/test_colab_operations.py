@@ -15,7 +15,7 @@ import pytest
 import scripts.package_sprint2_outputs as package_outputs_script
 import text_to_sign_production.ops.archive_ops as archive_ops_mod
 import text_to_sign_production.ops.colab_workflow as colab_workflow_mod
-from text_to_sign_production.ops.progress import ProgressReporter
+import text_to_sign_production.ops.progress as progress_mod
 
 
 def _write(path: Path, content: str) -> None:
@@ -133,71 +133,43 @@ class _FakeCreateZstdProcess:
         return
 
 
-class _TtyStringIO(io.StringIO):
-    def isatty(self) -> bool:
-        return True
-
-
-def test_progress_reporter_uses_newline_updates_for_non_tty_streams() -> None:
-    stream = io.StringIO()
-    reporter = ProgressReporter(
-        "Copy archive",
-        total_bytes=10,
-        stream=stream,
-        min_interval_seconds=0,
-    )
-
-    reporter.update(0)
-    reporter.update(5)
-    reporter.finish(10)
-
-    output = stream.getvalue()
-    lines = output.splitlines()
-    assert "\r" not in output
-    assert len(lines) == 3
-    assert "0 B / 10 B" in lines[0]
-    assert "50.0%" in lines[1]
-    assert "100.0%" in lines[2]
-
-
-def test_progress_reporter_env_forces_line_updates_for_colab(
-    monkeypatch: pytest.MonkeyPatch,
+def test_iter_with_progress_yields_items_and_labels_progress(
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setenv("T2SP_PROGRESS_MODE", "lines")
-    stream = _TtyStringIO()
-    reporter = ProgressReporter(
-        "Copy archive",
-        total_bytes=10,
-        stream=stream,
-        min_interval_seconds=0,
+    items = list(
+        progress_mod.iter_with_progress([1, 2, 3], total=3, desc="Progress items", unit="items")
     )
 
-    reporter.update(0)
-    reporter.finish(10)
-
-    output = stream.getvalue()
-    assert "\r" not in output
-    assert "Copy archive" in output
-    assert "100.0%" in output
+    captured = capsys.readouterr()
+    assert items == [1, 2, 3]
+    assert "Progress items" in captured.out
 
 
-def test_progress_reporter_pads_shorter_carriage_return_updates() -> None:
-    stream = io.StringIO()
-    reporter = ProgressReporter(
-        "Archive",
-        total_bytes=None,
-        stream=stream,
-        min_interval_seconds=0,
-        use_carriage_return=True,
+def test_progress_bar_supports_manual_updates(capsys: pytest.CaptureFixture[str]) -> None:
+    with progress_mod.progress_bar(total=2, desc="Manual progress", unit="items") as bar:
+        bar.update(1)
+        bar.update(1)
+
+    captured = capsys.readouterr()
+    assert "Manual progress" in captured.out
+
+
+def test_stream_file_with_progress_streams_bytes_to_callback(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    chunks: list[bytes] = []
+
+    completed = progress_mod.stream_file_with_progress(
+        io.BytesIO(b"hello world"),
+        chunks.append,
+        total_bytes=11,
+        desc="Stream bytes",
     )
 
-    reporter.update(1024**3)
-    reporter.update(1)
-
-    long_line = "Archive: 1.0 GiB transferred"
-    short_line = "Archive: 1 B transferred"
-    expected_padding = " " * (len(long_line) - len(short_line))
-    assert f"\r{short_line}{expected_padding}" in stream.getvalue()
+    captured = capsys.readouterr()
+    assert completed == 11
+    assert b"".join(chunks) == b"hello world"
+    assert "Stream bytes" in captured.out
 
 
 @pytest.mark.skipif(
@@ -225,7 +197,7 @@ def test_package_sprint2_outputs_creates_expected_archives(tmp_path: Path) -> No
         )
 
     output_dir = tmp_path / "data/archives"
-    archives = package_outputs_script.package_outputs(project_root=tmp_path, output_dir=output_dir)
+    archives = package_outputs_script.package_outputs(project_root=tmp_path)
 
     expected_names = {
         "sprint2_manifests_reports.tar.zst",
@@ -294,11 +266,7 @@ def test_package_sprint2_outputs_respects_requested_splits(tmp_path: Path) -> No
     _write(output_dir / "sprint2_samples_val.tar.zst", "stale-val")
     _write(output_dir / "sprint2_samples_test.tar.zst", "stale-test")
 
-    archives = package_outputs_script.package_outputs(
-        project_root=tmp_path,
-        output_dir=output_dir,
-        splits=("train",),
-    )
+    archives = package_outputs_script.package_outputs(project_root=tmp_path, splits=("train",))
 
     assert {archive.name for archive in archives} == {
         "sprint2_manifests_reports.tar.zst",
@@ -420,7 +388,6 @@ def test_create_tar_zst_archive_does_not_require_tar_zstd_support(
     assert created_path == archive_path
     assert archive_path.exists()
     assert "Archive source" in captured.out
-    assert "transferred" in captured.out
 
 
 def test_create_tar_zst_archive_reports_subprocess_stderr_after_broken_pipe(
@@ -452,6 +419,16 @@ def test_create_tar_zst_archive_reports_subprocess_stderr_after_broken_pipe(
 
     assert isinstance(exc_info.value.__cause__, BrokenPipeError)
     assert not archive_path.exists()
+
+
+def test_create_tar_zst_archive_rejects_non_tar_zst_archives(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match=r"\.tar\.zst"):
+        archive_ops_mod.create_tar_zst_archive(
+            archive_path=tmp_path / "archive.zip",
+            members=(),
+            cwd=tmp_path,
+            label="Archive source",
+        )
 
 
 def test_find_extracted_split_dir_handles_supported_layouts_and_ambiguity(tmp_path: Path) -> None:
@@ -582,7 +559,6 @@ def test_colab_notebook_contains_only_the_supported_fixed_workflow() -> None:
         'drive.mount("/content/drive", force_remount=False)',
         "scripts/stage_colab_inputs.py",
         'env["PYTHONUNBUFFERED"] = "1"',
-        'env["T2SP_PROGRESS_MODE"] = "lines"',
         "scripts/prepare_raw.py",
         "scripts/normalize_keypoints.py",
         "scripts/filter_samples.py",
@@ -609,6 +585,7 @@ def test_colab_notebook_contains_only_the_supported_fixed_workflow() -> None:
         "gdown",
         "storage.local.yaml",
         "storage.example.yaml",
+        "T2SP_PROGRESS_MODE",
         ".tar.gz",
         "scripts/package_sprint2_outputs.py",
         "google.colab.files",

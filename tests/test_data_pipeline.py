@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import struct
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -288,6 +288,22 @@ def _write_processed_sample_npz(
     np.savez_compressed(path, **payload)
 
 
+def _record_progress_calls(monkeypatch: Any, module: Any) -> list[dict[str, Any]]:
+    calls: list[dict[str, Any]] = []
+
+    def fake_iter_with_progress(
+        iterable: Iterable[Any],
+        total: int | None = None,
+        desc: str = "",
+        unit: str = "items",
+    ) -> Iterator[Any]:
+        calls.append({"total": total, "desc": desc, "unit": unit})
+        yield from iterable
+
+    monkeypatch.setattr(module, "iter_with_progress", fake_iter_with_progress)
+    return calls
+
+
 def test_parse_frame_tracks_multi_person_and_any_zeroed_required_joint(tmp_path: Path) -> None:
     frame_path = tmp_path / "frame.json"
     _write_openpose_frame(
@@ -326,6 +342,41 @@ def test_parse_frame_marks_face_missing_when_face_channel_has_no_confidence(tmp_
 
     assert parsed.face_missing is True
     assert parsed.frame_valid is True
+
+
+def test_long_running_pipeline_steps_use_shared_item_progress(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    _create_fixture_dataset(tmp_path)
+    _patch_pipeline_paths(monkeypatch, tmp_path)
+
+    raw_progress_calls = _record_progress_calls(monkeypatch, raw_mod)
+    raw_mod.build_raw_manifests(splits=("train",))
+    assert raw_progress_calls == [{"total": 2, "desc": "Raw manifest train", "unit": "rows"}]
+
+    normalize_progress_calls = _record_progress_calls(monkeypatch, normalize_mod)
+    normalize_mod.normalize_all_splits(splits=("train",))
+    assert normalize_progress_calls == [{"total": 2, "desc": "Normalize train", "unit": "samples"}]
+
+    filtering_progress_calls = _record_progress_calls(monkeypatch, filtering_mod)
+    filtering_mod.filter_all_splits(tmp_path / "configs/data/filter-v1.yaml", splits=("train",))
+    assert filtering_progress_calls == [{"total": 2, "desc": "Filter train", "unit": "records"}]
+
+    manifests_progress_calls = _record_progress_calls(monkeypatch, manifests_mod)
+    assumption_report = json.loads(
+        (tmp_path / "data/interim/reports/assumption-report.json").read_text(encoding="utf-8")
+    )
+    filter_report = json.loads(
+        (tmp_path / "data/interim/reports/filter-report.json").read_text(encoding="utf-8")
+    )
+    manifests_mod.export_final_manifests(
+        assumption_report=assumption_report,
+        filter_report=filter_report,
+        splits=("train",),
+    )
+    assert manifests_progress_calls == [
+        {"total": 1, "desc": "Export processed manifest train", "unit": "records"}
+    ]
 
 
 def test_build_raw_manifest_for_split_uses_deterministic_first_frame_without_sorting(

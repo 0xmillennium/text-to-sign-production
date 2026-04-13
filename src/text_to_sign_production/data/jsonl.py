@@ -46,3 +46,10 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     """Read a whole JSONL file into memory."""
 
     return list(iter_jsonl(path))
+
+
+def count_jsonl_records(path: Path) -> int:
+    """Count non-empty JSONL records without loading them into memory."""
+
+    with path.open("r", encoding="utf-8") as handle:
+        return sum(1 for line in handle if line.strip())

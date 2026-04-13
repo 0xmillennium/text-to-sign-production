@@ -12,13 +12,13 @@ from zipfile import BadZipFile
 import numpy as np
 
 from .constants import OPENPOSE_CHANNEL_SPECS, PROCESSED_SCHEMA_VERSION, SPLITS
-from .manifests import validate_processed_sample_path
 from .schemas import (
     NormalizedManifestEntry,
     ProcessedManifestEntry,
     RawManifestEntry,
     ValidationIssue,
 )
+from .utils import resolve_repo_path
 
 RAW_REQUIRED_FIELDS = frozenset(
     {
@@ -56,6 +56,70 @@ PROCESSED_SAMPLE_REQUIRED_KEYS = frozenset(
         "frame_valid_mask",
     }
 )
+
+
+def _processed_samples_root() -> Path:
+    return resolve_repo_path("data/processed/v1/samples").resolve()
+
+
+def resolve_processed_sample_path(path: Path | str) -> Path:
+    """Resolve and validate a processed sample path stored in a manifest."""
+
+    raw_value = str(path)
+    normalized_value = raw_value.strip()
+    if not normalized_value:
+        raise ValueError("Processed sample_path must be a non-empty repo-relative .npz path.")
+
+    candidate = Path(normalized_value)
+    if candidate.is_absolute():
+        raise ValueError(f"Processed sample_path must be repo-relative: {normalized_value}")
+    if candidate.suffix != ".npz":
+        raise ValueError(f"Processed sample_path must end with .npz: {normalized_value}")
+
+    processed_samples_root = _processed_samples_root()
+    resolved = resolve_repo_path(candidate)
+    if not resolved.is_relative_to(processed_samples_root):
+        raise ValueError(
+            f"Processed sample_path must stay under data/processed/v1/samples: {normalized_value}"
+        )
+
+    relative_path = resolved.relative_to(processed_samples_root)
+    if len(relative_path.parts) != 2:
+        raise ValueError(
+            "Processed sample_path must follow "
+            "data/processed/v1/samples/<split>/<sample_id>.npz: "
+            f"{normalized_value}"
+        )
+
+    if resolved.exists() and not resolved.is_file():
+        raise ValueError(f"Processed sample_path must resolve to a file: {normalized_value}")
+    return resolved
+
+
+def validate_processed_sample_path(
+    path: Path | str,
+    *,
+    split: str,
+    sample_id: str,
+) -> Path:
+    """Resolve and validate a processed sample path against its manifest identity."""
+
+    resolved = resolve_processed_sample_path(path)
+    relative_path = resolved.relative_to(_processed_samples_root())
+    relative_split, filename = relative_path.parts
+
+    if relative_split != split:
+        raise ValueError(
+            f"Processed sample_path split does not match manifest split {split}: {path}"
+        )
+
+    expected_filename = f"{sample_id}.npz"
+    if filename != expected_filename:
+        raise ValueError(
+            f"Processed sample_path filename does not match manifest sample_id {sample_id}: {path}"
+        )
+
+    return resolved
 
 
 def _expected_processed_sample_shapes(num_frames: int) -> dict[str, tuple[int, ...]]:

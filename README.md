@@ -7,9 +7,8 @@ text-to-sign production. The long-term system direction is:
 
 Sprint 2 turns the Sprint 1 scaffold into a working, reproducible data pipeline for How2Sign BFH
 keypoints plus aligned translations. The repository now builds a manifest-driven, training-ready
-v1 dataset while still explicitly deferring modeling work. This operational update adds Colab
-support for heavy real-data execution and a documented artifact-storage workflow that keeps large
-outputs outside GitHub.
+v1 dataset while still explicitly deferring modeling work. The supported heavy-execution path is
+one fixed Google Drive Colab workflow with packaged outputs kept outside GitHub.
 
 ## Sprint 2 Includes
 
@@ -27,7 +26,7 @@ outputs outside GitHub.
 - DVC stages for `prepare_raw`, `normalize_keypoints`, `filter_samples`, and
   `export_training_manifest`
 - A single fixed Google Colab workflow for heavy Sprint 2 execution
-- Thin Colab staging and publish scripts with shared progress-aware archive operations
+- Thin Colab staging and publish scripts with shared `tqdm` progress for byte and item work
 - Explicit output packaging via `python scripts/package_sprint2_outputs.py`
 - Sprint 1 quality gates, docs, ADRs, and notebook philosophy carried forward unchanged
 
@@ -120,7 +119,7 @@ dvc repro
   `pip-audit`.
 - `dvc repro` executes the full Sprint 2 data pipeline against the canonical raw dataset layout.
 - `python scripts/package_sprint2_outputs.py` creates explicit `.tar.zst` archives under
-  `data/archives/`.
+  the fixed local `data/archives/` directory.
 - Split-aware script runs are supported throughout Sprint 2 via `--splits`, including export and
   packaging for subset Colab workflows.
 
@@ -135,6 +134,10 @@ Sprint 2 keeps that rule intact and now ships:
 - `notebooks/colab/sprint2_pipeline_colab.ipynb` for the single supported heavy real-data Google
   Colab workflow
 - `notebooks/colab_smoke_test.ipynb` for minimal repository smoke checks
+
+The Sprint 2 notebook exposes only `PIPELINE_SPLITS`. It does not support public URLs, `gdown`,
+alternate archive formats, mounted extracted keypoint directories, storage-provider switches, or
+user-defined input/output roots.
 
 ## DVC Role
 
@@ -155,6 +158,7 @@ forcing `dvc repro` over very large raw trees. DVC remains the pipeline-definiti
 - Large raw, interim, processed, archive, and DVC-cache artifacts are kept out of GitHub.
 - The supported Colab workflow reads only from the fixed Drive raw paths under
   `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/`.
+- Keypoint inputs are `.tar.zst` archives only; translations use the canonical `.csv` filenames.
 - The supported Colab workflow publishes only to
   `/content/drive/MyDrive/text-to-sign-production/artifacts/sprint2/processed-v1/`.
 - GitHub Pages documents the workflow but must not expose any private storage links or folder IDs.
