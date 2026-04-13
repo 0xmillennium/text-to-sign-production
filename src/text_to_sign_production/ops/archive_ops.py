@@ -72,10 +72,13 @@ def copy_file_with_progress(source: Path, destination: Path, *, label: str) -> P
 def extract_tar_zst_with_progress(archive_path: Path, destination: Path, *, label: str) -> None:
     """Extract a `.tar.zst` archive by streaming it through `tar` with progress."""
 
-    ensure_tar_zst_extract_prerequisites()
     if not archive_path.name.endswith(".tar.zst"):
         raise ValueError(f"Expected a .tar.zst archive, got: {archive_path.name}")
+    if not archive_path.is_file():
+        raise FileNotFoundError(f"Archive file not found: {archive_path}")
 
+    archive_path = archive_path.resolve()
+    ensure_tar_zst_extract_prerequisites()
     ensure_directory(destination)
     total_bytes = archive_path.stat().st_size
     reporter = ProgressReporter(label=label, total_bytes=total_bytes)

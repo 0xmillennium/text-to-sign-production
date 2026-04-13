@@ -133,6 +133,11 @@ class _FakeCreateZstdProcess:
         return
 
 
+class _TtyStringIO(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
 def test_progress_reporter_uses_newline_updates_for_non_tty_streams() -> None:
     stream = io.StringIO()
     reporter = ProgressReporter(
@@ -153,6 +158,27 @@ def test_progress_reporter_uses_newline_updates_for_non_tty_streams() -> None:
     assert "0 B / 10 B" in lines[0]
     assert "50.0%" in lines[1]
     assert "100.0%" in lines[2]
+
+
+def test_progress_reporter_env_forces_line_updates_for_colab(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("T2SP_PROGRESS_MODE", "lines")
+    stream = _TtyStringIO()
+    reporter = ProgressReporter(
+        "Copy archive",
+        total_bytes=10,
+        stream=stream,
+        min_interval_seconds=0,
+    )
+
+    reporter.update(0)
+    reporter.finish(10)
+
+    output = stream.getvalue()
+    assert "\r" not in output
+    assert "Copy archive" in output
+    assert "100.0%" in output
 
 
 def test_progress_reporter_pads_shorter_carriage_return_updates() -> None:
@@ -295,6 +321,24 @@ def test_extract_tar_zst_with_progress_rejects_non_tar_zst_archives(
             tmp_path / "extract",
             label="Extract archive",
         )
+
+
+def test_extract_tar_zst_with_progress_rejects_missing_archive_without_destination_side_effect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    archive_path = tmp_path / "missing.tar.zst"
+    destination = tmp_path / "extract"
+    monkeypatch.setattr(archive_ops_mod, "ensure_tar_zst_extract_prerequisites", lambda: None)
+
+    with pytest.raises(FileNotFoundError, match="Archive file not found"):
+        archive_ops_mod.extract_tar_zst_with_progress(
+            archive_path,
+            destination,
+            label="Extract archive",
+        )
+
+    assert not destination.exists()
 
 
 def test_extract_tar_zst_with_progress_reports_stderr_after_broken_pipe(
@@ -537,6 +581,8 @@ def test_colab_notebook_contains_only_the_supported_fixed_workflow() -> None:
         'PIPELINE_SPLITS = ["train", "val", "test"]',
         'drive.mount("/content/drive", force_remount=False)',
         "scripts/stage_colab_inputs.py",
+        'env["PYTHONUNBUFFERED"] = "1"',
+        'env["T2SP_PROGRESS_MODE"] = "lines"',
         "scripts/prepare_raw.py",
         "scripts/normalize_keypoints.py",
         "scripts/filter_samples.py",

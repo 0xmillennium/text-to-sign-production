@@ -3,11 +3,25 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import Any, TypeVar
 
 from .constants import PROCESSED_REPORTS_ROOT, SPLITS
 from .schemas import ProcessedManifestEntry, RawManifestEntry
 from .utils import summarize_numbers
+
+T = TypeVar("T")
+
+
+def _records_for_split(
+    records_by_split: Mapping[str, list[T]],
+    *,
+    mapping_name: str,
+    split: str,
+) -> list[T]:
+    try:
+        return records_by_split[split]
+    except KeyError as exc:
+        raise ValueError(f"{mapping_name} is missing requested split: {split}") from exc
 
 
 def _numeric_summary(values: Iterable[int | float]) -> dict[str, float | int | None]:
@@ -40,7 +54,11 @@ def build_quality_report(
 
     quality_report: dict[str, Any] = {"generated_at": generated_at, "splits": {}}
     for split in splits:
-        final_records = final_records_by_split.get(split, [])
+        final_records = _records_for_split(
+            final_records_by_split,
+            mapping_name="final_records_by_split",
+            split=split,
+        )
         split_filter_report = dict(filter_report["splits"][split])
         frame_counts = [record.num_frames for record in final_records]
         text_lengths = [len(record.text) for record in final_records]
@@ -95,8 +113,16 @@ def build_split_report(
     split_report: dict[str, Any] = {"generated_at": generated_at, "splits": {}}
     requested_splits = tuple(splits)
     for split in requested_splits:
-        raw_entries = raw_records_by_split.get(split, [])
-        final_records = final_records_by_split.get(split, [])
+        raw_entries = _records_for_split(
+            raw_records_by_split,
+            mapping_name="raw_records_by_split",
+            split=split,
+        )
+        final_records = _records_for_split(
+            final_records_by_split,
+            mapping_name="final_records_by_split",
+            split=split,
+        )
         video_ids = {record.source_video_id for record in final_records}
         split_report["splits"][split] = {
             "raw_samples": len(raw_entries),
@@ -107,8 +133,15 @@ def build_split_report(
         }
 
     split_names = {
-        split: {record.sample_id for record in records}
-        for split, records in final_records_by_split.items()
+        split: {
+            record.sample_id
+            for record in _records_for_split(
+                final_records_by_split,
+                mapping_name="final_records_by_split",
+                split=split,
+            )
+        }
+        for split in requested_splits
     }
     for split in requested_splits:
         overlaps = {
@@ -121,11 +154,21 @@ def build_split_report(
     video_id_overlap: dict[str, int] = {}
     for left_index, left_split in enumerate(requested_splits):
         left_video_ids = {
-            record.source_video_id for record in final_records_by_split.get(left_split, [])
+            record.source_video_id
+            for record in _records_for_split(
+                final_records_by_split,
+                mapping_name="final_records_by_split",
+                split=left_split,
+            )
         }
         for right_split in requested_splits[left_index + 1 :]:
             right_video_ids = {
-                record.source_video_id for record in final_records_by_split.get(right_split, [])
+                record.source_video_id
+                for record in _records_for_split(
+                    final_records_by_split,
+                    mapping_name="final_records_by_split",
+                    split=right_split,
+                )
             }
             video_id_overlap[f"{left_split}_{right_split}"] = len(
                 left_video_ids.intersection(right_video_ids)

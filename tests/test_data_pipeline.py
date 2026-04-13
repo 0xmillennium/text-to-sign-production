@@ -1442,6 +1442,46 @@ def test_export_final_manifests_rejects_missing_requested_report_splits(
         )
 
 
+def test_build_quality_report_rejects_missing_final_records_split() -> None:
+    with pytest.raises(
+        ValueError,
+        match="final_records_by_split is missing requested split: train",
+    ):
+        reports_mod.build_quality_report(
+            final_records_by_split={},
+            filter_report={
+                "generated_at": "2026-04-07T00:00:00+00:00",
+                "splits": {"train": {"dropped_samples": 0, "drop_reason_counts": {}}},
+            },
+            generated_at="2026-04-07T00:00:00+00:00",
+            splits=("train",),
+        )
+
+
+def test_build_split_report_rejects_missing_requested_split_records() -> None:
+    with pytest.raises(
+        ValueError,
+        match="raw_records_by_split is missing requested split: train",
+    ):
+        reports_mod.build_split_report(
+            raw_records_by_split={},
+            final_records_by_split={"train": []},
+            generated_at="2026-04-07T00:00:00+00:00",
+            splits=("train",),
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="final_records_by_split is missing requested split: train",
+    ):
+        reports_mod.build_split_report(
+            raw_records_by_split={"train": []},
+            final_records_by_split={},
+            generated_at="2026-04-07T00:00:00+00:00",
+            splits=("train",),
+        )
+
+
 def test_view_sample_rejects_invalid_processed_sample_path(
     tmp_path: Path, monkeypatch: Any
 ) -> None:

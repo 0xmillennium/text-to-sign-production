@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from dataclasses import dataclass, field
@@ -43,6 +44,13 @@ class ProgressReporter:
 
         if self.use_carriage_return is not None:
             self._use_carriage_return = self.use_carriage_return
+            return
+        progress_mode = os.environ.get("T2SP_PROGRESS_MODE", "").strip().lower()
+        if progress_mode in {"line", "lines", "newline", "newlines", "colab"}:
+            self._use_carriage_return = False
+            return
+        if progress_mode in {"carriage_return", "cr", "tty"}:
+            self._use_carriage_return = True
             return
         self._use_carriage_return = self.stream.isatty()
 
