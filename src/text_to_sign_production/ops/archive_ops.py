@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, NoReturn
 
 from ..data.utils import ensure_directory
 from .progress import ProgressReporter
@@ -56,6 +56,7 @@ def copy_file_with_progress(source: Path, destination: Path, *, label: str) -> P
     ensure_directory(destination.parent)
     total_bytes = source.stat().st_size
     reporter = ProgressReporter(label=label, total_bytes=total_bytes)
+    reporter.update(0)
     completed = 0
 
     with source.open("rb") as source_handle, destination.open("wb") as destination_handle:
@@ -78,6 +79,7 @@ def extract_tar_zst_with_progress(archive_path: Path, destination: Path, *, labe
     ensure_directory(destination)
     total_bytes = archive_path.stat().st_size
     reporter = ProgressReporter(label=label, total_bytes=total_bytes)
+    reporter.update(0)
     with tempfile.TemporaryFile() as stderr_file:
         process = subprocess.Popen(
             ["tar", "--zstd", "-xf", "-", "-C", str(destination)],
@@ -87,12 +89,22 @@ def extract_tar_zst_with_progress(archive_path: Path, destination: Path, *, labe
         )
 
         completed = 0
+        stream_error: OSError | None = None
         try:
             with archive_path.open("rb") as archive_handle:
                 while chunk := archive_handle.read(CHUNK_SIZE):
                     if process.stdin is None:
                         raise RuntimeError(f"tar stdin was not available for {archive_path}")
-                    process.stdin.write(chunk)
+                    if process.poll() is not None:
+                        stream_error = BrokenPipeError(
+                            "tar exited before the full archive stream was written"
+                        )
+                        break
+                    try:
+                        process.stdin.write(chunk)
+                    except OSError as exc:
+                        stream_error = exc
+                        break
                     completed += len(chunk)
                     reporter.update(completed)
         except BaseException:
@@ -103,12 +115,14 @@ def extract_tar_zst_with_progress(archive_path: Path, destination: Path, *, labe
 
         _close_process_stdin(process)
         returncode = process.wait()
-        reporter.finish(total_bytes)
-        if returncode != 0:
+        reporter.finish(completed if stream_error is not None else total_bytes)
+        if stream_error is not None or returncode != 0:
             stderr_text = _read_stderr_file(stderr_file)
-            raise RuntimeError(
-                f"tar extraction failed for {archive_path} "
-                f"with exit code {returncode}: {stderr_text}"
+            _raise_tar_extraction_error(
+                archive_path=archive_path,
+                returncode=returncode,
+                stderr_text=stderr_text,
+                stream_error=stream_error,
             )
 
 
@@ -129,6 +143,7 @@ def create_tar_zst_archive(
         archive_path.unlink()
 
     reporter = ProgressReporter(label=label, total_bytes=None)
+    reporter.update(0)
     with (
         tempfile.TemporaryFile() as tar_stderr_file,
         tempfile.TemporaryFile() as zstd_stderr_file,
@@ -147,13 +162,23 @@ def create_tar_zst_archive(
         )
 
         completed = 0
+        stream_error: OSError | None = None
         try:
             if tar_process.stdout is None:
                 raise RuntimeError("tar stdout was not available while creating the archive.")
             while chunk := tar_process.stdout.read(CHUNK_SIZE):
                 if zstd_process.stdin is None:
                     raise RuntimeError("zstd stdin was not available while creating the archive.")
-                zstd_process.stdin.write(chunk)
+                if zstd_process.poll() is not None:
+                    stream_error = BrokenPipeError(
+                        "zstd exited before the full tar stream was written"
+                    )
+                    break
+                try:
+                    zstd_process.stdin.write(chunk)
+                except OSError as exc:
+                    stream_error = exc
+                    break
                 completed += len(chunk)
                 reporter.update(completed)
         except BaseException:
@@ -165,23 +190,23 @@ def create_tar_zst_archive(
             raise
 
         _close_process_stdin(zstd_process)
-        tar_returncode = tar_process.wait()
+        tar_returncode = (
+            _stop_process(tar_process) if stream_error is not None else tar_process.wait()
+        )
         zstd_returncode = zstd_process.wait()
         reporter.finish(completed)
 
-        if tar_returncode != 0:
+        if stream_error is not None or tar_returncode != 0 or zstd_returncode != 0:
             tar_stderr = _read_stderr_file(tar_stderr_file)
-            archive_path.unlink(missing_ok=True)
-            raise RuntimeError(
-                "tar failed while creating "
-                f"{archive_path} with exit code {tar_returncode}: {tar_stderr}"
-            )
-        if zstd_returncode != 0:
             zstd_stderr = _read_stderr_file(zstd_stderr_file)
             archive_path.unlink(missing_ok=True)
-            raise RuntimeError(
-                "zstd failed while creating "
-                f"{archive_path} with exit code {zstd_returncode}: {zstd_stderr}"
+            _raise_archive_creation_error(
+                archive_path=archive_path,
+                tar_returncode=tar_returncode,
+                tar_stderr=tar_stderr,
+                zstd_returncode=zstd_returncode,
+                zstd_stderr=zstd_stderr,
+                stream_error=stream_error,
             )
     return archive_path
 
@@ -231,3 +256,47 @@ def _stop_process(process: subprocess.Popen[bytes]) -> int:
 def _read_stderr_file(stderr_file: BinaryIO) -> str:
     stderr_file.seek(0)
     return stderr_file.read().decode("utf-8", errors="replace").strip()
+
+
+def _raise_tar_extraction_error(
+    *,
+    archive_path: Path,
+    returncode: int,
+    stderr_text: str,
+    stream_error: OSError | None,
+) -> NoReturn:
+    details = [f"tar exit code {returncode}"]
+    if stderr_text:
+        details.append(f"tar stderr: {stderr_text}")
+    if stream_error is not None:
+        details.append(f"streaming error: {stream_error}")
+    message = f"tar extraction failed for {archive_path}: {'; '.join(details)}"
+    if stream_error is None:
+        raise RuntimeError(message)
+    raise RuntimeError(message) from stream_error
+
+
+def _raise_archive_creation_error(
+    *,
+    archive_path: Path,
+    tar_returncode: int,
+    tar_stderr: str,
+    zstd_returncode: int,
+    zstd_stderr: str,
+    stream_error: OSError | None,
+) -> NoReturn:
+    details: list[str] = []
+    if stream_error is not None:
+        details.append(f"streaming to zstd failed: {stream_error}")
+    if tar_returncode != 0:
+        details.append(f"tar exit code {tar_returncode}")
+    if tar_stderr:
+        details.append(f"tar stderr: {tar_stderr}")
+    if zstd_returncode != 0:
+        details.append(f"zstd exit code {zstd_returncode}")
+    if zstd_stderr:
+        details.append(f"zstd stderr: {zstd_stderr}")
+    message = f"archive creation failed for {archive_path}: {'; '.join(details)}"
+    if stream_error is None:
+        raise RuntimeError(message)
+    raise RuntimeError(message) from stream_error

@@ -31,8 +31,20 @@ class ProgressReporter:
     stream: TextIO = field(default_factory=lambda: sys.stdout, repr=False)
     min_interval_seconds: float = 0.2
     width: int = 24
+    use_carriage_return: bool | None = None
     _last_render_time: float = field(default=0.0, init=False, repr=False)
     _last_completed: int = field(default=0, init=False, repr=False)
+    _last_render_length: int = field(default=0, init=False, repr=False)
+    _last_rendered_line: str = field(default="", init=False, repr=False)
+    _use_carriage_return: bool = field(default=False, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        """Choose terminal-style updates only for streams that advertise TTY behavior."""
+
+        if self.use_carriage_return is not None:
+            self._use_carriage_return = self.use_carriage_return
+            return
+        self._use_carriage_return = self.stream.isatty()
 
     def update(self, completed_bytes: int) -> None:
         """Render progress if enough time has passed or the operation finished."""
@@ -48,17 +60,31 @@ class ProgressReporter:
         if not should_render:
             return
 
-        self._last_render_time = now
-        self._last_completed = completed_bytes
-        self.stream.write(f"\r{self._render_line(completed_bytes)}")
-        self.stream.flush()
+        self._write_line(completed_bytes, end_line=False)
 
     def finish(self, completed_bytes: int | None = None) -> None:
         """Force a final render and terminate the progress line."""
 
         final_completed = self._last_completed if completed_bytes is None else completed_bytes
-        self.update(final_completed)
-        self.stream.write("\n")
+        final_line = self._render_line(final_completed)
+        if self._use_carriage_return or final_line != self._last_rendered_line:
+            self._write_line(final_completed, end_line=True)
+            return
+        self.stream.flush()
+
+    def _write_line(self, completed_bytes: int, *, end_line: bool) -> None:
+        line = self._render_line(completed_bytes)
+        self._last_render_time = time.monotonic()
+        self._last_completed = completed_bytes
+        if self._use_carriage_return:
+            padding = " " * max(0, self._last_render_length - len(line))
+            self.stream.write(f"\r{line}{padding}")
+            if end_line:
+                self.stream.write("\n")
+        else:
+            self.stream.write(f"{line}\n")
+        self._last_render_length = len(line)
+        self._last_rendered_line = line
         self.stream.flush()
 
     def _render_line(self, completed_bytes: int) -> str:

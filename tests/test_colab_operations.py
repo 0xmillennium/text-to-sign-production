@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import io
 import json
 import shutil
 import subprocess
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any, BinaryIO, cast
 
 import pytest
 
 import scripts.package_sprint2_outputs as package_outputs_script
 import text_to_sign_production.ops.archive_ops as archive_ops_mod
 import text_to_sign_production.ops.colab_workflow as colab_workflow_mod
+from text_to_sign_production.ops.progress import ProgressReporter
 
 
 def _write(path: Path, content: str) -> None:
@@ -49,6 +53,125 @@ def _write_minimal_packaging_outputs(root: Path, *, splits: tuple[str, ...]) -> 
         _write(root / relative_path, "placeholder\n")
     for split in splits:
         _write(root / "data/processed/v1/samples" / split / f"{split}_sample.npz", "sample")
+
+
+class _BrokenPipeStdin:
+    def write(self, chunk: bytes) -> int:
+        raise BrokenPipeError("pipe closed")
+
+    def close(self) -> None:
+        return
+
+
+class _OneChunkStdout:
+    def __init__(self, chunk: bytes) -> None:
+        self._chunk = chunk
+
+    def read(self, size: int) -> bytes:
+        if not self._chunk:
+            return b""
+        chunk = self._chunk
+        self._chunk = b""
+        return chunk
+
+
+class _FakeExtractBrokenPipeProcess:
+    def __init__(self, stderr_file: BinaryIO) -> None:
+        self.stdin: _BrokenPipeStdin | None = _BrokenPipeStdin()
+        stderr_file.write(b"tar: corrupt archive")
+
+    def poll(self) -> int | None:
+        return None
+
+    def wait(self, timeout: float | None = None) -> int:
+        return 2
+
+    def terminate(self) -> None:
+        return
+
+    def kill(self) -> None:
+        return
+
+
+class _FakeCreateTarProcess:
+    def __init__(self, stderr_file: BinaryIO) -> None:
+        self.stdin = None
+        self.stdout: _OneChunkStdout | None = _OneChunkStdout(b"tar-stream")
+        self._returncode: int | None = None
+
+    def poll(self) -> int | None:
+        return self._returncode
+
+    def wait(self, timeout: float | None = None) -> int:
+        if self._returncode is None:
+            self._returncode = 0
+        return self._returncode
+
+    def terminate(self) -> None:
+        self._returncode = -15
+
+    def kill(self) -> None:
+        self._returncode = -9
+
+
+class _FakeCreateZstdProcess:
+    def __init__(self, stderr_file: BinaryIO) -> None:
+        self.stdin: _BrokenPipeStdin | None = _BrokenPipeStdin()
+        self.stdout = None
+        stderr_file.write(b"zstd: simulated failure")
+
+    def poll(self) -> int | None:
+        return None
+
+    def wait(self, timeout: float | None = None) -> int:
+        return 1
+
+    def terminate(self) -> None:
+        return
+
+    def kill(self) -> None:
+        return
+
+
+def test_progress_reporter_uses_newline_updates_for_non_tty_streams() -> None:
+    stream = io.StringIO()
+    reporter = ProgressReporter(
+        "Copy archive",
+        total_bytes=10,
+        stream=stream,
+        min_interval_seconds=0,
+    )
+
+    reporter.update(0)
+    reporter.update(5)
+    reporter.finish(10)
+
+    output = stream.getvalue()
+    lines = output.splitlines()
+    assert "\r" not in output
+    assert len(lines) == 3
+    assert "0 B / 10 B" in lines[0]
+    assert "50.0%" in lines[1]
+    assert "100.0%" in lines[2]
+
+
+def test_progress_reporter_pads_shorter_carriage_return_updates() -> None:
+    stream = io.StringIO()
+    reporter = ProgressReporter(
+        "Archive",
+        total_bytes=None,
+        stream=stream,
+        min_interval_seconds=0,
+        use_carriage_return=True,
+    )
+
+    reporter.update(1024**3)
+    reporter.update(1)
+
+    long_line = "Archive: 1.0 GiB transferred"
+    short_line = "Archive: 1 B transferred"
+    expected_padding = " " * (len(long_line) - len(short_line))
+    assert f"\r{short_line}{expected_padding}" in stream.getvalue()
 
 
 @pytest.mark.skipif(
@@ -174,6 +297,30 @@ def test_extract_tar_zst_with_progress_rejects_non_tar_zst_archives(
         )
 
 
+def test_extract_tar_zst_with_progress_reports_stderr_after_broken_pipe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    archive_path = tmp_path / "corrupt.tar.zst"
+    archive_path.write_bytes(b"not-a-valid-archive")
+    monkeypatch.setattr(archive_ops_mod, "ensure_tar_zst_extract_prerequisites", lambda: None)
+
+    def fake_popen(command: Sequence[str], **kwargs: Any) -> Any:
+        stderr_file = cast(BinaryIO, kwargs["stderr"])
+        return _FakeExtractBrokenPipeProcess(stderr_file)
+
+    monkeypatch.setattr("text_to_sign_production.ops.archive_ops.subprocess.Popen", fake_popen)
+
+    with pytest.raises(RuntimeError, match="tar stderr: tar: corrupt archive") as exc_info:
+        archive_ops_mod.extract_tar_zst_with_progress(
+            archive_path,
+            tmp_path / "extract",
+            label="Extract archive",
+        )
+
+    assert isinstance(exc_info.value.__cause__, BrokenPipeError)
+
+
 @pytest.mark.skipif(
     shutil.which("zstd") is None or not package_outputs_script._tar_supports_zstd(),
     reason="tar with --zstd support and zstd are required for extraction tests",
@@ -230,6 +377,37 @@ def test_create_tar_zst_archive_does_not_require_tar_zstd_support(
     assert archive_path.exists()
     assert "Archive source" in captured.out
     assert "transferred" in captured.out
+
+
+def test_create_tar_zst_archive_reports_subprocess_stderr_after_broken_pipe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_dir = tmp_path / "archive_source"
+    _write(source_dir / "sample.txt", "sample")
+    archive_path = tmp_path / "archive.tar.zst"
+    monkeypatch.setattr(archive_ops_mod, "ensure_tar_zst_create_prerequisites", lambda: None)
+
+    def fake_popen(command: Sequence[str], **kwargs: Any) -> Any:
+        stderr_file = cast(BinaryIO, kwargs["stderr"])
+        if command[0] == "tar":
+            return _FakeCreateTarProcess(stderr_file)
+        if command[0] == "zstd":
+            return _FakeCreateZstdProcess(stderr_file)
+        raise AssertionError(f"Unexpected subprocess command: {command}")
+
+    monkeypatch.setattr("text_to_sign_production.ops.archive_ops.subprocess.Popen", fake_popen)
+
+    with pytest.raises(RuntimeError, match="zstd stderr: zstd: simulated failure") as exc_info:
+        archive_ops_mod.create_tar_zst_archive(
+            archive_path=archive_path,
+            members=(source_dir.relative_to(tmp_path),),
+            cwd=tmp_path,
+            label="Archive source",
+        )
+
+    assert isinstance(exc_info.value.__cause__, BrokenPipeError)
+    assert not archive_path.exists()
 
 
 def test_find_extracted_split_dir_handles_supported_layouts_and_ambiguity(tmp_path: Path) -> None:
