@@ -1,10 +1,8 @@
-"""Archive Sprint 2 manifests, reports, and processed samples for transfer or storage."""
+"""Archive Sprint 2 manifests, reports, and processed samples."""
 
 from __future__ import annotations
 
 import argparse
-import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -13,20 +11,11 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from text_to_sign_production.data.constants import SPLITS  # noqa: E402
-from text_to_sign_production.data.utils import remove_stale_split_files  # noqa: E402
+from text_to_sign_production.data.constants import ARCHIVES_RELATIVE_ROOT, SPLITS  # noqa: E402
+from text_to_sign_production.ops.archive_ops import tar_supports_zstd  # noqa: E402
+from text_to_sign_production.ops.colab_workflow import package_sprint2_outputs  # noqa: E402
 
-DEFAULT_OUTPUT_DIR = Path("data/archives")
-MANIFESTS_AND_REPORTS_MEMBERS = (
-    Path("data/interim/raw_manifests"),
-    Path("data/interim/normalized_manifests"),
-    Path("data/interim/filtered_manifests"),
-    Path("data/interim/reports"),
-    Path("data/processed/v1/manifests"),
-    Path("data/processed/v1/reports"),
-)
-MANIFESTS_AND_REPORTS_ARCHIVE_NAME = "sprint2_manifests_reports.tar.zst"
-SAMPLE_ARCHIVE_NAME_TEMPLATE = "sprint2_samples_{split}.tar.zst"
+DEFAULT_OUTPUT_DIR = ARCHIVES_RELATIVE_ROOT
 
 
 def parse_args() -> argparse.Namespace:
@@ -68,55 +57,8 @@ def _display_path(path: Path, *, project_root: Path) -> str:
         return str(path)
 
 
-def _assert_archive_prerequisites() -> None:
-    if shutil.which("tar") is None:
-        raise RuntimeError("`tar` is required to package Sprint 2 outputs.")
-    if shutil.which("zstd") is None:
-        raise RuntimeError("`zstd` is required to create `.tar.zst` archives.")
-    if not _tar_supports_zstd():
-        raise RuntimeError("`tar` with `--zstd` support is required to package Sprint 2 outputs.")
-
-
 def _tar_supports_zstd() -> bool:
-    tar_path = shutil.which("tar")
-    if tar_path is None:
-        return False
-    help_result = subprocess.run(
-        [tar_path, "--help"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    return "--zstd" in (help_result.stdout + help_result.stderr)
-
-
-def _assert_required_members(project_root: Path, members: tuple[Path, ...]) -> None:
-    missing = [member for member in members if not (project_root / member).exists()]
-    if missing:
-        formatted = "\n".join(f"- {member}" for member in missing)
-        raise FileNotFoundError(f"Missing required Sprint 2 outputs:\n{formatted}")
-
-
-def _create_archive(
-    *,
-    archive_path: Path,
-    members: tuple[Path, ...],
-    project_root: Path,
-) -> Path:
-    _assert_required_members(project_root, members)
-    archive_path.parent.mkdir(parents=True, exist_ok=True)
-    if archive_path.exists():
-        archive_path.unlink()
-
-    command = [
-        "tar",
-        "--zstd",
-        "-cf",
-        str(archive_path),
-        *[str(member) for member in members],
-    ]
-    subprocess.run(command, cwd=project_root, check=True)
-    return archive_path
+    return tar_supports_zstd()
 
 
 def package_outputs(
@@ -125,35 +67,11 @@ def package_outputs(
     output_dir: Path | None = None,
     splits: tuple[str, ...] = SPLITS,
 ) -> list[Path]:
-    _assert_archive_prerequisites()
-
-    resolved_output_dir = output_dir or project_root / DEFAULT_OUTPUT_DIR
-    if not resolved_output_dir.is_absolute():
-        resolved_output_dir = project_root / resolved_output_dir
-    resolved_output_dir.mkdir(parents=True, exist_ok=True)
-
-    archives = [
-        _create_archive(
-            archive_path=resolved_output_dir / MANIFESTS_AND_REPORTS_ARCHIVE_NAME,
-            members=MANIFESTS_AND_REPORTS_MEMBERS,
-            project_root=project_root,
-        )
-    ]
-    for split in splits:
-        archives.append(
-            _create_archive(
-                archive_path=resolved_output_dir / SAMPLE_ARCHIVE_NAME_TEMPLATE.format(split=split),
-                members=(Path("data/processed/v1/samples") / split,),
-                project_root=project_root,
-            )
-        )
-    remove_stale_split_files(
-        resolved_output_dir,
-        filename_template=SAMPLE_ARCHIVE_NAME_TEMPLATE,
-        requested_splits=splits,
-        all_splits=SPLITS,
+    return package_sprint2_outputs(
+        project_root=project_root,
+        output_dir=output_dir,
+        splits=splits,
     )
-    return archives
 
 
 def main() -> int:

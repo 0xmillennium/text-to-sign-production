@@ -16,7 +16,7 @@ from .constants import (
     REQUIRED_CORE_CHANNELS,
     SPLITS,
 )
-from .jsonl import iter_jsonl, write_json, write_jsonl
+from .jsonl import iter_jsonl, write_jsonl
 from .schemas import NormalizedManifestEntry
 from .utils import (
     ensure_directory,
@@ -24,6 +24,7 @@ from .utils import (
     repo_relative_path,
     resolve_repo_path,
     utc_timestamp,
+    write_json,
 )
 
 FILTER_CONFIG_SCHEMA_VERSION = 1

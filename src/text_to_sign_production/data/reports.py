@@ -1,39 +1,13 @@
-"""Report generation for the Sprint 2 data pipeline."""
+"""Report construction and rendering for the Sprint 2 data pipeline."""
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any
 
-from .constants import (
-    FILTERED_MANIFESTS_ROOT,
-    PROCESSED_MANIFESTS_ROOT,
-    PROCESSED_REPORTS_ROOT,
-    RAW_MANIFESTS_ROOT,
-    SPLITS,
-)
-from .jsonl import read_jsonl, write_json, write_jsonl
-from .schemas import NormalizedManifestEntry, ProcessedManifestEntry, RawManifestEntry
-from .utils import (
-    ensure_directory,
-    summarize_numbers,
-    utc_timestamp,
-    validate_processed_sample_path,
-)
-
-
-def _load_raw_records(split: str) -> list[RawManifestEntry]:
-    return [
-        RawManifestEntry.from_record(record)
-        for record in read_jsonl(RAW_MANIFESTS_ROOT / f"raw_{split}.jsonl")
-    ]
-
-
-def _load_filtered_records(split: str) -> list[NormalizedManifestEntry]:
-    return [
-        NormalizedManifestEntry.from_record(record)
-        for record in read_jsonl(FILTERED_MANIFESTS_ROOT / f"filtered_{split}.jsonl")
-    ]
+from .constants import PROCESSED_REPORTS_ROOT, SPLITS
+from .schemas import ProcessedManifestEntry, RawManifestEntry
+from .utils import summarize_numbers
 
 
 def _numeric_summary(values: Iterable[int | float]) -> dict[str, float | int | None]:
@@ -55,94 +29,19 @@ def _numeric_summary(values: Iterable[int | float]) -> dict[str, float | int | N
     return summary
 
 
-def _build_processed_manifest_entry(entry: NormalizedManifestEntry) -> ProcessedManifestEntry:
-    if entry.sample_path is None:
-        raise ValueError(f"Filtered entry {entry.sample_id} is missing sample_path.")
-    if entry.source_keypoints_dir is None:
-        raise ValueError(f"Filtered entry {entry.sample_id} is missing source_keypoints_dir.")
-    validate_processed_sample_path(
-        entry.sample_path,
-        split=entry.split,
-        sample_id=entry.sample_id,
-    )
-
-    return ProcessedManifestEntry(
-        sample_id=entry.sample_id,
-        processed_schema_version=entry.processed_schema_version,
-        text=entry.text,
-        split=entry.split,
-        fps=entry.fps,
-        num_frames=entry.num_frames,
-        sample_path=entry.sample_path,
-        source_video_id=entry.source_video_id,
-        source_sentence_id=entry.source_sentence_id,
-        source_sentence_name=entry.source_sentence_name,
-        selected_person_index=entry.selected_person_index,
-        multi_person_frame_count=entry.multi_person_frame_count,
-        max_people_per_frame=entry.max_people_per_frame,
-        source_metadata_path=entry.source_metadata_path,
-        source_keypoints_dir=entry.source_keypoints_dir,
-        source_video_path=entry.source_video_path,
-        video_width=entry.video_width,
-        video_height=entry.video_height,
-        video_metadata_error=entry.video_metadata_error,
-        frame_valid_count=entry.frame_valid_count,
-        frame_invalid_count=entry.frame_invalid_count,
-        face_missing_frame_count=entry.face_missing_frame_count,
-        out_of_bounds_coordinate_count=entry.out_of_bounds_coordinate_count,
-        frames_with_any_zeroed_required_joint=entry.frames_with_any_zeroed_required_joint,
-        frame_issue_counts=entry.frame_issue_counts,
-        core_channel_nonzero_frames=entry.core_channel_nonzero_frames,
-    )
-
-
-def _validate_report_splits(
-    report_name: str, report: dict[str, Any], requested_splits: tuple[str, ...]
-) -> None:
-    available_splits = set(report.get("splits", {}))
-    missing_splits = [split for split in requested_splits if split not in available_splits]
-    if missing_splits:
-        missing_display = ", ".join(missing_splits)
-        raise ValueError(f"{report_name} is missing requested splits: {missing_display}")
-
-
-def _remove_stale_manifest_files(requested_splits: tuple[str, ...]) -> None:
-    for split in SPLITS:
-        if split in requested_splits:
-            continue
-        manifest_path = PROCESSED_MANIFESTS_ROOT / f"{split}.jsonl"
-        if not manifest_path.exists():
-            continue
-        if not manifest_path.is_file():
-            raise ValueError(f"Expected processed manifest path to be a file: {manifest_path}")
-        manifest_path.unlink()
-
-
-def export_final_manifests(
-    assumption_report: dict[str, Any],
-    filter_report: dict[str, Any],
+def build_quality_report(
     *,
+    final_records_by_split: Mapping[str, list[ProcessedManifestEntry]],
+    filter_report: Mapping[str, Any],
+    generated_at: str,
     splits: tuple[str, ...] = SPLITS,
 ) -> dict[str, Any]:
-    """Build final processed manifests plus Markdown and JSON reports."""
+    """Construct the machine-readable processed data-quality report."""
 
-    ensure_directory(PROCESSED_MANIFESTS_ROOT)
-    ensure_directory(PROCESSED_REPORTS_ROOT)
-
-    requested_splits = tuple(splits)
-    _validate_report_splits("assumption_report", assumption_report, requested_splits)
-    _validate_report_splits("filter_report", filter_report, requested_splits)
-    final_records_by_split: dict[str, list[ProcessedManifestEntry]] = {}
-    split_report: dict[str, Any] = {"generated_at": utc_timestamp(), "splits": {}}
-    quality_report: dict[str, Any] = {"generated_at": utc_timestamp(), "splits": {}}
-
-    for split in requested_splits:
-        filtered_entries = _load_filtered_records(split)
-        raw_entries = _load_raw_records(split)
-        final_records = [_build_processed_manifest_entry(entry) for entry in filtered_entries]
-        final_records_by_split[split] = final_records
-
-        video_ids = {record.source_video_id for record in final_records}
+    quality_report: dict[str, Any] = {"generated_at": generated_at, "splits": {}}
+    for split in splits:
+        final_records = final_records_by_split.get(split, [])
+        split_filter_report = dict(filter_report["splits"][split])
         frame_counts = [record.num_frames for record in final_records]
         text_lengths = [len(record.text) for record in final_records]
         fps_values = [record.fps for record in final_records if record.fps is not None]
@@ -151,18 +50,10 @@ def export_final_manifests(
             for record in final_records
             if record.num_frames > 0
         ]
-
-        split_report["splits"][split] = {
-            "raw_samples": len(raw_entries),
-            "processed_samples": len(final_records),
-            "raw_video_count": len({entry.video_id for entry in raw_entries}),
-            "processed_video_count": len(video_ids),
-            "sample_id_overlap_with_other_splits": {},
-        }
         quality_report["splits"][split] = {
             "processed_sample_count": len(final_records),
-            "dropped_sample_count": filter_report["splits"][split]["dropped_samples"],
-            "drop_reason_counts": filter_report["splits"][split]["drop_reason_counts"],
+            "dropped_sample_count": split_filter_report["dropped_samples"],
+            "drop_reason_counts": split_filter_report["drop_reason_counts"],
             "text_length": _numeric_summary(text_lengths),
             "frame_count": _numeric_summary(frame_counts),
             "fps": _numeric_summary(fps_values),
@@ -189,10 +80,31 @@ def export_final_manifests(
                 if record.video_metadata_error is None and record.fps is not None
             ),
         }
+    return quality_report
 
-    _remove_stale_manifest_files(requested_splits)
-    for split, final_records in final_records_by_split.items():
-        write_jsonl(PROCESSED_MANIFESTS_ROOT / f"{split}.jsonl", final_records)
+
+def build_split_report(
+    *,
+    raw_records_by_split: Mapping[str, list[RawManifestEntry]],
+    final_records_by_split: Mapping[str, list[ProcessedManifestEntry]],
+    generated_at: str,
+    splits: tuple[str, ...] = SPLITS,
+) -> dict[str, Any]:
+    """Construct the machine-readable split integrity report."""
+
+    split_report: dict[str, Any] = {"generated_at": generated_at, "splits": {}}
+    requested_splits = tuple(splits)
+    for split in requested_splits:
+        raw_entries = raw_records_by_split.get(split, [])
+        final_records = final_records_by_split.get(split, [])
+        video_ids = {record.source_video_id for record in final_records}
+        split_report["splits"][split] = {
+            "raw_samples": len(raw_entries),
+            "processed_samples": len(final_records),
+            "raw_video_count": len({entry.video_id for entry in raw_entries}),
+            "processed_video_count": len(video_ids),
+            "sample_id_overlap_with_other_splits": {},
+        }
 
     split_names = {
         split: {record.sample_id for record in records}
@@ -219,25 +131,13 @@ def export_final_manifests(
                 left_video_ids.intersection(right_video_ids)
             )
     split_report["video_id_overlap"] = video_id_overlap
-
-    write_json(PROCESSED_REPORTS_ROOT / "data-quality-report.json", quality_report)
-    write_json(PROCESSED_REPORTS_ROOT / "split-report.json", split_report)
-    write_markdown_reports(
-        assumption_report,
-        quality_report,
-        split_report,
-        splits=requested_splits,
-    )
-    return {
-        "quality_report": quality_report,
-        "split_report": split_report,
-    }
+    return split_report
 
 
 def write_markdown_reports(
-    assumption_report: dict[str, Any],
-    quality_report: dict[str, Any],
-    split_report: dict[str, Any],
+    assumption_report: Mapping[str, Any],
+    quality_report: Mapping[str, Any],
+    split_report: Mapping[str, Any],
     *,
     splits: tuple[str, ...] = SPLITS,
 ) -> None:

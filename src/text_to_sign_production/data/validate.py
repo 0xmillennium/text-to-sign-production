@@ -12,13 +12,13 @@ from zipfile import BadZipFile
 import numpy as np
 
 from .constants import OPENPOSE_CHANNEL_SPECS, PROCESSED_SCHEMA_VERSION, SPLITS
+from .manifests import validate_processed_sample_path
 from .schemas import (
     NormalizedManifestEntry,
     ProcessedManifestEntry,
     RawManifestEntry,
     ValidationIssue,
 )
-from .utils import validate_processed_sample_path
 
 RAW_REQUIRED_FIELDS = frozenset(
     {

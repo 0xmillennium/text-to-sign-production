@@ -13,7 +13,7 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from text_to_sign_production.data.constants import SPLITS  # noqa: E402
-from text_to_sign_production.data.reports import export_final_manifests  # noqa: E402
+from text_to_sign_production.data.manifests import export_final_manifests  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:

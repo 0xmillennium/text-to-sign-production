@@ -26,9 +26,9 @@ outputs outside GitHub.
 - Runtime assumption validation and auditable data-quality reporting
 - DVC stages for `prepare_raw`, `normalize_keypoints`, `filter_samples`, and
   `export_training_manifest`
-- A Colab notebook for heavy script-based Sprint 2 execution
+- A single fixed Google Colab workflow for heavy Sprint 2 execution
+- Thin Colab staging and publish scripts with shared progress-aware archive operations
 - Explicit output packaging via `python scripts/package_sprint2_outputs.py`
-- A documented private/shared artifact-storage pattern using example Google Drive configuration
 - Sprint 1 quality gates, docs, ADRs, and notebook philosophy carried forward unchanged
 
 ## Sprint 2 Explicitly Does Not Include
@@ -47,14 +47,15 @@ reproducibility instead of placeholder ML code.
 
 ```text
 .
-├── configs/                  # Data filters and example storage configuration
+├── configs/                  # Data filters
 ├── data/                     # Raw, interim, and processed dataset roots
 ├── docs/                     # MkDocs source, ADRs, experiment records, and ops docs
 ├── notebooks/                # Thin runner notebooks only
 │   └── colab/                # Primary Colab heavy-execution notebook
 ├── scripts/                  # Thin CLI entrypoints and operational helpers
 ├── src/text_to_sign_production/
-│   └── data/                 # Reusable data pipeline package
+│   ├── data/                 # Reusable Sprint 2 data pipeline package
+│   └── ops/                  # Reusable Colab/archive operations layer
 ├── tests/                    # Fast deterministic tests plus fixture-backed pipeline tests
 ├── dvc.yaml                  # Reproducible Sprint 2 data pipeline stages
 ├── Makefile                  # Common local developer commands
@@ -118,8 +119,8 @@ dvc repro
 - `make ci-local` runs the main local quality checks together, including `pre-commit` and
   `pip-audit`.
 - `dvc repro` executes the full Sprint 2 data pipeline against the canonical raw dataset layout.
-- `python scripts/package_sprint2_outputs.py` creates explicit `.tar.zst` archives for transfer or
-  private/shared storage.
+- `python scripts/package_sprint2_outputs.py` creates explicit `.tar.zst` archives under
+  `data/archives/`.
 - Split-aware script runs are supported throughout Sprint 2 via `--splits`, including export and
   packaging for subset Colab workflows.
 
@@ -131,7 +132,8 @@ core project logic. All important logic belongs in the package and supporting mo
 
 Sprint 2 keeps that rule intact and now ships:
 
-- `notebooks/colab/sprint2_pipeline_colab.ipynb` for heavy real-data execution in Google Colab
+- `notebooks/colab/sprint2_pipeline_colab.ipynb` for the single supported heavy real-data Google
+  Colab workflow
 - `notebooks/colab_smoke_test.ipynb` for minimal repository smoke checks
 
 ## DVC Role
@@ -151,9 +153,11 @@ forcing `dvc repro` over very large raw trees. DVC remains the pipeline-definiti
 ## Artifact Storage And Git Hygiene
 
 - Large raw, interim, processed, archive, and DVC-cache artifacts are kept out of GitHub.
-- `configs/storage.example.yaml` documents the storage contract without embedding private values.
-- `configs/storage.local.yaml` is intentionally local-only and ignored by Git.
-- GitHub Pages documents the workflow but must not expose private storage links or folder IDs.
+- The supported Colab workflow reads only from the fixed Drive raw paths under
+  `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/`.
+- The supported Colab workflow publishes only to
+  `/content/drive/MyDrive/text-to-sign-production/artifacts/sprint2/processed-v1/`.
+- GitHub Pages documents the workflow but must not expose any private storage links or folder IDs.
 - Future sprints can reuse packaged Sprint 2 outputs from private/shared storage instead of
   republishing large artifacts.
 

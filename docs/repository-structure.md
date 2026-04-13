@@ -6,7 +6,7 @@
 .
 ├── .github/workflows/
 ├── configs/
-│   └── storage.example.yaml
+│   └── data/
 ├── data/
 ├── docs/
 │   ├── execution/
@@ -15,7 +15,8 @@
 │   └── colab/
 ├── scripts/
 ├── src/text_to_sign_production/
-│   └── data/
+│   ├── data/
+│   └── ops/
 ├── tests/
 ├── dvc.yaml
 ├── Makefile
@@ -27,7 +28,7 @@
 ## Purpose Of Each Area
 
 - `.github/workflows/` contains CI, documentation deployment, and release automation.
-- `configs/` contains the Sprint 2 filtering policy and example operational storage configuration.
+- `configs/` contains the Sprint 2 filtering policy.
 - `data/` contains the canonical raw, interim, and processed dataset roots.
 - `docs/` contains the MkDocs site, ADRs, experiment logging templates, and operational workflow
   guidance.
@@ -35,7 +36,7 @@
   execution support.
 - `scripts/` contains thin CLI entrypoints for the data pipeline plus small operational helpers.
 - `src/text_to_sign_production/` is the Python package root, including the reusable Sprint 2 data
-  modules.
+  modules and the small operations layer for Colab/archive work.
 - `tests/` holds deterministic tests for the package and fixture-backed Sprint 2 pipeline checks.
 - `dvc.yaml` defines the implemented Sprint 2 stages.
 
