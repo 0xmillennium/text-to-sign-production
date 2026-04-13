@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import tempfile
 from collections.abc import Iterable, Sequence
 from pathlib import Path
+from typing import BinaryIO
 
 from ..data.utils import ensure_directory
 from .progress import ProgressReporter
@@ -28,13 +30,19 @@ def tar_supports_zstd() -> bool:
     return "--zstd" in (help_result.stdout + help_result.stderr)
 
 
-def ensure_tar_zst_prerequisites() -> None:
-    """Validate the system tools required for `.tar.zst` operations."""
+def ensure_tar_zst_create_prerequisites() -> None:
+    """Validate the system tools required to create `.tar.zst` archives."""
 
     if shutil.which("tar") is None:
-        raise RuntimeError("`tar` is required for `.tar.zst` archive operations.")
+        raise RuntimeError("`tar` is required to create `.tar.zst` archives.")
     if shutil.which("zstd") is None:
-        raise RuntimeError("`zstd` is required for `.tar.zst` archive operations.")
+        raise RuntimeError("`zstd` is required to create `.tar.zst` archives.")
+
+
+def ensure_tar_zst_extract_prerequisites() -> None:
+    """Validate the system tools required to extract `.tar.zst` archives."""
+
+    ensure_tar_zst_create_prerequisites()
     if not tar_supports_zstd():
         raise RuntimeError("`tar` with `--zstd` support is required for `.tar.zst` extraction.")
 
@@ -63,43 +71,45 @@ def copy_file_with_progress(source: Path, destination: Path, *, label: str) -> P
 def extract_tar_zst_with_progress(archive_path: Path, destination: Path, *, label: str) -> None:
     """Extract a `.tar.zst` archive by streaming it through `tar` with progress."""
 
-    ensure_tar_zst_prerequisites()
+    ensure_tar_zst_extract_prerequisites()
     if not archive_path.name.endswith(".tar.zst"):
         raise ValueError(f"Expected a .tar.zst archive, got: {archive_path.name}")
 
     ensure_directory(destination)
     total_bytes = archive_path.stat().st_size
     reporter = ProgressReporter(label=label, total_bytes=total_bytes)
-    process = subprocess.Popen(
-        ["tar", "--zstd", "-xf", "-", "-C", str(destination)],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-    )
-
-    completed = 0
-    try:
-        with archive_path.open("rb") as archive_handle:
-            while chunk := archive_handle.read(CHUNK_SIZE):
-                if process.stdin is None:
-                    raise RuntimeError(f"tar stdin was not available for {archive_path}")
-                process.stdin.write(chunk)
-                completed += len(chunk)
-                reporter.update(completed)
-    except BaseException:
-        _close_process_stdin(process)
-        _stop_process(process)
-        reporter.finish(completed)
-        raise
-
-    _close_process_stdin(process)
-    stderr_text = _read_process_stderr(process)
-    returncode = process.wait()
-    reporter.finish(total_bytes)
-    if returncode != 0:
-        raise RuntimeError(
-            f"tar extraction failed for {archive_path} with exit code {returncode}: {stderr_text}"
+    with tempfile.TemporaryFile() as stderr_file:
+        process = subprocess.Popen(
+            ["tar", "--zstd", "-xf", "-", "-C", str(destination)],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=stderr_file,
         )
+
+        completed = 0
+        try:
+            with archive_path.open("rb") as archive_handle:
+                while chunk := archive_handle.read(CHUNK_SIZE):
+                    if process.stdin is None:
+                        raise RuntimeError(f"tar stdin was not available for {archive_path}")
+                    process.stdin.write(chunk)
+                    completed += len(chunk)
+                    reporter.update(completed)
+        except BaseException:
+            _close_process_stdin(process)
+            _stop_process(process)
+            reporter.finish(completed)
+            raise
+
+        _close_process_stdin(process)
+        returncode = process.wait()
+        reporter.finish(total_bytes)
+        if returncode != 0:
+            stderr_text = _read_stderr_file(stderr_file)
+            raise RuntimeError(
+                f"tar extraction failed for {archive_path} "
+                f"with exit code {returncode}: {stderr_text}"
+            )
 
 
 def create_tar_zst_archive(
@@ -111,65 +121,68 @@ def create_tar_zst_archive(
 ) -> Path:
     """Create a `.tar.zst` archive while reporting streamed tar progress."""
 
-    ensure_tar_zst_prerequisites()
+    ensure_tar_zst_create_prerequisites()
     member_names = [str(_relative_member_path(member, cwd)) for member in members]
     _assert_required_members(cwd, members)
     ensure_directory(archive_path.parent)
     if archive_path.exists():
         archive_path.unlink()
 
-    total_tar_bytes = _estimate_tar_stream_size(cwd, members)
-    reporter = ProgressReporter(label=label, total_bytes=total_tar_bytes)
-    tar_process = subprocess.Popen(
-        ["tar", "-cf", "-", *member_names],
-        cwd=cwd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    zstd_process = subprocess.Popen(
-        ["zstd", "-q", "-T0", "-o", str(archive_path)],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-    )
+    reporter = ProgressReporter(label=label, total_bytes=None)
+    with (
+        tempfile.TemporaryFile() as tar_stderr_file,
+        tempfile.TemporaryFile() as zstd_stderr_file,
+    ):
+        tar_process = subprocess.Popen(
+            ["tar", "-cf", "-", *member_names],
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=tar_stderr_file,
+        )
+        zstd_process = subprocess.Popen(
+            ["zstd", "-q", "-T0", "-o", str(archive_path)],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=zstd_stderr_file,
+        )
 
-    completed = 0
-    try:
-        if tar_process.stdout is None:
-            raise RuntimeError("tar stdout was not available while creating the archive.")
-        while chunk := tar_process.stdout.read(CHUNK_SIZE):
-            if zstd_process.stdin is None:
-                raise RuntimeError("zstd stdin was not available while creating the archive.")
-            zstd_process.stdin.write(chunk)
-            completed += len(chunk)
-            reporter.update(completed)
-    except BaseException:
+        completed = 0
+        try:
+            if tar_process.stdout is None:
+                raise RuntimeError("tar stdout was not available while creating the archive.")
+            while chunk := tar_process.stdout.read(CHUNK_SIZE):
+                if zstd_process.stdin is None:
+                    raise RuntimeError("zstd stdin was not available while creating the archive.")
+                zstd_process.stdin.write(chunk)
+                completed += len(chunk)
+                reporter.update(completed)
+        except BaseException:
+            _close_process_stdin(zstd_process)
+            _stop_process(tar_process)
+            _stop_process(zstd_process)
+            archive_path.unlink(missing_ok=True)
+            reporter.finish(completed)
+            raise
+
         _close_process_stdin(zstd_process)
-        _stop_process(tar_process)
-        _stop_process(zstd_process)
-        archive_path.unlink(missing_ok=True)
+        tar_returncode = tar_process.wait()
+        zstd_returncode = zstd_process.wait()
         reporter.finish(completed)
-        raise
 
-    _close_process_stdin(zstd_process)
-    tar_stderr = _read_process_stderr(tar_process)
-    tar_returncode = tar_process.wait()
-    zstd_stderr = _read_process_stderr(zstd_process)
-    zstd_returncode = zstd_process.wait()
-    reporter.finish(total_tar_bytes)
-
-    if tar_returncode != 0:
-        archive_path.unlink(missing_ok=True)
-        raise RuntimeError(
-            "tar failed while creating "
-            f"{archive_path} with exit code {tar_returncode}: {tar_stderr}"
-        )
-    if zstd_returncode != 0:
-        archive_path.unlink(missing_ok=True)
-        raise RuntimeError(
-            "zstd failed while creating "
-            f"{archive_path} with exit code {zstd_returncode}: {zstd_stderr}"
-        )
+        if tar_returncode != 0:
+            tar_stderr = _read_stderr_file(tar_stderr_file)
+            archive_path.unlink(missing_ok=True)
+            raise RuntimeError(
+                "tar failed while creating "
+                f"{archive_path} with exit code {tar_returncode}: {tar_stderr}"
+            )
+        if zstd_returncode != 0:
+            zstd_stderr = _read_stderr_file(zstd_stderr_file)
+            archive_path.unlink(missing_ok=True)
+            raise RuntimeError(
+                "zstd failed while creating "
+                f"{archive_path} with exit code {zstd_returncode}: {zstd_stderr}"
+            )
     return archive_path
 
 
@@ -196,30 +209,6 @@ def _relative_member_path(member: Path, cwd: Path) -> Path:
     return member.resolve().relative_to(cwd.resolve())
 
 
-def _estimate_tar_stream_size(cwd: Path, members: Sequence[Path]) -> int:
-    total = 1024
-    for member in members:
-        total += _estimate_member_size(_absolute_member_path(member, cwd))
-    return total
-
-
-def _estimate_member_size(path: Path) -> int:
-    total = _estimate_entry_size(path)
-    if path.is_dir():
-        for child in sorted(path.rglob("*")):
-            total += _estimate_entry_size(child)
-    return total
-
-
-def _estimate_entry_size(path: Path) -> int:
-    header_size = 512
-    if not path.is_file():
-        return header_size
-    payload_size = path.stat().st_size
-    padded_payload_size = ((payload_size + 511) // 512) * 512
-    return header_size + padded_payload_size
-
-
 def _close_process_stdin(process: subprocess.Popen[bytes]) -> None:
     if process.stdin is None:
         return
@@ -239,8 +228,6 @@ def _stop_process(process: subprocess.Popen[bytes]) -> int:
     return process.wait()
 
 
-def _read_process_stderr(process: subprocess.Popen[bytes]) -> str:
-    if process.stderr is None:
-        return ""
-    raw = process.stderr.read()
-    return raw.decode("utf-8", errors="replace").strip()
+def _read_stderr_file(stderr_file: BinaryIO) -> str:
+    stderr_file.seek(0)
+    return stderr_file.read().decode("utf-8", errors="replace").strip()

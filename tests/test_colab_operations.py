@@ -164,7 +164,7 @@ def test_extract_tar_zst_with_progress_rejects_non_tar_zst_archives(
 ) -> None:
     archive_path = tmp_path / "sample.tar.gz"
     archive_path.write_text("not-a-tar-zst", encoding="utf-8")
-    monkeypatch.setattr(archive_ops_mod, "ensure_tar_zst_prerequisites", lambda: None)
+    monkeypatch.setattr(archive_ops_mod, "ensure_tar_zst_extract_prerequisites", lambda: None)
 
     with pytest.raises(ValueError, match=r"\.tar\.zst"):
         archive_ops_mod.extract_tar_zst_with_progress(
@@ -202,6 +202,34 @@ def test_extract_tar_zst_with_progress_extracts_archive(
     captured = capsys.readouterr()
     assert "Extract archive" in captured.out
     assert (destination / "openpose_output" / "json" / "sample.json").exists()
+
+
+@pytest.mark.skipif(
+    shutil.which("tar") is None or shutil.which("zstd") is None,
+    reason="tar and zstd are required for archive creation tests",
+)
+def test_create_tar_zst_archive_does_not_require_tar_zstd_support(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source_dir = tmp_path / "archive_source"
+    _write(source_dir / "sample.txt", "sample")
+    archive_path = tmp_path / "archive.tar.zst"
+    monkeypatch.setattr(archive_ops_mod, "tar_supports_zstd", lambda: False)
+
+    created_path = archive_ops_mod.create_tar_zst_archive(
+        archive_path=archive_path,
+        members=(source_dir.relative_to(tmp_path),),
+        cwd=tmp_path,
+        label="Archive source",
+    )
+
+    captured = capsys.readouterr()
+    assert created_path == archive_path
+    assert archive_path.exists()
+    assert "Archive source" in captured.out
+    assert "transferred" in captured.out
 
 
 def test_find_extracted_split_dir_handles_supported_layouts_and_ambiguity(tmp_path: Path) -> None:
