@@ -70,51 +70,71 @@ def extract_tar_zst_with_progress(archive_path: Path, destination: Path, *, labe
 
     archive_path = archive_path.resolve()
     ensure_tar_zst_extract_prerequisites()
-    ensure_directory(destination)
-    total_bytes = archive_path.stat().st_size
-    with tempfile.TemporaryFile() as stderr_file:
-        process = subprocess.Popen(
-            ["tar", "--zstd", "-xf", "-", "-C", str(destination)],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-            stderr=stderr_file,
+    if destination.exists() and not destination.is_dir():
+        raise FileExistsError(
+            f"Extraction destination exists and is not a directory: {destination}"
         )
-
-        stream_error: OSError | None = None
-
-        def write_to_tar(chunk: bytes) -> None:
-            if process.stdin is None:
-                raise RuntimeError(f"tar stdin was not available for {archive_path}")
-            if process.poll() is not None:
-                raise BrokenPipeError("tar exited before the full archive stream was written")
-            process.stdin.write(chunk)
-
-        try:
-            with archive_path.open("rb") as archive_handle:
-                try:
-                    stream_file_with_progress(
-                        archive_handle,
-                        write_to_tar,
-                        total_bytes,
-                        desc=label,
-                    )
-                except OSError as exc:
-                    stream_error = exc
-        except BaseException:
-            _close_process_stdin(process)
-            _stop_process(process)
-            raise
-
-        _close_process_stdin(process)
-        returncode = process.wait()
-        if stream_error is not None or returncode != 0:
-            stderr_text = _read_stderr_file(stderr_file)
-            _raise_tar_extraction_error(
-                archive_path=archive_path,
-                returncode=returncode,
-                stderr_text=stderr_text,
-                stream_error=stream_error,
+    ensure_directory(destination.parent)
+    temp_destination = Path(
+        tempfile.mkdtemp(
+            prefix=f".{destination.name}.extract-",
+            dir=destination.parent,
+        )
+    )
+    total_bytes = archive_path.stat().st_size
+    extraction_committed = False
+    try:
+        with tempfile.TemporaryFile() as stderr_file:
+            process = subprocess.Popen(
+                ["tar", "--zstd", "-xf", "-", "-C", str(temp_destination)],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=stderr_file,
             )
+
+            stream_error: OSError | None = None
+
+            def write_to_tar(chunk: bytes) -> None:
+                if process.stdin is None:
+                    raise RuntimeError(f"tar stdin was not available for {archive_path}")
+                if process.poll() is not None:
+                    raise BrokenPipeError("tar exited before the full archive stream was written")
+                process.stdin.write(chunk)
+
+            try:
+                with archive_path.open("rb") as archive_handle:
+                    try:
+                        stream_file_with_progress(
+                            archive_handle,
+                            write_to_tar,
+                            total_bytes,
+                            desc=label,
+                        )
+                    except OSError as exc:
+                        stream_error = exc
+            except BaseException:
+                _close_process_stdin(process)
+                _stop_process(process)
+                raise
+
+            _close_process_stdin(process)
+            returncode = process.wait()
+            if stream_error is not None or returncode != 0:
+                stderr_text = _read_stderr_file(stderr_file)
+                _raise_tar_extraction_error(
+                    archive_path=archive_path,
+                    returncode=returncode,
+                    stderr_text=stderr_text,
+                    stream_error=stream_error,
+                )
+
+        if destination.exists():
+            shutil.rmtree(destination)
+        shutil.move(str(temp_destination), str(destination))
+        extraction_committed = True
+    finally:
+        if not extraction_committed and temp_destination.exists():
+            shutil.rmtree(temp_destination)
 
 
 def create_tar_zst_archive(
@@ -220,9 +240,11 @@ def _absolute_member_path(member: Path, cwd: Path) -> Path:
 
 
 def _relative_member_path(member: Path, cwd: Path) -> Path:
-    if not member.is_absolute():
-        return member
-    return member.resolve().relative_to(cwd.resolve())
+    resolved_cwd = cwd.resolve()
+    resolved_member = _absolute_member_path(member, cwd).resolve()
+    if not resolved_member.is_relative_to(resolved_cwd):
+        raise ValueError(f"Archive member must be under cwd {resolved_cwd}: {member}")
+    return resolved_member.relative_to(resolved_cwd)
 
 
 def _close_process_stdin(process: subprocess.Popen[bytes]) -> None:

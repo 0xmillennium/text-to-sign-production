@@ -24,6 +24,24 @@ def _records_for_split(
         raise ValueError(f"{mapping_name} is missing requested split: {split}") from exc
 
 
+def _report_split_mapping(
+    report: Mapping[str, Any],
+    *,
+    report_name: str,
+    split: str,
+) -> Mapping[str, Any]:
+    splits_payload = report.get("splits")
+    if not isinstance(splits_payload, Mapping):
+        raise ValueError(f"{report_name} is missing a splits mapping.")
+    try:
+        split_payload = splits_payload[split]
+    except KeyError as exc:
+        raise ValueError(f"{report_name} is missing requested split: {split}") from exc
+    if not isinstance(split_payload, Mapping):
+        raise ValueError(f"{report_name} split {split} must be a mapping.")
+    return split_payload
+
+
 def _numeric_summary(values: Iterable[int | float]) -> dict[str, float | int | None]:
     summary = summarize_numbers(values)
     min_value = summary["min"]
@@ -59,7 +77,9 @@ def build_quality_report(
             mapping_name="final_records_by_split",
             split=split,
         )
-        split_filter_report = dict(filter_report["splits"][split])
+        split_filter_report = dict(
+            _report_split_mapping(filter_report, report_name="filter_report", split=split)
+        )
         frame_counts = [record.num_frames for record in final_records]
         text_lengths = [len(record.text) for record in final_records]
         fps_values = [record.fps for record in final_records if record.fps is not None]

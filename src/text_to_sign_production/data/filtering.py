@@ -17,7 +17,7 @@ from .constants import (
     REQUIRED_CORE_CHANNELS,
     SPLITS,
 )
-from .jsonl import count_jsonl_records, iter_jsonl, write_jsonl
+from .jsonl import iter_jsonl, write_jsonl
 from .schemas import NormalizedManifestEntry
 from .utils import (
     ensure_directory,
@@ -163,10 +163,9 @@ def filter_split(
     dropped_examples: list[dict[str, Any]] = []
     total_entries = 0
 
-    total_records = count_jsonl_records(input_path)
     for record in iter_with_progress(
         iter_jsonl(input_path),
-        total=total_records,
+        total=None,
         desc=f"Filter {split}",
         unit="records",
     ):

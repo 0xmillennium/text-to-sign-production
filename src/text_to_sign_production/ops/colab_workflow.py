@@ -46,28 +46,20 @@ def stage_colab_inputs(
 ) -> list[dict[str, str]]:
     """Stage the fixed Drive inputs into the canonical repo raw layout."""
 
+    if not splits:
+        raise ValueError("At least one split must be requested for Colab staging.")
     _require_colab_drive_mount()
+    stage_inputs = _collect_stage_inputs(splits)
     _reset_directory(TRANSLATIONS_DIR)
     _reset_directory(BFH_KEYPOINTS_ROOT)
     ensure_directory(download_root)
 
     staged_summaries: list[dict[str, str]] = []
-    for split in splits:
-        translation_source = SPLIT_TO_COLAB_DRIVE_TRANSLATION_PATH[split]
-        archive_source = SPLIT_TO_COLAB_DRIVE_KEYPOINT_ARCHIVE_PATH[split]
-        translation_destination = TRANSLATIONS_DIR / SPLIT_TO_TRANSLATION_FILE[split]
+    for split, translation_source, archive_source, translation_file, keypoint_dir in stage_inputs:
+        translation_destination = TRANSLATIONS_DIR / translation_file
         local_archive = download_root / archive_source.name
         extract_root = download_root / f"{split}_extract"
-        canonical_destination = BFH_KEYPOINTS_ROOT / SPLIT_TO_KEYPOINT_DIR[split]
-
-        if not translation_source.is_file():
-            raise FileNotFoundError(
-                f"Missing fixed Drive translation CSV for {split}: {translation_source}"
-            )
-        if not archive_source.is_file():
-            raise FileNotFoundError(
-                f"Missing fixed Drive keypoint archive for {split}: {archive_source}"
-            )
+        canonical_destination = BFH_KEYPOINTS_ROOT / keypoint_dir
 
         translation_destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(translation_source, translation_destination)
@@ -88,7 +80,7 @@ def stage_colab_inputs(
                 extract_root,
                 label=f"[{split}] Extract archive",
             )
-            split_dir = find_extracted_split_dir(extract_root, SPLIT_TO_KEYPOINT_DIR[split])
+            split_dir = find_extracted_split_dir(extract_root, keypoint_dir)
             shutil.move(str(split_dir), str(canonical_destination))
         finally:
             local_archive.unlink(missing_ok=True)
@@ -103,6 +95,34 @@ def stage_colab_inputs(
             }
         )
     return staged_summaries
+
+
+def _collect_stage_inputs(splits: tuple[str, ...]) -> list[tuple[str, Path, Path, str, str]]:
+    stage_inputs: list[tuple[str, Path, Path, str, str]] = []
+    for split in splits:
+        if split not in SPLITS:
+            expected = ", ".join(SPLITS)
+            raise ValueError(f"Unsupported split {split!r}; expected one of: {expected}")
+
+        try:
+            translation_source = SPLIT_TO_COLAB_DRIVE_TRANSLATION_PATH[split]
+            archive_source = SPLIT_TO_COLAB_DRIVE_KEYPOINT_ARCHIVE_PATH[split]
+            translation_file = SPLIT_TO_TRANSLATION_FILE[split]
+            keypoint_dir = SPLIT_TO_KEYPOINT_DIR[split]
+        except KeyError as exc:
+            raise ValueError(f"Missing fixed Colab input path mapping for split {split!r}") from exc
+        if not translation_source.is_file():
+            raise FileNotFoundError(
+                f"Missing fixed Drive translation CSV for {split}: {translation_source}"
+            )
+        if not archive_source.is_file():
+            raise FileNotFoundError(
+                f"Missing fixed Drive keypoint archive for {split}: {archive_source}"
+            )
+        stage_inputs.append(
+            (split, translation_source, archive_source, translation_file, keypoint_dir)
+        )
+    return stage_inputs
 
 
 def package_sprint2_outputs(

@@ -17,7 +17,7 @@ from .constants import (
     REQUIRED_CORE_CHANNELS,
     SPLITS,
 )
-from .jsonl import count_jsonl_records, iter_jsonl, write_jsonl
+from .jsonl import iter_jsonl, write_jsonl
 from .openpose import parse_frame
 from .schemas import NormalizedManifestEntry, RawManifestEntry
 from .utils import ensure_directory, remove_stale_split_files, repo_relative_path, resolve_repo_path
@@ -45,10 +45,9 @@ def normalize_split(split: str) -> list[NormalizedManifestEntry]:
     ensure_directory(PROCESSED_SAMPLES_ROOT / split)
 
     normalized_entries: list[NormalizedManifestEntry] = []
-    total_records = count_jsonl_records(raw_manifest_path)
     for record in iter_with_progress(
         iter_jsonl(raw_manifest_path),
-        total=total_records,
+        total=None,
         desc=f"Normalize {split}",
         unit="samples",
     ):

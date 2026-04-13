@@ -315,6 +315,9 @@ def test_extract_tar_zst_with_progress_reports_stderr_after_broken_pipe(
 ) -> None:
     archive_path = tmp_path / "corrupt.tar.zst"
     archive_path.write_bytes(b"not-a-valid-archive")
+    destination = tmp_path / "extract"
+    preserved_file = destination / "existing.txt"
+    _write(preserved_file, "keep me")
     monkeypatch.setattr(archive_ops_mod, "ensure_tar_zst_extract_prerequisites", lambda: None)
 
     def fake_popen(command: Sequence[str], **kwargs: Any) -> Any:
@@ -326,11 +329,13 @@ def test_extract_tar_zst_with_progress_reports_stderr_after_broken_pipe(
     with pytest.raises(RuntimeError, match="tar stderr: tar: corrupt archive") as exc_info:
         archive_ops_mod.extract_tar_zst_with_progress(
             archive_path,
-            tmp_path / "extract",
+            destination,
             label="Extract archive",
         )
 
     assert isinstance(exc_info.value.__cause__, BrokenPipeError)
+    assert preserved_file.read_text(encoding="utf-8") == "keep me"
+    assert not list(tmp_path.glob(".extract.extract-*"))
 
 
 @pytest.mark.skipif(
@@ -431,6 +436,23 @@ def test_create_tar_zst_archive_rejects_non_tar_zst_archives(tmp_path: Path) -> 
         )
 
 
+def test_create_tar_zst_archive_requires_absolute_members_under_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    other_root = tmp_path.parent / f"{tmp_path.name}_other"
+    outside_member = other_root / "sample.txt"
+    _write(outside_member, "outside")
+    monkeypatch.setattr(archive_ops_mod, "ensure_tar_zst_create_prerequisites", lambda: None)
+
+    with pytest.raises(ValueError, match="Archive member must be under cwd"):
+        archive_ops_mod.create_tar_zst_archive(
+            archive_path=tmp_path / "archive.tar.zst",
+            members=(outside_member,),
+            cwd=tmp_path,
+            label="Archive source",
+        )
+
+
 def test_find_extracted_split_dir_handles_supported_layouts_and_ambiguity(tmp_path: Path) -> None:
     layout_a_root = tmp_path / "layout_a"
     (layout_a_root / "train_2D_keypoints" / "openpose_output" / "json").mkdir(parents=True)
@@ -515,6 +537,79 @@ def test_stage_colab_inputs_uses_fixed_paths_and_cleans_temp_artifacts(
     ).exists()
     assert not (downloads_root / "train_2D_keypoints.tar.zst").exists()
     assert not (downloads_root / "train_extract").exists()
+
+
+def test_stage_colab_inputs_prevalidates_all_inputs_before_resetting_raw_dirs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    drive_mount = tmp_path / "drive"
+    drive_mount.mkdir()
+    train_translation = drive_mount / "train.csv"
+    train_translation.write_text("translation", encoding="utf-8")
+    train_archive = drive_mount / "train_2D_keypoints.tar.zst"
+    train_archive.write_text("archive", encoding="utf-8")
+    missing_val_translation = drive_mount / "val.csv"
+    missing_val_archive = drive_mount / "val_2D_keypoints.tar.zst"
+
+    translations_dir = tmp_path / "repo" / "data" / "raw" / "how2sign" / "translations"
+    keypoints_root = tmp_path / "repo" / "data" / "raw" / "how2sign" / "bfh_keypoints"
+    preserved_translation = translations_dir / "previous.csv"
+    preserved_keypoints = keypoints_root / "previous" / "openpose_output" / "json" / "frame.json"
+    _write(preserved_translation, "old translation")
+    _write(preserved_keypoints, "{}")
+
+    monkeypatch.setattr(colab_workflow_mod, "COLAB_DRIVE_MOUNT_ROOT", drive_mount)
+    monkeypatch.setattr(colab_workflow_mod, "TRANSLATIONS_DIR", translations_dir)
+    monkeypatch.setattr(colab_workflow_mod, "BFH_KEYPOINTS_ROOT", keypoints_root)
+    monkeypatch.setattr(
+        colab_workflow_mod,
+        "SPLIT_TO_COLAB_DRIVE_TRANSLATION_PATH",
+        {"train": train_translation, "val": missing_val_translation},
+    )
+    monkeypatch.setattr(
+        colab_workflow_mod,
+        "SPLIT_TO_COLAB_DRIVE_KEYPOINT_ARCHIVE_PATH",
+        {"train": train_archive, "val": missing_val_archive},
+    )
+    monkeypatch.setattr(
+        colab_workflow_mod,
+        "SPLIT_TO_TRANSLATION_FILE",
+        {"train": "train.csv", "val": "val.csv"},
+    )
+    monkeypatch.setattr(
+        colab_workflow_mod,
+        "SPLIT_TO_KEYPOINT_DIR",
+        {"train": "train_2D_keypoints", "val": "val_2D_keypoints"},
+    )
+
+    with pytest.raises(FileNotFoundError, match="Missing fixed Drive translation CSV for val"):
+        colab_workflow_mod.stage_colab_inputs(
+            splits=("train", "val"),
+            download_root=tmp_path / "downloads",
+        )
+
+    assert preserved_translation.read_text(encoding="utf-8") == "old translation"
+    assert preserved_keypoints.read_text(encoding="utf-8") == "{}"
+
+
+def test_stage_colab_inputs_rejects_empty_splits_without_resetting_raw_dirs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    translations_dir = tmp_path / "repo" / "data" / "raw" / "how2sign" / "translations"
+    keypoints_root = tmp_path / "repo" / "data" / "raw" / "how2sign" / "bfh_keypoints"
+    preserved_translation = translations_dir / "previous.csv"
+    preserved_keypoints = keypoints_root / "previous" / "openpose_output" / "json" / "frame.json"
+    _write(preserved_translation, "old translation")
+    _write(preserved_keypoints, "{}")
+
+    monkeypatch.setattr(colab_workflow_mod, "TRANSLATIONS_DIR", translations_dir)
+    monkeypatch.setattr(colab_workflow_mod, "BFH_KEYPOINTS_ROOT", keypoints_root)
+
+    with pytest.raises(ValueError, match="At least one split"):
+        colab_workflow_mod.stage_colab_inputs(splits=(), download_root=tmp_path / "downloads")
+
+    assert preserved_translation.read_text(encoding="utf-8") == "old translation"
+    assert preserved_keypoints.read_text(encoding="utf-8") == "{}"
 
 
 def test_publish_colab_outputs_copies_archives_to_fixed_drive_path(

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 from statistics import mean, median
@@ -63,7 +63,7 @@ def ensure_directory(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def write_json(path: Path, payload: Mapping[str, object] | list[object]) -> None:
+def write_json(path: Path, payload: object) -> None:
     """Write a JSON file with stable formatting."""
 
     ensure_directory(path.parent)

@@ -356,11 +356,13 @@ def test_long_running_pipeline_steps_use_shared_item_progress(
 
     normalize_progress_calls = _record_progress_calls(monkeypatch, normalize_mod)
     normalize_mod.normalize_all_splits(splits=("train",))
-    assert normalize_progress_calls == [{"total": 2, "desc": "Normalize train", "unit": "samples"}]
+    assert normalize_progress_calls == [
+        {"total": None, "desc": "Normalize train", "unit": "samples"}
+    ]
 
     filtering_progress_calls = _record_progress_calls(monkeypatch, filtering_mod)
     filtering_mod.filter_all_splits(tmp_path / "configs/data/filter-v1.yaml", splits=("train",))
-    assert filtering_progress_calls == [{"total": 2, "desc": "Filter train", "unit": "records"}]
+    assert filtering_progress_calls == [{"total": None, "desc": "Filter train", "unit": "records"}]
 
     manifests_progress_calls = _record_progress_calls(monkeypatch, manifests_mod)
     assumption_report = json.loads(
@@ -1504,6 +1506,31 @@ def test_build_quality_report_rejects_missing_final_records_split() -> None:
                 "generated_at": "2026-04-07T00:00:00+00:00",
                 "splits": {"train": {"dropped_samples": 0, "drop_reason_counts": {}}},
             },
+            generated_at="2026-04-07T00:00:00+00:00",
+            splits=("train",),
+        )
+
+
+@pytest.mark.parametrize(
+    ("filter_report", "message"),
+    [
+        (
+            {"generated_at": "2026-04-07T00:00:00+00:00"},
+            "filter_report is missing a splits mapping",
+        ),
+        (
+            {"generated_at": "2026-04-07T00:00:00+00:00", "splits": {}},
+            "filter_report is missing requested split: train",
+        ),
+    ],
+)
+def test_build_quality_report_rejects_missing_filter_report_split_mapping(
+    filter_report: dict[str, Any], message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        reports_mod.build_quality_report(
+            final_records_by_split={"train": []},
+            filter_report=filter_report,
             generated_at="2026-04-07T00:00:00+00:00",
             splits=("train",),
         )
