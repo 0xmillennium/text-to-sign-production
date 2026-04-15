@@ -1667,6 +1667,14 @@ def test_view_sample_reports_malformed_manifest_without_traceback(
     assert view_sample_script.main() == 1
 
 
+def test_run_dataset_build_rejects_duplicate_splits() -> None:
+    with pytest.raises(ValueError, match="Duplicate Dataset Build split"):
+        dataset_build_workflow_mod.run_dataset_build(
+            splits=("train", "train"),
+            output_mode="none",
+        )
+
+
 def test_run_dataset_build_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
     _create_fixture_dataset(tmp_path)
     _patch_pipeline_paths(monkeypatch, tmp_path)

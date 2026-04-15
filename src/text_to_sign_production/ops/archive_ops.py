@@ -197,72 +197,75 @@ def create_tar_zst_archive(
     tar_stream_total_bytes = _tar_stream_total_bytes(cwd, member_names)
     progress_label = f"{label} (tar stream)"
     ensure_directory(archive_path.parent)
-    if archive_path.exists():
-        archive_path.unlink()
-
-    with (
-        tempfile.TemporaryFile() as tar_stderr_file,
-        tempfile.TemporaryFile() as zstd_stderr_file,
-    ):
-        tar_process = subprocess.Popen(
-            ["tar", "-cf", "-", *member_names],
-            cwd=cwd,
-            stdout=subprocess.PIPE,
-            stderr=tar_stderr_file,
-        )
-        zstd_process = subprocess.Popen(
-            ["zstd", "-q", "-T0", "-o", str(archive_path)],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-            stderr=zstd_stderr_file,
-        )
-
-        stream_error: OSError | None = None
-
-        def write_to_zstd(chunk: bytes) -> None:
-            if zstd_process.stdin is None:
-                raise RuntimeError("zstd stdin was not available while creating the archive.")
-            if zstd_process.poll() is not None:
-                raise BrokenPipeError("zstd exited before the full tar stream was written")
-            zstd_process.stdin.write(chunk)
-
-        try:
-            if tar_process.stdout is None:
-                raise RuntimeError("tar stdout was not available while creating the archive.")
-            try:
-                stream_file_with_progress(
-                    tar_process.stdout,
-                    write_to_zstd,
-                    tar_stream_total_bytes,
-                    desc=progress_label,
-                )
-            except OSError as exc:
-                stream_error = exc
-        except BaseException:
-            _close_process_stdin(zstd_process)
-            _stop_process(tar_process)
-            _stop_process(zstd_process)
-            archive_path.unlink(missing_ok=True)
-            raise
-
-        _close_process_stdin(zstd_process)
-        tar_returncode = (
-            _stop_process(tar_process) if stream_error is not None else tar_process.wait()
-        )
-        zstd_returncode = zstd_process.wait()
-
-        if stream_error is not None or tar_returncode != 0 or zstd_returncode != 0:
-            tar_stderr = _read_stderr_file(tar_stderr_file)
-            zstd_stderr = _read_stderr_file(zstd_stderr_file)
-            archive_path.unlink(missing_ok=True)
-            _raise_archive_creation_error(
-                archive_path=archive_path,
-                tar_returncode=tar_returncode,
-                tar_stderr=tar_stderr,
-                zstd_returncode=zstd_returncode,
-                zstd_stderr=zstd_stderr,
-                stream_error=stream_error,
+    temp_archive_path = _reserve_temp_archive_path(archive_path)
+    archive_committed = False
+    try:
+        with (
+            tempfile.TemporaryFile() as tar_stderr_file,
+            tempfile.TemporaryFile() as zstd_stderr_file,
+        ):
+            tar_process = subprocess.Popen(
+                ["tar", "-cf", "-", *member_names],
+                cwd=cwd,
+                stdout=subprocess.PIPE,
+                stderr=tar_stderr_file,
             )
+            zstd_process = subprocess.Popen(
+                ["zstd", "-q", "-T0", "-o", str(temp_archive_path)],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=zstd_stderr_file,
+            )
+
+            stream_error: OSError | None = None
+
+            def write_to_zstd(chunk: bytes) -> None:
+                if zstd_process.stdin is None:
+                    raise RuntimeError("zstd stdin was not available while creating the archive.")
+                if zstd_process.poll() is not None:
+                    raise BrokenPipeError("zstd exited before the full tar stream was written")
+                zstd_process.stdin.write(chunk)
+
+            try:
+                if tar_process.stdout is None:
+                    raise RuntimeError("tar stdout was not available while creating the archive.")
+                try:
+                    stream_file_with_progress(
+                        tar_process.stdout,
+                        write_to_zstd,
+                        tar_stream_total_bytes,
+                        desc=progress_label,
+                    )
+                except OSError as exc:
+                    stream_error = exc
+            except BaseException:
+                _close_process_stdin(zstd_process)
+                _stop_process(tar_process)
+                _stop_process(zstd_process)
+                raise
+
+            _close_process_stdin(zstd_process)
+            tar_returncode = (
+                _stop_process(tar_process) if stream_error is not None else tar_process.wait()
+            )
+            zstd_returncode = zstd_process.wait()
+
+            if stream_error is not None or tar_returncode != 0 or zstd_returncode != 0:
+                tar_stderr = _read_stderr_file(tar_stderr_file)
+                zstd_stderr = _read_stderr_file(zstd_stderr_file)
+                _raise_archive_creation_error(
+                    archive_path=archive_path,
+                    tar_returncode=tar_returncode,
+                    tar_stderr=tar_stderr,
+                    zstd_returncode=zstd_returncode,
+                    zstd_stderr=zstd_stderr,
+                    stream_error=stream_error,
+                )
+        temp_archive_path.replace(archive_path)
+        archive_committed = True
+    finally:
+        if not archive_committed:
+            temp_archive_path.unlink(missing_ok=True)
     return archive_path
 
 
@@ -270,6 +273,18 @@ def copy_archive_to_drive(source: Path, destination: Path, *, label: str) -> Pat
     """Copy a packaged archive to Drive with progress output."""
 
     return copy_file_with_progress(source, destination, label=label)
+
+
+def _reserve_temp_archive_path(archive_path: Path) -> Path:
+    with tempfile.NamedTemporaryFile(
+        prefix=f".{archive_path.name}.",
+        suffix=".tmp",
+        dir=archive_path.parent,
+        delete=False,
+    ) as temp_handle:
+        temp_archive_path = Path(temp_handle.name)
+    temp_archive_path.unlink()
+    return temp_archive_path
 
 
 def _assert_required_members(cwd: Path, members: Iterable[Path]) -> None:

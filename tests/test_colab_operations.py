@@ -159,14 +159,17 @@ class _WritableStdin:
 
 
 class _FakeCreateZstdSuccessProcess:
-    def __init__(self, stderr_file: BinaryIO) -> None:
+    def __init__(self, stderr_file: BinaryIO, output_path: Path | None = None) -> None:
         self.stdin: _WritableStdin | None = _WritableStdin()
         self.stdout = None
+        self._output_path = output_path
 
     def poll(self) -> int | None:
         return None
 
     def wait(self, timeout: float | None = None) -> int:
+        if self._output_path is not None:
+            self._output_path.write_bytes(b"archive")
         return 0
 
     def terminate(self) -> None:
@@ -559,6 +562,38 @@ def test_create_tar_zst_archive_reports_subprocess_stderr_after_broken_pipe(
     assert not archive_path.exists()
 
 
+def test_create_tar_zst_archive_preserves_existing_archive_after_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_dir = tmp_path / "archive_source"
+    _write(source_dir / "sample.txt", "sample")
+    archive_path = tmp_path / "archive.tar.zst"
+    archive_path.write_bytes(b"previous archive")
+    monkeypatch.setattr(archive_ops_mod, "ensure_tar_zst_create_prerequisites", lambda: None)
+
+    def fake_popen(command: Sequence[str], **kwargs: Any) -> Any:
+        stderr_file = cast(BinaryIO, kwargs["stderr"])
+        if command[0] == "tar":
+            return _FakeCreateTarProcess(stderr_file)
+        if command[0] == "zstd":
+            return _FakeCreateZstdProcess(stderr_file)
+        raise AssertionError(f"Unexpected subprocess command: {command}")
+
+    monkeypatch.setattr("text_to_sign_production.ops.archive_ops.subprocess.Popen", fake_popen)
+
+    with pytest.raises(RuntimeError, match="zstd stderr: zstd: simulated failure"):
+        archive_ops_mod.create_tar_zst_archive(
+            archive_path=archive_path,
+            members=(source_dir.relative_to(tmp_path),),
+            cwd=tmp_path,
+            label="Archive source",
+        )
+
+    assert archive_path.read_bytes() == b"previous archive"
+    assert not list(tmp_path.glob(".archive.tar.zst.*.tmp"))
+
+
 def test_create_tar_zst_archive_reports_known_tar_stream_total(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -584,7 +619,8 @@ def test_create_tar_zst_archive_reports_known_tar_stream_total(
         if command[0] == "tar":
             return _FakeCreateTarProcess(stderr_file)
         if command[0] == "zstd":
-            return _FakeCreateZstdSuccessProcess(stderr_file)
+            output_path = Path(command[command.index("-o") + 1])
+            return _FakeCreateZstdSuccessProcess(stderr_file, output_path)
         raise AssertionError(f"Unexpected subprocess command: {command}")
 
     monkeypatch.setattr(
@@ -635,7 +671,8 @@ def test_create_tar_zst_archive_keeps_unknown_total_for_unmodeled_members(
         if command[0] == "tar":
             return _FakeCreateTarProcess(stderr_file)
         if command[0] == "zstd":
-            return _FakeCreateZstdSuccessProcess(stderr_file)
+            output_path = Path(command[command.index("-o") + 1])
+            return _FakeCreateZstdSuccessProcess(stderr_file, output_path)
         raise AssertionError(f"Unexpected subprocess command: {command}")
 
     monkeypatch.setattr(

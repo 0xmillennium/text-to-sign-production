@@ -91,4 +91,13 @@ def _validate_splits(splits: tuple[str, ...]) -> tuple[str, ...]:
         expected = ", ".join(SPLITS)
         observed = ", ".join(unsupported_splits)
         raise ValueError(f"Unsupported Dataset Build split(s): {observed}; expected: {expected}")
+    seen_splits: set[str] = set()
+    duplicate_splits: list[str] = []
+    for split in splits:
+        if split in seen_splits and split not in duplicate_splits:
+            duplicate_splits.append(split)
+        seen_splits.add(split)
+    if duplicate_splits:
+        observed = ", ".join(duplicate_splits)
+        raise ValueError(f"Duplicate Dataset Build split(s): {observed}")
     return tuple(splits)
