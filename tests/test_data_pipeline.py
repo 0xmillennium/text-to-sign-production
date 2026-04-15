@@ -1493,6 +1493,21 @@ def test_export_final_manifests_rejects_missing_requested_report_splits(
         )
 
 
+@pytest.mark.parametrize(
+    "report",
+    [
+        {"generated_at": "2026-04-07T00:00:00+00:00"},
+        {"generated_at": "2026-04-07T00:00:00+00:00", "splits": None},
+        {"generated_at": "2026-04-07T00:00:00+00:00", "splits": []},
+    ],
+)
+def test_validate_report_splits_rejects_missing_or_invalid_splits_mapping(
+    report: dict[str, Any],
+) -> None:
+    with pytest.raises(ValueError, match="filter_report is missing a splits mapping"):
+        manifests_mod._validate_report_splits("filter_report", report, ("train",))
+
+
 def test_build_quality_report_rejects_missing_final_records_split() -> None:
     with pytest.raises(
         ValueError,

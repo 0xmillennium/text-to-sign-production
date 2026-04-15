@@ -82,7 +82,10 @@ def _build_processed_manifest_entry(entry: NormalizedManifestEntry) -> Processed
 def _validate_report_splits(
     report_name: str, report: Mapping[str, Any], requested_splits: tuple[str, ...]
 ) -> None:
-    available_splits = set(dict(report.get("splits", {})))
+    splits_payload = report.get("splits")
+    if not isinstance(splits_payload, Mapping):
+        raise ValueError(f"{report_name} is missing a splits mapping.")
+    available_splits = set(splits_payload)
     missing_splits = [split for split in requested_splits if split not in available_splits]
     if missing_splits:
         missing_display = ", ".join(missing_splits)

@@ -6,7 +6,8 @@ import io
 import json
 import shutil
 import subprocess
-from collections.abc import Sequence
+import tarfile
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, BinaryIO, cast
 
@@ -21,6 +22,36 @@ import text_to_sign_production.ops.progress as progress_mod
 def _write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def _add_tar_bytes(archive: tarfile.TarFile, name: str, content: bytes) -> None:
+    info = tarfile.TarInfo(name)
+    info.size = len(content)
+    archive.addfile(info, io.BytesIO(content))
+
+
+def _write_tar_zst_archive(
+    archive_path: Path,
+    build_archive: Callable[[tarfile.TarFile], None],
+) -> None:
+    tar_path = archive_path.with_suffix("")
+    with tarfile.open(tar_path, "w") as archive:
+        build_archive(archive)
+    subprocess.run(["zstd", "-q", "-f", "-o", str(archive_path), str(tar_path)], check=True)
+
+
+def _list_tar_zst_members(archive_path: Path) -> str:
+    decompressed = subprocess.run(
+        ["zstd", "-dc", str(archive_path)],
+        check=True,
+        capture_output=True,
+    ).stdout
+    return subprocess.run(
+        ["tar", "-tf", "-"],
+        input=decompressed,
+        check=True,
+        capture_output=True,
+    ).stdout.decode("utf-8")
 
 
 def _load_notebook_sources() -> tuple[str, str]:
@@ -73,24 +104,6 @@ class _OneChunkStdout:
         chunk = self._chunk
         self._chunk = b""
         return chunk
-
-
-class _FakeExtractBrokenPipeProcess:
-    def __init__(self, stderr_file: BinaryIO) -> None:
-        self.stdin: _BrokenPipeStdin | None = _BrokenPipeStdin()
-        stderr_file.write(b"tar: corrupt archive")
-
-    def poll(self) -> int | None:
-        return None
-
-    def wait(self, timeout: float | None = None) -> int:
-        return 2
-
-    def terminate(self) -> None:
-        return
-
-    def kill(self) -> None:
-        return
 
 
 class _FakeCreateTarProcess:
@@ -202,9 +215,57 @@ def test_stream_file_with_progress_streams_bytes_to_callback(
     assert "Stream bytes" in captured.out
 
 
+def test_copy_file_with_progress_replaces_destination_after_success(tmp_path: Path) -> None:
+    source = tmp_path / "source.bin"
+    destination = tmp_path / "artifact.bin"
+    source.write_bytes(b"new artifact")
+    destination.write_bytes(b"old artifact")
+
+    copied_path = archive_ops_mod.copy_file_with_progress(
+        source,
+        destination,
+        label="Copy artifact",
+    )
+
+    assert copied_path == destination
+    assert destination.read_bytes() == b"new artifact"
+    assert not list(tmp_path.glob(".artifact.bin.*.tmp"))
+
+
+def test_copy_file_with_progress_preserves_destination_after_stream_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source.bin"
+    destination = tmp_path / "artifact.bin"
+    source.write_bytes(b"new artifact")
+    destination.write_bytes(b"old artifact")
+
+    def fake_stream_file_with_progress(
+        src: Any,
+        writer: Any,
+        total_bytes: int | None,
+        desc: str = "",
+    ) -> int:
+        writer.write(b"partial")
+        raise OSError("simulated copy failure")
+
+    monkeypatch.setattr(
+        archive_ops_mod,
+        "stream_file_with_progress",
+        fake_stream_file_with_progress,
+    )
+
+    with pytest.raises(OSError, match="simulated copy failure"):
+        archive_ops_mod.copy_file_with_progress(source, destination, label="Copy artifact")
+
+    assert destination.read_bytes() == b"old artifact"
+    assert not list(tmp_path.glob(".artifact.bin.*.tmp"))
+
+
 @pytest.mark.skipif(
-    shutil.which("zstd") is None or not package_outputs_script._tar_supports_zstd(),
-    reason="tar with --zstd support and zstd are required for archive tests",
+    shutil.which("tar") is None or shutil.which("zstd") is None,
+    reason="tar and zstd are required for archive tests",
 )
 def test_package_sprint2_outputs_creates_expected_archives(tmp_path: Path) -> None:
     manifest_and_report_files = {
@@ -239,28 +300,18 @@ def test_package_sprint2_outputs_creates_expected_archives(tmp_path: Path) -> No
     assert all(archive.exists() for archive in archives)
 
     manifests_archive = output_dir / "sprint2_manifests_reports.tar.zst"
-    manifests_listing = subprocess.run(
-        ["tar", "--list", "--zstd", "-f", str(manifests_archive)],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
+    manifests_listing = _list_tar_zst_members(manifests_archive)
     assert "data/interim/raw_manifests/raw_train.jsonl" in manifests_listing
     assert "data/processed/v1/reports/data-quality-report.md" in manifests_listing
 
     train_archive = output_dir / "sprint2_samples_train.tar.zst"
-    train_listing = subprocess.run(
-        ["tar", "--list", "--zstd", "-f", str(train_archive)],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
+    train_listing = _list_tar_zst_members(train_archive)
     assert "data/processed/v1/samples/train/train_sample.npz" in train_listing
 
 
 @pytest.mark.skipif(
-    shutil.which("zstd") is None or not package_outputs_script._tar_supports_zstd(),
-    reason="tar with --zstd support and zstd are required for archive tests",
+    shutil.which("tar") is None or shutil.which("zstd") is None,
+    reason="tar and zstd are required for archive tests",
 )
 def test_package_sprint2_outputs_default_output_dir_is_project_relative(
     tmp_path: Path,
@@ -277,8 +328,8 @@ def test_package_sprint2_outputs_default_output_dir_is_project_relative(
 
 
 @pytest.mark.skipif(
-    shutil.which("zstd") is None or not package_outputs_script._tar_supports_zstd(),
-    reason="tar with --zstd support and zstd are required for archive tests",
+    shutil.which("tar") is None or shutil.which("zstd") is None,
+    reason="tar and zstd are required for archive tests",
 )
 def test_package_sprint2_outputs_respects_requested_splits(tmp_path: Path) -> None:
     for relative_path in (
@@ -339,52 +390,44 @@ def test_extract_tar_zst_with_progress_rejects_missing_archive_without_destinati
     assert not destination.exists()
 
 
-def test_extract_tar_zst_with_progress_reports_stderr_after_broken_pipe(
+@pytest.mark.skipif(
+    shutil.which("zstd") is None,
+    reason="zstd is required for extraction tests",
+)
+def test_extract_tar_zst_with_progress_reports_zstd_stderr_for_invalid_archive(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     archive_path = tmp_path / "corrupt.tar.zst"
     archive_path.write_bytes(b"not-a-valid-archive")
     destination = tmp_path / "extract"
     preserved_file = destination / "existing.txt"
     _write(preserved_file, "keep me")
-    monkeypatch.setattr(archive_ops_mod, "ensure_tar_zst_extract_prerequisites", lambda: None)
 
-    def fake_popen(command: Sequence[str], **kwargs: Any) -> Any:
-        stderr_file = cast(BinaryIO, kwargs["stderr"])
-        return _FakeExtractBrokenPipeProcess(stderr_file)
-
-    monkeypatch.setattr("text_to_sign_production.ops.archive_ops.subprocess.Popen", fake_popen)
-
-    with pytest.raises(RuntimeError, match="tar stderr: tar: corrupt archive") as exc_info:
+    with pytest.raises(RuntimeError, match="zstd stderr") as exc_info:
         archive_ops_mod.extract_tar_zst_with_progress(
             archive_path,
             destination,
             label="Extract archive",
         )
 
-    assert isinstance(exc_info.value.__cause__, BrokenPipeError)
+    assert isinstance(exc_info.value.__cause__, tarfile.TarError)
     assert preserved_file.read_text(encoding="utf-8") == "keep me"
     assert not list(tmp_path.glob(".extract.extract-*"))
 
 
 @pytest.mark.skipif(
-    shutil.which("zstd") is None or not package_outputs_script._tar_supports_zstd(),
-    reason="tar with --zstd support and zstd are required for extraction tests",
+    shutil.which("zstd") is None,
+    reason="zstd is required for extraction tests",
 )
 def test_extract_tar_zst_with_progress_extracts_archive(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    source_root = tmp_path / "archive_source"
-    sample_file = source_root / "openpose_output" / "json" / "sample.json"
-    sample_file.parent.mkdir(parents=True)
-    sample_file.write_text("{}", encoding="utf-8")
-
     archive_path = tmp_path / "sample.tar.zst"
-    subprocess.run(
-        ["tar", "--zstd", "-cf", str(archive_path), "-C", str(source_root), "."],
-        check=True,
-    )
+
+    def build_archive(archive: tarfile.TarFile) -> None:
+        _add_tar_bytes(archive, "openpose_output/json/sample.json", b"{}")
+
+    _write_tar_zst_archive(archive_path, build_archive)
 
     destination = tmp_path / "extract_destination"
     archive_ops_mod.extract_tar_zst_with_progress(
@@ -396,6 +439,60 @@ def test_extract_tar_zst_with_progress_extracts_archive(
     captured = capsys.readouterr()
     assert "Extract archive" in captured.out
     assert (destination / "openpose_output" / "json" / "sample.json").exists()
+
+
+@pytest.mark.skipif(
+    shutil.which("zstd") is None,
+    reason="zstd is required for extraction tests",
+)
+def test_extract_tar_zst_with_progress_rejects_path_traversal_members(
+    tmp_path: Path,
+) -> None:
+    archive_path = tmp_path / "traversal.tar.zst"
+
+    def build_archive(archive: tarfile.TarFile) -> None:
+        _add_tar_bytes(archive, "../escape.txt", b"escape")
+
+    _write_tar_zst_archive(archive_path, build_archive)
+
+    with pytest.raises(ValueError, match="Unsafe tar member path"):
+        archive_ops_mod.extract_tar_zst_with_progress(
+            archive_path,
+            tmp_path / "extract",
+            label="Extract archive",
+        )
+
+    assert not (tmp_path / "escape.txt").exists()
+    assert not (tmp_path / "extract").exists()
+    assert not list(tmp_path.glob(".extract.extract-*"))
+
+
+@pytest.mark.skipif(
+    shutil.which("zstd") is None,
+    reason="zstd is required for extraction tests",
+)
+def test_extract_tar_zst_with_progress_rejects_symlink_members(
+    tmp_path: Path,
+) -> None:
+    archive_path = tmp_path / "symlink.tar.zst"
+
+    def build_archive(archive: tarfile.TarFile) -> None:
+        info = tarfile.TarInfo("openpose_output/json/link.json")
+        info.type = tarfile.SYMTYPE
+        info.linkname = "../../escape.txt"
+        archive.addfile(info)
+
+    _write_tar_zst_archive(archive_path, build_archive)
+
+    with pytest.raises(ValueError, match="links are not allowed"):
+        archive_ops_mod.extract_tar_zst_with_progress(
+            archive_path,
+            tmp_path / "extract",
+            label="Extract archive",
+        )
+
+    assert not (tmp_path / "extract").exists()
+    assert not list(tmp_path.glob(".extract.extract-*"))
 
 
 @pytest.mark.skipif(

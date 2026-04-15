@@ -5,10 +5,12 @@ from __future__ import annotations
 import shutil
 import stat
 import subprocess
+import tarfile
 import tempfile
+import threading
 from collections.abc import Iterable, Sequence
-from pathlib import Path
-from typing import BinaryIO, NoReturn
+from pathlib import Path, PurePosixPath
+from typing import IO, BinaryIO, NoReturn
 
 from ..data.utils import ensure_directory
 from .progress import stream_file_with_progress
@@ -47,9 +49,8 @@ def ensure_tar_zst_create_prerequisites() -> None:
 def ensure_tar_zst_extract_prerequisites() -> None:
     """Validate the system tools required to extract `.tar.zst` archives."""
 
-    ensure_tar_zst_create_prerequisites()
-    if not tar_supports_zstd():
-        raise RuntimeError("`tar` with `--zstd` support is required for `.tar.zst` extraction.")
+    if shutil.which("zstd") is None:
+        raise RuntimeError("`zstd` is required to extract `.tar.zst` archives.")
 
 
 def copy_file_with_progress(source: Path, destination: Path, *, label: str) -> Path:
@@ -60,15 +61,28 @@ def copy_file_with_progress(source: Path, destination: Path, *, label: str) -> P
 
     ensure_directory(destination.parent)
     total_bytes = source.stat().st_size
-
-    with source.open("rb") as source_handle, destination.open("wb") as destination_handle:
-        stream_file_with_progress(source_handle, destination_handle, total_bytes, desc=label)
-    shutil.copystat(source, destination)
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+            dir=destination.parent,
+            delete=False,
+        ) as temp_handle:
+            temp_path = Path(temp_handle.name)
+            with source.open("rb") as source_handle:
+                stream_file_with_progress(source_handle, temp_handle, total_bytes, desc=label)
+        shutil.copystat(source, temp_path)
+        temp_path.replace(destination)
+    except BaseException:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+        raise
     return destination
 
 
 def extract_tar_zst_with_progress(archive_path: Path, destination: Path, *, label: str) -> None:
-    """Extract a `.tar.zst` archive by streaming it through `tar` with progress."""
+    """Extract a `.tar.zst` archive while validating tar members stay under destination."""
 
     if not archive_path.name.endswith(".tar.zst"):
         raise ValueError(f"Expected a .tar.zst archive, got: {archive_path.name}")
@@ -91,48 +105,69 @@ def extract_tar_zst_with_progress(archive_path: Path, destination: Path, *, labe
     total_bytes = archive_path.stat().st_size
     extraction_committed = False
     try:
-        with tempfile.TemporaryFile() as stderr_file:
-            process = subprocess.Popen(
-                ["tar", "--zstd", "-xf", "-", "-C", str(temp_destination)],
+        with tempfile.TemporaryFile() as zstd_stderr_file:
+            zstd_process = subprocess.Popen(
+                ["zstd", "-q", "-dc"],
                 stdin=subprocess.PIPE,
-                stdout=subprocess.DEVNULL,
-                stderr=stderr_file,
+                stdout=subprocess.PIPE,
+                stderr=zstd_stderr_file,
             )
+            stream_errors: list[BaseException] = []
 
-            stream_error: OSError | None = None
+            def write_to_zstd(chunk: bytes) -> None:
+                if zstd_process.stdin is None:
+                    raise RuntimeError(f"zstd stdin was not available for {archive_path}")
+                if zstd_process.poll() is not None:
+                    raise BrokenPipeError("zstd exited before the full archive stream was written")
+                zstd_process.stdin.write(chunk)
 
-            def write_to_tar(chunk: bytes) -> None:
-                if process.stdin is None:
-                    raise RuntimeError(f"tar stdin was not available for {archive_path}")
-                if process.poll() is not None:
-                    raise BrokenPipeError("tar exited before the full archive stream was written")
-                process.stdin.write(chunk)
-
-            try:
+            def feed_archive_to_zstd() -> None:
                 with archive_path.open("rb") as archive_handle:
                     try:
                         stream_file_with_progress(
                             archive_handle,
-                            write_to_tar,
+                            write_to_zstd,
                             total_bytes,
                             desc=label,
                         )
-                    except OSError as exc:
-                        stream_error = exc
-            except BaseException:
-                _close_process_stdin(process)
-                _stop_process(process)
-                raise
+                    except BaseException as exc:
+                        stream_errors.append(exc)
+                    finally:
+                        _close_process_stdin(zstd_process)
 
-            _close_process_stdin(process)
-            returncode = process.wait()
-            if stream_error is not None or returncode != 0:
-                stderr_text = _read_stderr_file(stderr_file)
-                _raise_tar_extraction_error(
+            if zstd_process.stdout is None:
+                _close_process_stdin(zstd_process)
+                _stop_process(zstd_process)
+                raise RuntimeError(f"zstd stdout was not available for {archive_path}")
+
+            feed_thread = threading.Thread(
+                target=feed_archive_to_zstd,
+                name=f"feed-{archive_path.name}-to-zstd",
+            )
+            extraction_error: BaseException | None = None
+            feed_thread.start()
+            try:
+                _extract_tar_stream_safely(zstd_process.stdout, temp_destination)
+            except BaseException as exc:
+                extraction_error = exc
+                _close_process_stdin(zstd_process)
+                zstd_returncode = _stop_process(zstd_process)
+            else:
+                zstd_returncode = zstd_process.wait()
+            finally:
+                feed_thread.join()
+
+            stream_error = stream_errors[0] if stream_errors else None
+            if isinstance(extraction_error, ValueError):
+                raise extraction_error
+            if extraction_error is not None or stream_error is not None or zstd_returncode != 0:
+                zstd_stderr = _read_stderr_file(zstd_stderr_file)
+                _raise_zstd_extraction_error(
                     archive_path=archive_path,
-                    returncode=returncode,
-                    stderr_text=stderr_text,
+                    zstd_returncode=zstd_returncode,
+                    zstd_stderr=zstd_stderr,
                     stream_error=stream_error,
+                    extraction_error=extraction_error,
                 )
 
         if destination.exists():
@@ -256,6 +291,43 @@ def _relative_member_path(member: Path, cwd: Path) -> Path:
     return resolved_member.relative_to(resolved_cwd)
 
 
+def _extract_tar_stream_safely(tar_stream: IO[bytes], destination: Path) -> None:
+    resolved_destination = destination.resolve()
+    with tarfile.open(fileobj=tar_stream, mode="r|") as archive:
+        for member in archive:
+            target_path = _validated_tar_member_path(member, resolved_destination)
+            if member.isdir():
+                target_path.mkdir(parents=True, exist_ok=True)
+                continue
+            if member.isfile():
+                source_file = archive.extractfile(member)
+                if source_file is None:
+                    raise RuntimeError(f"Could not read tar member payload: {member.name}")
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    with target_path.open("wb") as target_handle:
+                        shutil.copyfileobj(source_file, target_handle)
+                finally:
+                    source_file.close()
+                continue
+            raise ValueError(f"Unsupported tar member type for {member.name!r}")
+
+
+def _validated_tar_member_path(member: tarfile.TarInfo, destination: Path) -> Path:
+    member_path = PurePosixPath(member.name)
+    if member.name == "" or member_path.is_absolute() or ".." in member_path.parts:
+        raise ValueError(f"Unsafe tar member path: {member.name!r}")
+
+    target_path = destination.joinpath(*member_path.parts).resolve()
+    if target_path != destination and not target_path.is_relative_to(destination):
+        raise ValueError(f"Unsafe tar member path: {member.name!r}")
+    if member.issym() or member.islnk():
+        raise ValueError(f"Unsupported tar member type for {member.name!r}: links are not allowed")
+    if not member.isdir() and not member.isfile():
+        raise ValueError(f"Unsupported tar member type for {member.name!r}")
+    return target_path
+
+
 def _tar_stream_total_bytes(cwd: Path, member_names: Sequence[str]) -> int | None:
     total_bytes = 0
     for member_name in member_names:
@@ -350,22 +422,26 @@ def _read_stderr_file(stderr_file: BinaryIO) -> str:
     return stderr_file.read().decode("utf-8", errors="replace").strip()
 
 
-def _raise_tar_extraction_error(
+def _raise_zstd_extraction_error(
     *,
     archive_path: Path,
-    returncode: int,
-    stderr_text: str,
-    stream_error: OSError | None,
+    zstd_returncode: int,
+    zstd_stderr: str,
+    stream_error: BaseException | None,
+    extraction_error: BaseException | None,
 ) -> NoReturn:
-    details = [f"tar exit code {returncode}"]
-    if stderr_text:
-        details.append(f"tar stderr: {stderr_text}")
+    details = [f"zstd exit code {zstd_returncode}"]
+    if zstd_stderr:
+        details.append(f"zstd stderr: {zstd_stderr}")
     if stream_error is not None:
         details.append(f"streaming error: {stream_error}")
-    message = f"tar extraction failed for {archive_path}: {'; '.join(details)}"
-    if stream_error is None:
+    if extraction_error is not None:
+        details.append(f"tar stream error: {extraction_error}")
+    message = f"tar.zst extraction failed for {archive_path}: {'; '.join(details)}"
+    cause = extraction_error if extraction_error is not None else stream_error
+    if cause is None:
         raise RuntimeError(message)
-    raise RuntimeError(message) from stream_error
+    raise RuntimeError(message) from cause
 
 
 def _raise_archive_creation_error(
