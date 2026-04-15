@@ -1,6 +1,6 @@
 # Split Integrity Report
 
-Sprint 2 generates split-integrity reports at:
+Dataset Build generates split-integrity reports at:
 
 - `data/processed/v1/reports/split-report.json`
 - `data/processed/v1/reports/split-report.md`

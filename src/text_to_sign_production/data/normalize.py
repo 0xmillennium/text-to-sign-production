@@ -1,4 +1,4 @@
-"""Normalization and `.npz` export helpers for Sprint 2."""
+"""Normalization and `.npz` export helpers for Dataset Build."""
 
 from __future__ import annotations
 

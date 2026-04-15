@@ -1,47 +1,21 @@
 stages:
-  prepare_raw:
-    cmd: python scripts/prepare_raw.py
+  dataset_build:
+    cmd: python scripts/dataset_build.py --no-package
     deps:
-      - scripts/prepare_raw.py
+      - scripts/dataset_build.py
       - src/text_to_sign_production/data
+      - src/text_to_sign_production/ops
+      - src/text_to_sign_production/workflows
+      - configs/data/filter-v1.yaml
       - data/raw/how2sign/translations
       - data/raw/how2sign/bfh_keypoints
     outs:
       - data/interim/raw_manifests
-    metrics:
-      - data/interim/reports/assumption-report.json
-
-  normalize_keypoints:
-    cmd: python scripts/normalize_keypoints.py
-    deps:
-      - scripts/normalize_keypoints.py
-      - src/text_to_sign_production/data
-      - data/interim/raw_manifests
-    outs:
       - data/interim/normalized_manifests
+      - data/interim/filtered_manifests
       - data/processed/v1/samples
-
-  filter_samples:
-    cmd: python scripts/filter_samples.py --config configs/data/filter-v1.yaml
-    deps:
-      - scripts/filter_samples.py
-      - src/text_to_sign_production/data
-      - configs/data/filter-v1.yaml
-      - data/interim/normalized_manifests
-    outs:
-      - data/interim/filtered_manifests
-    metrics:
-      - data/interim/reports/filter-report.json
-
-  export_training_manifest:
-    cmd: python scripts/export_training_manifest.py
-    deps:
-      - scripts/export_training_manifest.py
-      - src/text_to_sign_production/data
-      - data/interim/raw_manifests
-      - data/interim/filtered_manifests
-      - data/interim/reports/assumption-report.json
-      - data/interim/reports/filter-report.json
-    outs:
       - data/processed/v1/manifests
       - data/processed/v1/reports
+    metrics:
+      - data/interim/reports/assumption-report.json
+      - data/interim/reports/filter-report.json

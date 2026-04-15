@@ -1,4 +1,4 @@
-"""Raw How2Sign ingestion helpers for Sprint 2."""
+"""Raw How2Sign ingestion helpers for Dataset Build."""
 
 from __future__ import annotations
 

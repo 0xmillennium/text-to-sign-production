@@ -1,4 +1,4 @@
-"""Tests for the Sprint 2 How2Sign data pipeline."""
+"""Tests for the Dataset Build How2Sign data pipeline."""
 
 from __future__ import annotations
 
@@ -13,10 +13,7 @@ import numpy as np
 import pytest
 import yaml
 
-import scripts.export_training_manifest as export_training_manifest_script
-import scripts.filter_samples as filter_samples_script
-import scripts.normalize_keypoints as normalize_keypoints_script
-import scripts.prepare_raw as prepare_raw_script
+import scripts.dataset_build as dataset_build_script
 import scripts.validate_manifest as validate_manifest_script
 import scripts.view_sample as view_sample_script
 import text_to_sign_production.data.filtering as filtering_mod
@@ -25,6 +22,7 @@ import text_to_sign_production.data.normalize as normalize_mod
 import text_to_sign_production.data.raw as raw_mod
 import text_to_sign_production.data.reports as reports_mod
 import text_to_sign_production.data.utils as utils_mod
+import text_to_sign_production.workflows.dataset_build as dataset_build_workflow_mod
 from text_to_sign_production.data.constants import PROCESSED_SCHEMA_VERSION
 from text_to_sign_production.data.filtering import (
     FilterConfig,
@@ -155,8 +153,6 @@ def _patch_pipeline_paths(monkeypatch: Any, root: Path) -> None:
     monkeypatch.setattr(
         view_sample_script, "PROCESSED_MANIFESTS_ROOT", root / "data/processed/v1/manifests"
     )
-    monkeypatch.setattr(filter_samples_script, "PROJECT_ROOT", root)
-    monkeypatch.setattr(export_training_manifest_script, "PROJECT_ROOT", root)
 
 
 def _create_fixture_dataset(root: Path) -> None:
@@ -1671,15 +1667,21 @@ def test_view_sample_reports_malformed_manifest_without_traceback(
     assert view_sample_script.main() == 1
 
 
-def test_cli_pipeline_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
+def test_run_dataset_build_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
     _create_fixture_dataset(tmp_path)
     _patch_pipeline_paths(monkeypatch, tmp_path)
     outside_dir = tmp_path / "outside"
     outside_dir.mkdir()
     monkeypatch.chdir(outside_dir)
 
-    monkeypatch.setattr(sys, "argv", ["prepare_raw.py", "--splits", "train", "val", "test"])
-    assert prepare_raw_script.main() == 0
+    result = dataset_build_workflow_mod.run_dataset_build(
+        splits=("train", "val", "test"),
+        filter_config_path=tmp_path / "configs/data/filter-v1.yaml",
+        output_mode="none",
+    )
+
+    assert result.splits == ("train", "val", "test")
+    assert result.output_paths == ()
 
     raw_manifest = tmp_path / "data/interim/raw_manifests/raw_train.jsonl"
     raw_records = [
@@ -1702,25 +1704,6 @@ def test_cli_pipeline_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
         ],
     )
     assert validate_manifest_script.main() == 0
-
-    monkeypatch.setattr(sys, "argv", ["normalize_keypoints.py", "--splits", "train", "val", "test"])
-    assert normalize_keypoints_script.main() == 0
-
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "filter_samples.py",
-            "--splits",
-            "train",
-            "val",
-            "test",
-        ],
-    )
-    assert filter_samples_script.main() == 0
-
-    monkeypatch.setattr(sys, "argv", ["export_training_manifest.py"])
-    assert export_training_manifest_script.main() == 0
 
     train_manifest = tmp_path / "data/processed/v1/manifests/train.jsonl"
     processed_records = [
@@ -1773,3 +1756,30 @@ def test_cli_pipeline_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
     assert (tmp_path / "data/processed/v1/reports/assumption-report.md").exists()
     assert (tmp_path / "data/processed/v1/reports/data-quality-report.md").exists()
     assert (tmp_path / "data/processed/v1/reports/split-report.md").exists()
+
+
+def test_dataset_build_cli_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
+    _create_fixture_dataset(tmp_path)
+    _patch_pipeline_paths(monkeypatch, tmp_path)
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    monkeypatch.chdir(outside_dir)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "dataset_build.py",
+            "--config",
+            str(tmp_path / "configs/data/filter-v1.yaml"),
+            "--no-package",
+        ],
+    )
+
+    assert dataset_build_script.main() == 0
+
+    train_manifest = tmp_path / "data/processed/v1/manifests/train.jsonl"
+    processed_records = [
+        json.loads(line) for line in train_manifest.read_text(encoding="utf-8").splitlines() if line
+    ]
+    assert len(processed_records) == 1
+    assert processed_records[0]["processed_schema_version"] == PROCESSED_SCHEMA_VERSION

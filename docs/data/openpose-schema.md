@@ -1,6 +1,6 @@
 # OpenPose Schema
 
-Sprint 2 documents and validates the observed OpenPose JSON contract before processing.
+Dataset Build documents and validates the observed OpenPose JSON contract before processing.
 
 ## Observed Top-Level Keys
 
@@ -34,16 +34,16 @@ The 2D arrays use flat OpenPose triplets of `(x, y, confidence)`:
 | left hand | `hand_left_keypoints_2d` | 63 | 21 |
 | right hand | `hand_right_keypoints_2d` | 63 | 21 |
 
-Sprint 2 reshapes these into `(points, 2)` coordinates plus `(points,)` confidence arrays.
+Dataset Build reshapes these into `(points, 2)` coordinates plus `(points,)` confidence arrays.
 
 ## 3D Keys
 
-The observed 3D arrays are present in the JSON schema but empty in the inspected data. Sprint 2
+The observed 3D arrays are present in the JSON schema but empty in the inspected data. Dataset Build
 records this fact in reports but does not use the 3D arrays in v1 processing.
 
 ## Multi-Person Policy
 
-Sprint 2 deterministically selects `people[0]` when more than one person is present and makes that
+Dataset Build deterministically selects `people[0]` when more than one person is present and makes that
 fallback auditable by storing:
 
 - `people_per_frame` in each `.npz`

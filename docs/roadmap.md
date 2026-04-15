@@ -21,7 +21,7 @@ Sprint 2 delivers the first real dataset pipeline:
 - manifest-driven processed dataset export
 - data-quality, split-integrity, and assumption reporting
 - working DVC stages for the full data pipeline
-- Colab-oriented heavy execution support that still uses the existing Sprint 2 scripts
+- Colab-oriented heavy execution support through the Dataset Build workflow
 - explicit output packaging and private/shared artifact storage guidance
 
 ## Planned Follow-On Work

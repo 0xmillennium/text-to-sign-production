@@ -1,4 +1,4 @@
-"""Constants shared across the Sprint 2 data pipeline."""
+"""Constants shared across the Dataset Build data pipeline."""
 
 from __future__ import annotations
 
@@ -50,8 +50,8 @@ SPLIT_TO_KEYPOINT_ARCHIVE_FILE: Final[dict[str, str]] = {
     "test": "test_2D_keypoints.tar.zst",
 }
 
-MANIFESTS_AND_REPORTS_ARCHIVE_NAME: Final[str] = "sprint2_manifests_reports.tar.zst"
-SAMPLE_ARCHIVE_NAME_TEMPLATE: Final[str] = "sprint2_samples_{split}.tar.zst"
+MANIFESTS_AND_REPORTS_ARCHIVE_NAME: Final[str] = "dataset_build_manifests_reports.tar.zst"
+SAMPLE_ARCHIVE_NAME_TEMPLATE: Final[str] = "dataset_build_samples_{split}.tar.zst"
 
 EXPECTED_TRANSLATION_COLUMNS: Final[tuple[str, ...]] = (
     "VIDEO_ID",
@@ -105,7 +105,7 @@ COLAB_DRIVE_RAW_ROOT: Final[Path] = COLAB_DRIVE_PROJECT_ROOT / "raw" / "how2sign
 COLAB_DRIVE_TRANSLATIONS_DIR: Final[Path] = COLAB_DRIVE_RAW_ROOT / "translations"
 COLAB_DRIVE_ARCHIVES_DIR: Final[Path] = COLAB_DRIVE_RAW_ROOT / "archives"
 COLAB_DRIVE_ARTIFACTS_ROOT: Final[Path] = (
-    COLAB_DRIVE_PROJECT_ROOT / "artifacts" / "sprint2" / "processed-v1"
+    COLAB_DRIVE_PROJECT_ROOT / "artifacts" / "dataset-build" / "processed-v1"
 )
 COLAB_DOWNLOAD_ROOT: Final[Path] = Path("/content/how2sign_downloads")
 

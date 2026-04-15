@@ -1,4 +1,4 @@
-"""Small generic helpers shared across the Sprint 2 pipeline modules."""
+"""Small generic helpers shared across the Dataset Build pipeline modules."""
 
 from __future__ import annotations
 

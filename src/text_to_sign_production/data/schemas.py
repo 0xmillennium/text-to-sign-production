@@ -1,4 +1,4 @@
-"""Typed record models for the Sprint 2 data pipeline."""
+"""Typed record models for the Dataset Build data pipeline."""
 
 from __future__ import annotations
 

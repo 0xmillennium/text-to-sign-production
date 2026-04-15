@@ -1,4 +1,4 @@
-"""Fixed Sprint 2 Colab staging, packaging, and publish workflow helpers."""
+"""Fixed Colab staging, packaging, and publish helpers for Dataset Build."""
 
 from __future__ import annotations
 
@@ -125,12 +125,12 @@ def _collect_stage_inputs(splits: tuple[str, ...]) -> list[tuple[str, Path, Path
     return stage_inputs
 
 
-def package_sprint2_outputs(
+def package_dataset_build_outputs(
     *,
     project_root: Path = REPO_ROOT,
     splits: tuple[str, ...] = SPLITS,
 ) -> list[Path]:
-    """Create the Sprint 2 output archives under the fixed local archive directory."""
+    """Create Dataset Build output archives under the fixed local archive directory."""
 
     resolved_output_dir = project_root / ARCHIVES_RELATIVE_ROOT
     ensure_directory(resolved_output_dir)
@@ -162,10 +162,10 @@ def package_sprint2_outputs(
 
 
 def publish_colab_outputs(*, splits: tuple[str, ...] = SPLITS) -> list[Path]:
-    """Package Sprint 2 outputs locally, then copy them to the fixed Drive artifact path."""
+    """Package Dataset Build outputs locally, then copy them to the fixed Drive artifact path."""
 
     _require_colab_drive_mount()
-    archives = package_sprint2_outputs(splits=splits)
+    archives = package_dataset_build_outputs(splits=splits)
     ensure_directory(COLAB_DRIVE_ARTIFACTS_ROOT)
 
     published_paths: list[Path] = []

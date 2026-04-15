@@ -1,4 +1,4 @@
-"""Operational support tests for the simplified Sprint 2 Colab workflow."""
+"""Operational support tests for the simplified Dataset Build workflow."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from typing import Any, BinaryIO, cast
 
 import pytest
 
-import scripts.package_sprint2_outputs as package_outputs_script
 import text_to_sign_production.ops.archive_ops as archive_ops_mod
 import text_to_sign_production.ops.colab_workflow as colab_workflow_mod
 import text_to_sign_production.ops.progress as progress_mod
+from text_to_sign_production.data.constants import ARCHIVES_RELATIVE_ROOT
 
 
 def _write(path: Path, content: str) -> None:
@@ -56,7 +56,7 @@ def _list_tar_zst_members(archive_path: Path) -> str:
 
 def _load_notebook_sources() -> tuple[str, str]:
     notebook_path = (
-        Path(__file__).resolve().parents[1] / "notebooks/colab/sprint2_pipeline_colab.ipynb"
+        Path(__file__).resolve().parents[1] / "notebooks/colab/dataset_build_colab.ipynb"
     )
     notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
     markdown_source = "\n".join(
@@ -267,7 +267,7 @@ def test_copy_file_with_progress_preserves_destination_after_stream_failure(
     shutil.which("tar") is None or shutil.which("zstd") is None,
     reason="tar and zstd are required for archive tests",
 )
-def test_package_sprint2_outputs_creates_expected_archives(tmp_path: Path) -> None:
+def test_package_dataset_build_outputs_creates_expected_archives(tmp_path: Path) -> None:
     manifest_and_report_files = {
         "data/interim/raw_manifests/raw_train.jsonl": '{"sample_id": "train_sample"}\n',
         "data/interim/normalized_manifests/normalized_train.jsonl": (
@@ -288,23 +288,23 @@ def test_package_sprint2_outputs_creates_expected_archives(tmp_path: Path) -> No
         )
 
     output_dir = tmp_path / "data/archives"
-    archives = package_outputs_script.package_outputs(project_root=tmp_path)
+    archives = colab_workflow_mod.package_dataset_build_outputs(project_root=tmp_path)
 
     expected_names = {
-        "sprint2_manifests_reports.tar.zst",
-        "sprint2_samples_train.tar.zst",
-        "sprint2_samples_val.tar.zst",
-        "sprint2_samples_test.tar.zst",
+        "dataset_build_manifests_reports.tar.zst",
+        "dataset_build_samples_train.tar.zst",
+        "dataset_build_samples_val.tar.zst",
+        "dataset_build_samples_test.tar.zst",
     }
     assert {archive.name for archive in archives} == expected_names
     assert all(archive.exists() for archive in archives)
 
-    manifests_archive = output_dir / "sprint2_manifests_reports.tar.zst"
+    manifests_archive = output_dir / "dataset_build_manifests_reports.tar.zst"
     manifests_listing = _list_tar_zst_members(manifests_archive)
     assert "data/interim/raw_manifests/raw_train.jsonl" in manifests_listing
     assert "data/processed/v1/reports/data-quality-report.md" in manifests_listing
 
-    train_archive = output_dir / "sprint2_samples_train.tar.zst"
+    train_archive = output_dir / "dataset_build_samples_train.tar.zst"
     train_listing = _list_tar_zst_members(train_archive)
     assert "data/processed/v1/samples/train/train_sample.npz" in train_listing
 
@@ -313,25 +313,28 @@ def test_package_sprint2_outputs_creates_expected_archives(tmp_path: Path) -> No
     shutil.which("tar") is None or shutil.which("zstd") is None,
     reason="tar and zstd are required for archive tests",
 )
-def test_package_sprint2_outputs_default_output_dir_is_project_relative(
+def test_package_dataset_build_outputs_default_output_dir_is_project_relative(
     tmp_path: Path,
 ) -> None:
-    assert not package_outputs_script.DEFAULT_OUTPUT_DIR.is_absolute()
+    assert not ARCHIVES_RELATIVE_ROOT.is_absolute()
     _write_minimal_packaging_outputs(tmp_path, splits=("train",))
 
-    archives = package_outputs_script.package_outputs(project_root=tmp_path, splits=("train",))
+    archives = colab_workflow_mod.package_dataset_build_outputs(
+        project_root=tmp_path,
+        splits=("train",),
+    )
 
     output_dir = tmp_path / "data" / "archives"
     assert {archive.parent for archive in archives} == {output_dir}
-    assert (output_dir / "sprint2_manifests_reports.tar.zst").exists()
-    assert (output_dir / "sprint2_samples_train.tar.zst").exists()
+    assert (output_dir / "dataset_build_manifests_reports.tar.zst").exists()
+    assert (output_dir / "dataset_build_samples_train.tar.zst").exists()
 
 
 @pytest.mark.skipif(
     shutil.which("tar") is None or shutil.which("zstd") is None,
     reason="tar and zstd are required for archive tests",
 )
-def test_package_sprint2_outputs_respects_requested_splits(tmp_path: Path) -> None:
+def test_package_dataset_build_outputs_respects_requested_splits(tmp_path: Path) -> None:
     for relative_path in (
         "data/interim/raw_manifests/raw_train.jsonl",
         "data/interim/normalized_manifests/normalized_train.jsonl",
@@ -344,17 +347,20 @@ def test_package_sprint2_outputs_respects_requested_splits(tmp_path: Path) -> No
 
     _write(tmp_path / "data/processed/v1/samples/train/train_sample.npz", "train-sample")
     output_dir = tmp_path / "data/archives"
-    _write(output_dir / "sprint2_samples_val.tar.zst", "stale-val")
-    _write(output_dir / "sprint2_samples_test.tar.zst", "stale-test")
+    _write(output_dir / "dataset_build_samples_val.tar.zst", "stale-val")
+    _write(output_dir / "dataset_build_samples_test.tar.zst", "stale-test")
 
-    archives = package_outputs_script.package_outputs(project_root=tmp_path, splits=("train",))
+    archives = colab_workflow_mod.package_dataset_build_outputs(
+        project_root=tmp_path,
+        splits=("train",),
+    )
 
     assert {archive.name for archive in archives} == {
-        "sprint2_manifests_reports.tar.zst",
-        "sprint2_samples_train.tar.zst",
+        "dataset_build_manifests_reports.tar.zst",
+        "dataset_build_samples_train.tar.zst",
     }
-    assert not (output_dir / "sprint2_samples_val.tar.zst").exists()
-    assert not (output_dir / "sprint2_samples_test.tar.zst").exists()
+    assert not (output_dir / "dataset_build_samples_val.tar.zst").exists()
+    assert not (output_dir / "dataset_build_samples_test.tar.zst").exists()
 
 
 def test_extract_tar_zst_with_progress_rejects_non_tar_zst_archives(
@@ -842,14 +848,14 @@ def test_publish_colab_outputs_copies_archives_to_fixed_drive_path(
     drive_mount = tmp_path / "drive"
     drive_mount.mkdir()
     artifact_root = drive_mount / "MyDrive" / "text-to-sign-production" / "artifacts"
-    local_archive = tmp_path / "local" / "sprint2_manifests_reports.tar.zst"
+    local_archive = tmp_path / "local" / "dataset_build_manifests_reports.tar.zst"
     _write(local_archive, "archive")
 
     monkeypatch.setattr(colab_workflow_mod, "COLAB_DRIVE_MOUNT_ROOT", drive_mount)
     monkeypatch.setattr(colab_workflow_mod, "COLAB_DRIVE_ARTIFACTS_ROOT", artifact_root)
     monkeypatch.setattr(
         colab_workflow_mod,
-        "package_sprint2_outputs",
+        "package_dataset_build_outputs",
         lambda *, splits: [local_archive],
     )
 
@@ -863,12 +869,10 @@ def test_colab_notebook_contains_only_the_supported_fixed_workflow() -> None:
     markdown_source, code_source = _load_notebook_sources()
 
     expected_headings = (
-        "# Sprint 2 Colab Pipeline",
+        "# Dataset Build Colab",
         "## 1. Environment And Repository Setup",
         "## 2. Mount Google Drive",
-        "## 3. Stage Fixed Colab Inputs",
-        "## 4. Run Sprint 2 Pipeline Functions",
-        "## 5. Package And Publish Outputs",
+        "## 3. Run Dataset Build",
     )
     for heading in expected_headings:
         assert heading in markdown_source
@@ -878,25 +882,13 @@ def test_colab_notebook_contains_only_the_supported_fixed_workflow() -> None:
         'drive.mount("/content/drive", force_remount=False)',
         'if str(WORKTREE_ROOT / "src") not in sys.path:',
         'sys.path.insert(0, str(WORKTREE_ROOT / "src"))',
-        "from text_to_sign_production.ops.colab_workflow import stage_colab_inputs",
-        "from text_to_sign_production.data.raw import build_raw_manifests",
-        "from text_to_sign_production.data.normalize import normalize_all_splits",
-        "from text_to_sign_production.data.filtering import filter_all_splits",
-        "from text_to_sign_production.data.manifests import export_final_manifests",
-        "from text_to_sign_production.ops.colab_workflow import publish_colab_outputs",
-        "stage_colab_inputs(splits=tuple(PIPELINE_SPLITS))",
-        "build_raw_manifests(splits=tuple(PIPELINE_SPLITS))",
-        "normalize_all_splits(splits=tuple(PIPELINE_SPLITS))",
-        "filter_all_splits(",
+        "from text_to_sign_production.workflows.dataset_build import run_dataset_build",
+        "run_dataset_build(",
+        'input_mode="fixed_colab_drive"',
+        'output_mode="fixed_colab_drive"',
         'config_path=WORKTREE_ROOT / "configs/data/filter-v1.yaml"',
-        "assumption_report = build_raw_manifests(splits=tuple(PIPELINE_SPLITS))",
-        "filter_report = filter_all_splits(",
-        "export_final_manifests(",
-        "assumption_report=assumption_report",
-        "filter_report=filter_report",
-        "publish_colab_outputs(splits=tuple(PIPELINE_SPLITS))",
         "/content/how2sign_downloads",
-        "/content/drive/MyDrive/text-to-sign-production/artifacts/sprint2/processed-v1/",
+        "/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/",
         "train_2D_keypoints.tar.zst",
         "val_2D_keypoints.tar.zst",
         "test_2D_keypoints.tar.zst",
@@ -918,7 +910,43 @@ def test_colab_notebook_contains_only_the_supported_fixed_workflow() -> None:
         "T2SP_PROGRESS_MODE",
         ".tar.gz",
         "scripts/package_sprint2_outputs.py",
+        "scripts/prepare_raw.py",
+        "scripts/normalize_keypoints.py",
+        "scripts/filter_samples.py",
+        "scripts/export_training_manifest.py",
+        "from text_to_sign_production.ops.colab_workflow import stage_colab_inputs",
+        "from text_to_sign_production.ops.colab_workflow import publish_colab_outputs",
+        "from text_to_sign_production.data.raw import build_raw_manifests",
+        "from text_to_sign_production.data.normalize import normalize_all_splits",
+        "from text_to_sign_production.data.filtering import filter_all_splits",
+        "from text_to_sign_production.data.manifests import export_final_manifests",
+        "Sprint 2",
+        "sprint2",
         "google.colab.files",
     )
     for snippet in removed_snippets:
         assert snippet not in (markdown_source + "\n" + code_source)
+
+
+def test_public_workflow_surface_has_one_notebook_and_one_cli() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    colab_notebooks = sorted(
+        path.name for path in (project_root / "notebooks/colab").glob("*.ipynb")
+    )
+    script_names = sorted(path.name for path in (project_root / "scripts").glob("*.py"))
+
+    assert colab_notebooks == ["dataset_build_colab.ipynb"]
+    assert "dataset_build.py" in script_names
+    assert "validate_manifest.py" in script_names
+    assert "view_sample.py" in script_names
+
+    removed_scripts = {
+        "prepare_raw.py",
+        "normalize_keypoints.py",
+        "filter_samples.py",
+        "export_training_manifest.py",
+        "stage_colab_inputs.py",
+        "publish_colab_outputs.py",
+        "package_sprint2_outputs.py",
+    }
+    assert removed_scripts.isdisjoint(script_names)

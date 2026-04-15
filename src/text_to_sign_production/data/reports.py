@@ -1,4 +1,4 @@
-"""Report construction and rendering for the Sprint 2 data pipeline."""
+"""Report construction and rendering for the Dataset Build data pipeline."""
 
 from __future__ import annotations
 

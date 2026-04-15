@@ -276,7 +276,7 @@ def _assert_required_members(cwd: Path, members: Iterable[Path]) -> None:
     missing = [member for member in members if not _absolute_member_path(member, cwd).exists()]
     if missing:
         formatted = "\n".join(f"- {member}" for member in missing)
-        raise FileNotFoundError(f"Missing required Sprint 2 outputs:\n{formatted}")
+        raise FileNotFoundError(f"Missing required Dataset Build outputs:\n{formatted}")
 
 
 def _absolute_member_path(member: Path, cwd: Path) -> Path:

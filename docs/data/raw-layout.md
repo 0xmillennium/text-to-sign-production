@@ -1,6 +1,6 @@
 # Raw Layout
 
-Sprint 2 treats the following root as the only canonical How2Sign raw input:
+Dataset Build treats the following root as the only canonical How2Sign raw input:
 
 `data/raw/how2sign/`
 
@@ -24,12 +24,12 @@ BFH keypoints:
 - `data/raw/how2sign/bfh_keypoints/test_2D_keypoints/openpose_output/json/<clip_id>/*.json`
 - `data/raw/how2sign/bfh_keypoints/test_2D_keypoints/openpose_output/video/<clip>.mp4`
 
-The OpenPose frame JSON directories are the canonical Sprint 2 signal source. The MP4 files are
+The OpenPose frame JSON directories are the canonical Dataset Build signal source. The MP4 files are
 used only for metadata inspection and optional manual viewing.
 
 ## Official Split Preservation
 
-Sprint 2 preserves the observed official split names exactly:
+Dataset Build preserves the observed official split names exactly:
 
 - `train`
 - `val`
@@ -39,7 +39,7 @@ There is no split remapping, no extra dev split, and no heuristic resampling.
 
 ## Verified Alignment Rule
 
-The only alignment rule used by Sprint 2 is:
+The only alignment rule used by Dataset Build is:
 
 `SENTENCE_NAME == openpose_output/json/<clip_dir_name>`
 
