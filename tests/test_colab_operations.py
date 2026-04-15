@@ -133,6 +133,36 @@ class _FakeCreateZstdProcess:
         return
 
 
+class _WritableStdin:
+    def __init__(self) -> None:
+        self.chunks: list[bytes] = []
+
+    def write(self, chunk: bytes) -> int:
+        self.chunks.append(chunk)
+        return len(chunk)
+
+    def close(self) -> None:
+        return
+
+
+class _FakeCreateZstdSuccessProcess:
+    def __init__(self, stderr_file: BinaryIO) -> None:
+        self.stdin: _WritableStdin | None = _WritableStdin()
+        self.stdout = None
+
+    def poll(self) -> int | None:
+        return None
+
+    def wait(self, timeout: float | None = None) -> int:
+        return 0
+
+    def terminate(self) -> None:
+        return
+
+    def kill(self) -> None:
+        return
+
+
 def test_iter_with_progress_yields_items_and_labels_progress(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -424,6 +454,103 @@ def test_create_tar_zst_archive_reports_subprocess_stderr_after_broken_pipe(
 
     assert isinstance(exc_info.value.__cause__, BrokenPipeError)
     assert not archive_path.exists()
+
+
+def test_create_tar_zst_archive_reports_known_tar_stream_total(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_dir = tmp_path / "archive_source"
+    _write(source_dir / "sample.txt", "sample")
+    archive_path = tmp_path / "archive.tar.zst"
+    monkeypatch.setattr(archive_ops_mod, "ensure_tar_zst_create_prerequisites", lambda: None)
+    stream_calls: list[dict[str, Any]] = []
+
+    def fake_stream_file_with_progress(
+        src: Any,
+        writer: Any,
+        total_bytes: int | None,
+        desc: str = "",
+    ) -> int:
+        stream_calls.append({"total_bytes": total_bytes, "desc": desc})
+        writer(b"tar-stream")
+        return len(b"tar-stream")
+
+    def fake_popen(command: Sequence[str], **kwargs: Any) -> Any:
+        stderr_file = cast(BinaryIO, kwargs["stderr"])
+        if command[0] == "tar":
+            return _FakeCreateTarProcess(stderr_file)
+        if command[0] == "zstd":
+            return _FakeCreateZstdSuccessProcess(stderr_file)
+        raise AssertionError(f"Unexpected subprocess command: {command}")
+
+    monkeypatch.setattr(
+        archive_ops_mod,
+        "stream_file_with_progress",
+        fake_stream_file_with_progress,
+    )
+    monkeypatch.setattr("text_to_sign_production.ops.archive_ops.subprocess.Popen", fake_popen)
+
+    created_path = archive_ops_mod.create_tar_zst_archive(
+        archive_path=archive_path,
+        members=(source_dir.relative_to(tmp_path),),
+        cwd=tmp_path,
+        label="Archive source",
+    )
+
+    assert created_path == archive_path
+    assert stream_calls == [{"total_bytes": 10240, "desc": "Archive source (tar stream)"}]
+
+
+def test_create_tar_zst_archive_keeps_unknown_total_for_unmodeled_members(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_dir = tmp_path / "archive_source"
+    _write(source_dir / "sample.txt", "sample")
+    try:
+        (source_dir / "sample-link.txt").symlink_to("sample.txt")
+    except OSError as exc:
+        pytest.skip(f"Could not create symlink fixture: {exc}")
+
+    archive_path = tmp_path / "archive.tar.zst"
+    monkeypatch.setattr(archive_ops_mod, "ensure_tar_zst_create_prerequisites", lambda: None)
+    stream_calls: list[dict[str, Any]] = []
+
+    def fake_stream_file_with_progress(
+        src: Any,
+        writer: Any,
+        total_bytes: int | None,
+        desc: str = "",
+    ) -> int:
+        stream_calls.append({"total_bytes": total_bytes, "desc": desc})
+        writer(b"tar-stream")
+        return len(b"tar-stream")
+
+    def fake_popen(command: Sequence[str], **kwargs: Any) -> Any:
+        stderr_file = cast(BinaryIO, kwargs["stderr"])
+        if command[0] == "tar":
+            return _FakeCreateTarProcess(stderr_file)
+        if command[0] == "zstd":
+            return _FakeCreateZstdSuccessProcess(stderr_file)
+        raise AssertionError(f"Unexpected subprocess command: {command}")
+
+    monkeypatch.setattr(
+        archive_ops_mod,
+        "stream_file_with_progress",
+        fake_stream_file_with_progress,
+    )
+    monkeypatch.setattr("text_to_sign_production.ops.archive_ops.subprocess.Popen", fake_popen)
+
+    created_path = archive_ops_mod.create_tar_zst_archive(
+        archive_path=archive_path,
+        members=(source_dir.relative_to(tmp_path),),
+        cwd=tmp_path,
+        label="Archive source",
+    )
+
+    assert created_path == archive_path
+    assert stream_calls == [{"total_bytes": None, "desc": "Archive source (tar stream)"}]
 
 
 def test_create_tar_zst_archive_rejects_non_tar_zst_archives(tmp_path: Path) -> None:

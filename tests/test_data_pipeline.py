@@ -356,13 +356,11 @@ def test_long_running_pipeline_steps_use_shared_item_progress(
 
     normalize_progress_calls = _record_progress_calls(monkeypatch, normalize_mod)
     normalize_mod.normalize_all_splits(splits=("train",))
-    assert normalize_progress_calls == [
-        {"total": None, "desc": "Normalize train", "unit": "samples"}
-    ]
+    assert normalize_progress_calls == [{"total": 2, "desc": "Normalize train", "unit": "samples"}]
 
     filtering_progress_calls = _record_progress_calls(monkeypatch, filtering_mod)
     filtering_mod.filter_all_splits(tmp_path / "configs/data/filter-v1.yaml", splits=("train",))
-    assert filtering_progress_calls == [{"total": None, "desc": "Filter train", "unit": "records"}]
+    assert filtering_progress_calls == [{"total": 2, "desc": "Filter train", "unit": "records"}]
 
     manifests_progress_calls = _record_progress_calls(monkeypatch, manifests_mod)
     assumption_report = json.loads(

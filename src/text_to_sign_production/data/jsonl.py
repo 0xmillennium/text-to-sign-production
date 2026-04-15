@@ -28,6 +28,13 @@ def write_jsonl(path: Path, records: list[Any]) -> None:
             handle.write("\n")
 
 
+def count_jsonl_records(path: Path) -> int:
+    """Count non-empty JSONL records without parsing the file."""
+
+    with path.open("r", encoding="utf-8") as handle:
+        return sum(1 for line in handle if line.strip())
+
+
 def iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
     """Yield JSON objects from a JSONL file."""
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import stat
 import subprocess
 import tempfile
 from collections.abc import Iterable, Sequence
@@ -11,6 +12,12 @@ from typing import BinaryIO, NoReturn
 
 from ..data.utils import ensure_directory
 from .progress import stream_file_with_progress
+
+_TAR_BLOCK_SIZE = 512
+_TAR_RECORD_BLOCKS = 20
+_TAR_RECORD_SIZE = _TAR_BLOCK_SIZE * _TAR_RECORD_BLOCKS
+_TAR_END_BLOCK_BYTES = 2 * _TAR_BLOCK_SIZE
+_MAX_SIMPLE_TAR_NAME_BYTES = 100
 
 
 def tar_supports_zstd() -> bool:
@@ -152,6 +159,8 @@ def create_tar_zst_archive(
     ensure_tar_zst_create_prerequisites()
     member_names = [str(_relative_member_path(member, cwd)) for member in members]
     _assert_required_members(cwd, members)
+    tar_stream_total_bytes = _tar_stream_total_bytes(cwd, member_names)
+    progress_label = f"{label} (tar stream)"
     ensure_directory(archive_path.parent)
     if archive_path.exists():
         archive_path.unlink()
@@ -189,8 +198,8 @@ def create_tar_zst_archive(
                 stream_file_with_progress(
                     tar_process.stdout,
                     write_to_zstd,
-                    None,
-                    desc=label,
+                    tar_stream_total_bytes,
+                    desc=progress_label,
                 )
             except OSError as exc:
                 stream_error = exc
@@ -245,6 +254,76 @@ def _relative_member_path(member: Path, cwd: Path) -> Path:
     if not resolved_member.is_relative_to(resolved_cwd):
         raise ValueError(f"Archive member must be under cwd {resolved_cwd}: {member}")
     return resolved_member.relative_to(resolved_cwd)
+
+
+def _tar_stream_total_bytes(cwd: Path, member_names: Sequence[str]) -> int | None:
+    total_bytes = 0
+    for member_name in member_names:
+        member_total = _tar_member_stream_bytes(cwd / member_name, member_name)
+        if member_total is None:
+            return None
+        total_bytes += member_total
+    return _round_up(total_bytes + _TAR_END_BLOCK_BYTES, _TAR_RECORD_SIZE)
+
+
+def _tar_member_stream_bytes(path: Path, archive_name: str) -> int | None:
+    try:
+        path_stat = path.lstat()
+    except OSError:
+        return None
+
+    if stat.S_ISDIR(path_stat.st_mode):
+        header_name = _tar_directory_name(archive_name)
+        if not _is_simple_tar_header_name(header_name):
+            return None
+
+        total_bytes = _TAR_BLOCK_SIZE
+        try:
+            child_names = sorted(child.name for child in path.iterdir())
+        except OSError:
+            return None
+        for child_name in child_names:
+            child_total = _tar_member_stream_bytes(
+                path / child_name,
+                _join_tar_name(archive_name, child_name),
+            )
+            if child_total is None:
+                return None
+            total_bytes += child_total
+        return total_bytes
+
+    if stat.S_ISREG(path_stat.st_mode):
+        if path_stat.st_nlink > 1 or not _is_simple_tar_header_name(archive_name):
+            return None
+        return _TAR_BLOCK_SIZE + _round_up(path_stat.st_size, _TAR_BLOCK_SIZE)
+
+    return None
+
+
+def _tar_directory_name(archive_name: str) -> str:
+    return archive_name if archive_name.endswith("/") else f"{archive_name}/"
+
+
+def _join_tar_name(parent_name: str, child_name: str) -> str:
+    parent = parent_name.rstrip("/")
+    if parent == "":
+        return child_name
+    return f"{parent}/{child_name}"
+
+
+def _is_simple_tar_header_name(archive_name: str) -> bool:
+    try:
+        encoded_name = archive_name.encode("ascii")
+    except UnicodeEncodeError:
+        return False
+    return 0 < len(encoded_name) <= _MAX_SIMPLE_TAR_NAME_BYTES
+
+
+def _round_up(value: int, block_size: int) -> int:
+    remainder = value % block_size
+    if remainder == 0:
+        return value
+    return value + block_size - remainder
 
 
 def _close_process_stdin(process: subprocess.Popen[bytes]) -> None:
