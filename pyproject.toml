@@ -64,8 +64,14 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.pytest.ini_options]
-addopts = "-ra"
+addopts = "-ra --strict-markers -m 'not operational'"
 testpaths = ["tests"]
+markers = [
+  "unit: isolated, fast, deterministic logic tests",
+  "integration: CI-safe stage, CLI, or multi-module collaboration tests",
+  "e2e: CI-safe local happy-path tests crossing stage boundaries",
+  "operational: manual or external-runtime validation, excluded by default",
+]
 
 [tool.mypy]
 python_version = "3.11"

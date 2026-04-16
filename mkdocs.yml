@@ -8,6 +8,7 @@ nav:
   - Getting Started: getting-started.md
   - Repository Structure: repository-structure.md
   - Development Setup: development-setup.md
+  - Testing Architecture: testing.md
   - Execution:
       - Dataset Build: execution/dataset-build.md
   - Data:

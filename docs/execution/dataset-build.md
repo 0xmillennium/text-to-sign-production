@@ -84,5 +84,6 @@ They are for inspection and debugging, not for running the Dataset Build stage.
 
 ## Manual Limits
 
-Local CI does not live-validate actual Colab Drive mounting, large archive transfer speed, or real
-Google Drive artifact publishing. Those remain manual operational checks.
+Local CI does not live-validate actual Colab Drive mounting, large archive transfer speed, real
+Google Drive artifact publishing, or real How2Sign runtime behavior. Those remain manual
+operational checks documented under `tests/operational/`.

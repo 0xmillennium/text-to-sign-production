@@ -46,7 +46,13 @@ dataset layer for later thesis stages instead of placeholder ML code.
 │   ├── data/                 # Reusable Dataset Build data pipeline package
 │   ├── ops/                  # Reusable Colab/archive operations layer
 │   └── workflows/            # Stage-level workflow orchestration
-├── tests/                    # Fast deterministic tests plus fixture-backed pipeline tests
+├── tests/
+│   ├── unit/                 # Isolated deterministic logic tests
+│   ├── integration/          # CI-safe stage, CLI, and ops collaboration tests
+│   ├── e2e/                  # Local tiny end-to-end Dataset Build happy paths
+│   ├── operational/          # Manual/external-runtime validation guidance
+│   ├── fixtures/             # Small static test fixtures and golden snippets
+│   └── support/              # Reusable test-only builders, scenarios, and assertions
 ├── dvc.yaml                  # Reproducible Dataset Build stage
 ├── Makefile                  # Common local developer commands
 ├── mkdocs.yml                # MkDocs configuration
@@ -78,6 +84,9 @@ make test
 make docs
 make check
 make ci-local
+python -m pytest -m unit
+python -m pytest -m integration
+python -m pytest -m e2e
 python scripts/dataset_build.py
 python scripts/dataset_build.py --no-package
 python scripts/validate_manifest.py --manifest data/interim/raw_manifests/raw_train.jsonl --kind raw
@@ -91,6 +100,30 @@ dvc repro
 - `dvc repro` executes the same Dataset Build stage without packaging.
 - `validate_manifest.py` and `view_sample.py` are optional developer utilities, not primary
   workflow entrypoints.
+
+## Testing Architecture
+
+The test suite has four layers:
+
+- `unit`: isolated logic such as OpenPose parsing, validation helpers, filtering policy, progress,
+  archive internals, and package smoke checks.
+- `integration`: CI-safe stage, CLI, and ops checks on tiny fixture or builder-backed workspaces.
+- `e2e`: local happy paths that cross Dataset Build stage boundaries with tiny fake data.
+- `operational`: real Colab, Google Drive, large archive, publish, and real How2Sign checks that do
+  not run in normal CI.
+
+`tests/fixtures/` stores small static examples when a checked-in file is clearer. `tests/support/`
+stores reusable fake-data builders, scenario builders, archive helpers, path helpers, and shared
+assertions. `tests/conftest.py` is kept narrow for pytest-only wiring.
+
+Normal CI-safe testing is:
+
+```bash
+python -m pytest
+```
+
+Operational checks are documented under `tests/operational/` and must be run manually or by an
+explicit release-time procedure.
 
 ## Colab Usage Philosophy
 
