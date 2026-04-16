@@ -21,6 +21,8 @@ from ..data.constants import (
     SPLITS,
     TRANSLATIONS_DIR,
 )
+from ..data.jsonl import iter_jsonl
+from ..data.schemas import ProcessedManifestEntry
 from ..data.utils import ensure_directory, remove_stale_split_files
 from .archive_ops import (
     copy_archive_to_drive,
@@ -147,7 +149,7 @@ def package_dataset_build_outputs(
         archives.append(
             create_tar_zst_archive(
                 archive_path=resolved_output_dir / SAMPLE_ARCHIVE_NAME_TEMPLATE.format(split=split),
-                members=(Path("data/processed/v1/samples") / split,),
+                members=_sample_archive_members_for_split(project_root=project_root, split=split),
                 cwd=project_root,
                 label=f"Archive samples for {split}",
             )
@@ -159,6 +161,71 @@ def package_dataset_build_outputs(
         all_splits=SPLITS,
     )
     return archives
+
+
+def _sample_archive_members_for_split(*, project_root: Path, split: str) -> tuple[Path, ...]:
+    manifest_path = project_root / "data/processed/v1/manifests" / f"{split}.jsonl"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"Processed manifest not found for {split}: {manifest_path}")
+
+    resolved_project_root = project_root.resolve()
+    split_samples_root = (project_root / "data/processed/v1/samples" / split).resolve()
+    members: list[Path] = []
+    seen_members: set[str] = set()
+    for index, record in enumerate(iter_jsonl(manifest_path)):
+        try:
+            entry = ProcessedManifestEntry.from_record(record)
+        except Exception as exc:
+            raise ValueError(
+                f"Could not parse processed manifest record {index} in {manifest_path}: {exc}"
+            ) from exc
+
+        if entry.split != split:
+            raise ValueError(
+                "Processed manifest record split does not match sample archive split "
+                f"{split!r}: sample_id={entry.sample_id!r} record_split={entry.split!r}"
+            )
+
+        sample_path = Path(entry.sample_path.strip())
+        if sample_path.is_absolute():
+            raise ValueError(
+                f"Processed manifest sample_path must be repo-relative: {entry.sample_path}"
+            )
+        if sample_path.suffix != ".npz":
+            raise ValueError(f"Processed manifest sample_path must end with .npz: {sample_path}")
+
+        resolved_sample_path = (project_root / sample_path).resolve()
+        try:
+            split_relative_path = resolved_sample_path.relative_to(split_samples_root)
+        except ValueError as exc:
+            raise ValueError(
+                "Processed manifest sample_path must stay under "
+                f"data/processed/v1/samples/{split}: {sample_path}"
+            ) from exc
+
+        if len(split_relative_path.parts) != 1:
+            raise ValueError(
+                "Processed manifest sample_path must follow "
+                "data/processed/v1/samples/<split>/<sample_id>.npz: "
+                f"{sample_path}"
+            )
+        expected_filename = f"{entry.sample_id}.npz"
+        if split_relative_path.name != expected_filename:
+            raise ValueError(
+                "Processed manifest sample_path filename does not match sample_id "
+                f"{entry.sample_id!r}: {sample_path}"
+            )
+
+        archive_member = resolved_sample_path.relative_to(resolved_project_root)
+        archive_member_key = archive_member.as_posix()
+        if archive_member_key in seen_members:
+            raise ValueError(
+                f"Duplicate processed manifest sample_path in {manifest_path}: {archive_member_key}"
+            )
+        seen_members.add(archive_member_key)
+        members.append(archive_member)
+
+    return tuple(members)
 
 
 def publish_colab_outputs(*, splits: tuple[str, ...] = SPLITS) -> list[Path]:

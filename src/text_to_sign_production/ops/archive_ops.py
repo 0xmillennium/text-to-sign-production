@@ -198,14 +198,20 @@ def create_tar_zst_archive(
     progress_label = f"{label} (tar stream)"
     ensure_directory(archive_path.parent)
     temp_archive_path = _reserve_temp_archive_path(archive_path)
+    member_list_path: Path | None = None
     archive_committed = False
     try:
+        member_list_path = _write_tar_member_list(
+            archive_path.parent,
+            archive_path.name,
+            member_names,
+        )
         with (
             tempfile.TemporaryFile() as tar_stderr_file,
             tempfile.TemporaryFile() as zstd_stderr_file,
         ):
             tar_process = subprocess.Popen(
-                ["tar", "-cf", "-", *member_names],
+                ["tar", "-cf", "-", "--null", "--files-from", str(member_list_path)],
                 cwd=cwd,
                 stdout=subprocess.PIPE,
                 stderr=tar_stderr_file,
@@ -266,6 +272,8 @@ def create_tar_zst_archive(
     finally:
         if not archive_committed:
             temp_archive_path.unlink(missing_ok=True)
+        if member_list_path is not None:
+            member_list_path.unlink(missing_ok=True)
     return archive_path
 
 
@@ -285,6 +293,26 @@ def _reserve_temp_archive_path(archive_path: Path) -> Path:
         temp_archive_path = Path(temp_handle.name)
     temp_archive_path.unlink()
     return temp_archive_path
+
+
+def _write_tar_member_list(root: Path, archive_name: str, member_names: Sequence[str]) -> Path:
+    member_list_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            prefix=f".{archive_name}.members.",
+            suffix=".txt",
+            dir=root,
+            delete=False,
+        ) as member_list:
+            member_list_path = Path(member_list.name).resolve()
+            for member_name in member_names:
+                member_list.write(member_name.encode("utf-8"))
+                member_list.write(b"\0")
+        return member_list_path
+    except BaseException:
+        if member_list_path is not None:
+            member_list_path.unlink(missing_ok=True)
+        raise
 
 
 def _assert_required_members(cwd: Path, members: Iterable[Path]) -> None:

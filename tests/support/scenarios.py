@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.support.builders.manifests import processed_record, write_jsonl_records
 from tests.support.builders.media import write_minimal_mp4
 from tests.support.builders.openpose import person_payload, write_openpose_frame
 from tests.support.builders.translations import translation_row, write_translation_file
@@ -81,5 +82,11 @@ def create_publish_ready_workspace(root: Path, *, splits: tuple[str, ...]) -> Pa
     ):
         write_text(root / relative_path, "placeholder\n")
     for split in splits:
-        write_text(root / "data/processed/v1/samples" / split / f"{split}_sample.npz", "sample")
+        sample_id = f"{split}_sample"
+        sample_path = f"data/processed/v1/samples/{split}/{sample_id}.npz"
+        write_text(root / sample_path, "sample")
+        write_jsonl_records(
+            root / f"data/processed/v1/manifests/{split}.jsonl",
+            [processed_record(sample_path, split=split, sample_id=sample_id)],
+        )
     return root
