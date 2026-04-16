@@ -1,4 +1,4 @@
-"""Raw How2Sign ingestion helpers for Sprint 2."""
+"""Raw How2Sign ingestion helpers for Dataset Build."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ..ops.progress import iter_with_progress
 from .constants import (
     BFH_KEYPOINTS_ROOT,
     EXPECTED_TRANSLATION_COLUMNS,
@@ -18,11 +19,21 @@ from .constants import (
     SPLITS,
     TRANSLATIONS_DIR,
 )
-from .jsonl import write_json, write_jsonl
+from .jsonl import write_jsonl
 from .mp4 import read_video_metadata
-from .openpose import counter_to_sorted_mapping, inspect_first_frame
+from .openpose import inspect_first_frame
 from .schemas import RawManifestEntry
-from .utils import ensure_directory, remove_stale_split_files, repo_relative_path, utc_timestamp
+from .utils import (
+    ensure_directory,
+    remove_stale_split_files,
+    repo_relative_path,
+    utc_timestamp,
+    write_json,
+)
+
+
+def _counter_to_sorted_mapping(counter: Counter[str]) -> dict[str, int]:
+    return {key: counter[key] for key in sorted(counter)}
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,7 +125,12 @@ def build_raw_manifest_for_split(split: str) -> tuple[list[RawManifestEntry], di
     readable_video_metadata = 0
     unreadable_video_metadata = 0
 
-    for row in rows:
+    for row in iter_with_progress(
+        rows,
+        total=len(rows),
+        desc=f"Raw manifest {split}",
+        unit="rows",
+    ):
         sentence_name = row["SENTENCE_NAME"]
         keypoints_dir = paths.keypoints_json_root / sentence_name
         video_path = paths.video_root / f"{sentence_name}.mp4"
@@ -196,21 +212,21 @@ def build_raw_manifest_for_split(split: str) -> tuple[list[RawManifestEntry], di
         "matched_sample_count": matched_count,
         "unmatched_sample_count": len(rows) - matched_count,
         "unmatched_examples": unmatched_examples[:20],
-        "first_frame_people_counter": counter_to_sorted_mapping(first_frame_people_counter),
+        "first_frame_people_counter": _counter_to_sorted_mapping(first_frame_people_counter),
         "openpose_schema": {
-            "top_level_keys": counter_to_sorted_mapping(top_level_key_counter),
-            "person_keys": counter_to_sorted_mapping(person_key_counter),
+            "top_level_keys": _counter_to_sorted_mapping(top_level_key_counter),
+            "person_keys": _counter_to_sorted_mapping(person_key_counter),
             "channel_lengths": {
-                key: counter_to_sorted_mapping(counter)
+                key: _counter_to_sorted_mapping(counter)
                 for key, counter in sorted(channel_length_counter.items())
             },
-            "deviation_counts": counter_to_sorted_mapping(schema_deviation_counter),
+            "deviation_counts": _counter_to_sorted_mapping(schema_deviation_counter),
         },
         "video_metadata": {
             "readable_count": readable_video_metadata,
             "unreadable_count": unreadable_video_metadata,
-            "dimension_counts": counter_to_sorted_mapping(video_dimension_counter),
-            "fps_counts": counter_to_sorted_mapping(video_fps_counter),
+            "dimension_counts": _counter_to_sorted_mapping(video_dimension_counter),
+            "fps_counts": _counter_to_sorted_mapping(video_fps_counter),
         },
     }
     return manifest_entries, report

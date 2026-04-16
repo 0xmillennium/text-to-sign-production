@@ -1,9 +1,8 @@
-"""OpenPose JSON inspection and normalization helpers."""
+"""Low-level OpenPose JSON inspection and frame parsing helpers."""
 
 from __future__ import annotations
 
 import json
-from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -340,9 +339,3 @@ def parse_frame(
         person_keys=person_keys,
         channel_lengths=channel_lengths,
     )
-
-
-def counter_to_sorted_mapping(counter: Counter[str]) -> dict[str, int]:
-    """Convert a counter into a deterministic mapping."""
-
-    return {key: counter[key] for key in sorted(counter)}

@@ -11,7 +11,7 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from text_to_sign_production.data.jsonl import write_json  # noqa: E402
+from text_to_sign_production.data.utils import write_json  # noqa: E402
 from text_to_sign_production.data.validate import validate_manifest  # noqa: E402
 
 

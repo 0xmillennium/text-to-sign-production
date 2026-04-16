@@ -18,7 +18,7 @@ if str(SRC_ROOT) not in sys.path:
 
 from text_to_sign_production.data.constants import PROCESSED_MANIFESTS_ROOT, SPLITS  # noqa: E402
 from text_to_sign_production.data.jsonl import iter_jsonl  # noqa: E402
-from text_to_sign_production.data.utils import validate_processed_sample_path  # noqa: E402
+from text_to_sign_production.data.validate import validate_processed_sample_path  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:

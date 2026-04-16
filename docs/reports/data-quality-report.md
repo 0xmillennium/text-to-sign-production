@@ -1,6 +1,6 @@
 # Data Quality Report
 
-Sprint 2 generates data-quality reports at:
+Dataset Build generates data-quality reports at:
 
 - `data/processed/v1/reports/data-quality-report.json`
 - `data/processed/v1/reports/data-quality-report.md`
@@ -26,7 +26,7 @@ frame.
 
 ## Why It Exists
 
-Sprint 2 treats raw-data assumptions as runtime-checked facts rather than undocumented beliefs.
+Dataset Build treats raw-data assumptions as runtime-checked facts rather than undocumented beliefs.
 The data-quality report is the main human-readable summary of what the pipeline kept, dropped, and
 observed while exporting the dataset.
 

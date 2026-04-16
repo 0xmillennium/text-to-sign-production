@@ -6,7 +6,7 @@
 .
 ├── .github/workflows/
 ├── configs/
-│   └── storage.example.yaml
+│   └── data/
 ├── data/
 ├── docs/
 │   ├── execution/
@@ -15,7 +15,9 @@
 │   └── colab/
 ├── scripts/
 ├── src/text_to_sign_production/
-│   └── data/
+│   ├── data/
+│   ├── ops/
+│   └── workflows/
 ├── tests/
 ├── dvc.yaml
 ├── Makefile
@@ -27,23 +29,35 @@
 ## Purpose Of Each Area
 
 - `.github/workflows/` contains CI, documentation deployment, and release automation.
-- `configs/` contains the Sprint 2 filtering policy and example operational storage configuration.
-- `data/` contains the canonical raw, interim, and processed dataset roots.
+- `configs/` contains the Dataset Build filtering policy.
+- `data/` contains the canonical raw, interim, processed, and archive dataset roots.
 - `docs/` contains the MkDocs site, ADRs, experiment logging templates, and operational workflow
   guidance.
-- `notebooks/` contains runner-only notebooks with no critical project logic, including Colab
-  execution support.
-- `scripts/` contains thin CLI entrypoints for the data pipeline plus small operational helpers.
-- `src/text_to_sign_production/` is the Python package root, including the reusable Sprint 2 data
-  modules.
-- `tests/` holds deterministic tests for the package and fixture-backed Sprint 2 pipeline checks.
-- `dvc.yaml` defines the implemented Sprint 2 stages.
+- `notebooks/` contains runner-only notebooks with no critical project logic.
+- `scripts/` contains the primary Dataset Build CLI plus optional developer utilities.
+- `src/text_to_sign_production/data/` contains reusable data-pipeline logic.
+- `src/text_to_sign_production/ops/` contains reusable Colab, archive, and progress operations.
+- `src/text_to_sign_production/workflows/` contains stage-level orchestration.
+- `tests/` holds deterministic tests for the package and fixture-backed Dataset Build checks.
+- `dvc.yaml` defines the reproducible Dataset Build stage.
+
+## Dataset Build Boundaries
+
+The `data` package stays narrow: constants, schemas, JSONL I/O, MP4 metadata, OpenPose parsing,
+raw manifest creation, normalization, filtering, processed-manifest export, report rendering,
+validation, and small generic utilities are kept in separate modules.
+
+The `ops` package owns long-running copy, extract, archive, publish, and shared progress helpers.
+The `workflows` package composes those reusable functions into the public Dataset Build stage.
 
 ## Structural Principles
 
 - Critical logic belongs in `src/`, not notebooks.
+- Dataset Build has exactly two primary public execution interfaces: one Colab notebook and one
+  CLI script.
+- The Colab notebook supports only the fixed mounted-Drive workflow and exposes only
+  `PIPELINE_SPLITS`.
+- Optional scripts are developer utilities, not stage execution entrypoints.
 - Documentation is versioned with the codebase.
-- Research process artifacts such as ADRs and experiment logs are first-class repository assets.
 - Models must read processed manifests, not raw files.
-- DVC stages now implement the dataset build while preserving the Sprint 1 repository conventions.
 - Large generated artifacts remain outside GitHub even when the workflow is documented publicly.

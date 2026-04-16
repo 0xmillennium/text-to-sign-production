@@ -1,4 +1,4 @@
-"""Minimal package scaffold for the Sprint 1 thesis repository."""
+"""Package entrypoints for the text-to-sign-production thesis repository."""
 
 from .smoke import smoke_check
 

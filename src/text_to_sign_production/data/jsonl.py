@@ -1,9 +1,9 @@
-"""Helpers for reading and writing JSONL manifests."""
+"""JSONL reading and writing helpers."""
 
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +28,13 @@ def write_jsonl(path: Path, records: list[Any]) -> None:
             handle.write("\n")
 
 
+def count_jsonl_records(path: Path) -> int:
+    """Count non-empty JSONL records without parsing the file."""
+
+    with path.open("r", encoding="utf-8") as handle:
+        return sum(1 for line in handle if line.strip())
+
+
 def iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
     """Yield JSON objects from a JSONL file."""
 
@@ -46,12 +53,3 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     """Read a whole JSONL file into memory."""
 
     return list(iter_jsonl(path))
-
-
-def write_json(path: Path, payload: Mapping[str, Any] | list[Any]) -> None:
-    """Write a JSON file with stable formatting."""
-
-    ensure_directory(path.parent)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
-        handle.write("\n")

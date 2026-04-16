@@ -1,6 +1,6 @@
 # Raw Schema
 
-Sprint 2 emits one raw manifest per official split:
+Dataset Build emits one raw manifest per official split:
 
 - `data/interim/raw_manifests/raw_train.jsonl`
 - `data/interim/raw_manifests/raw_val.jsonl`
@@ -29,7 +29,7 @@ status.
 
 ## Additional Audit Fields
 
-Sprint 2 also records video metadata facts when available:
+Dataset Build also records video metadata facts when available:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
@@ -41,7 +41,7 @@ Sprint 2 also records video metadata facts when available:
 
 ## Unmatched Rows
 
-If a translation row has no matching keypoint directory, Sprint 2 preserves the row in the raw
+If a translation row has no matching keypoint directory, Dataset Build preserves the row in the raw
 manifest and writes:
 
 - `keypoints_dir = null`

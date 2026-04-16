@@ -1,6 +1,6 @@
 # Filter Policy
 
-Sprint 2 uses intentionally minimal filtering so the dataset remains explicit and auditable.
+Dataset Build uses intentionally minimal filtering so the dataset remains explicit and auditable.
 
 ## Guiding Rule
 
@@ -9,7 +9,7 @@ everything else.
 
 ## v1 Structural Drop Reasons
 
-The Sprint 2 filter policy in `configs/data/filter-v1.yaml` enables these checks:
+The Dataset Build filter policy in `configs/data/filter-v1.yaml` enables these checks:
 
 - missing text
 - non-positive time range

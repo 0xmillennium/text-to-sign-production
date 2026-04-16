@@ -1,6 +1,6 @@
 # Processed Schema
 
-Sprint 2 exports a manifest-driven processed dataset under `data/processed/v1/`.
+Dataset Build exports a manifest-driven processed dataset under `data/processed/v1/`.
 
 ## Schema Version
 
@@ -35,7 +35,7 @@ Required arrays and fields:
 
 ## Normalization
 
-Sprint 2 normalizes coordinates against the observed BFH clip canvas:
+Dataset Build normalizes coordinates against the observed BFH clip canvas:
 
 - `x / 1280`
 - `y / 720`
@@ -70,7 +70,7 @@ Required fields:
 | `multi_person_frame_count` | Frames with more than one detected person. |
 | `max_people_per_frame` | Maximum detected people count in the clip. |
 
-Sprint 2 also carries audit fields such as source paths, video metadata, frame-valid counts,
+Dataset Build also carries audit fields such as source paths, video metadata, frame-valid counts,
 face-missing counts, `frames_with_any_zeroed_required_joint`, and per-sample issue summaries.
 
 `frames_with_any_zeroed_required_joint` counts frames where at least one required core-channel

@@ -1,6 +1,6 @@
 # Translation TSV Schema
 
-Sprint 2 reads the translation files as tab-separated values only, even though the canonical
+Dataset Build reads the translation files as tab-separated values only, even though the canonical
 How2Sign filenames keep the `.csv` extension.
 
 ## Verified Delimiter
@@ -22,7 +22,7 @@ Local inspection confirmed the exact header:
 | `END_REALIGNED` | Realigned segment end time in seconds. |
 | `SENTENCE` | English text for the segment. |
 
-Sprint 2 does not fabricate extra TSV columns and treats a header mismatch as a hard parser
+Dataset Build does not fabricate extra TSV columns and treats a header mismatch as a hard parser
 failure.
 
 ## Parsing Rules

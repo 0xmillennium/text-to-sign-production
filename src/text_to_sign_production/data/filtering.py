@@ -9,6 +9,7 @@ from typing import Any
 
 import yaml
 
+from ..ops.progress import iter_with_progress
 from .constants import (
     FILTERED_MANIFESTS_ROOT,
     INTERIM_REPORTS_ROOT,
@@ -16,7 +17,7 @@ from .constants import (
     REQUIRED_CORE_CHANNELS,
     SPLITS,
 )
-from .jsonl import iter_jsonl, write_json, write_jsonl
+from .jsonl import count_jsonl_records, iter_jsonl, write_jsonl
 from .schemas import NormalizedManifestEntry
 from .utils import (
     ensure_directory,
@@ -24,6 +25,7 @@ from .utils import (
     repo_relative_path,
     resolve_repo_path,
     utc_timestamp,
+    write_json,
 )
 
 FILTER_CONFIG_SCHEMA_VERSION = 1
@@ -160,8 +162,14 @@ def filter_split(
     drop_reason_counter: Counter[str] = Counter()
     dropped_examples: list[dict[str, Any]] = []
     total_entries = 0
+    input_total = count_jsonl_records(input_path)
 
-    for record in iter_jsonl(input_path):
+    for record in iter_with_progress(
+        iter_jsonl(input_path),
+        total=input_total,
+        desc=f"Filter {split}",
+        unit="records",
+    ):
         total_entries += 1
         entry = NormalizedManifestEntry.from_record(record)
         drop_reasons = determine_drop_reasons(entry, config)

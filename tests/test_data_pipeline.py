@@ -1,11 +1,11 @@
-"""Tests for the Sprint 2 How2Sign data pipeline."""
+"""Tests for the Dataset Build How2Sign data pipeline."""
 
 from __future__ import annotations
 
 import json
 import struct
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -13,17 +13,16 @@ import numpy as np
 import pytest
 import yaml
 
-import scripts.export_training_manifest as export_training_manifest_script
-import scripts.filter_samples as filter_samples_script
-import scripts.normalize_keypoints as normalize_keypoints_script
-import scripts.prepare_raw as prepare_raw_script
+import scripts.dataset_build as dataset_build_script
 import scripts.validate_manifest as validate_manifest_script
 import scripts.view_sample as view_sample_script
 import text_to_sign_production.data.filtering as filtering_mod
+import text_to_sign_production.data.manifests as manifests_mod
 import text_to_sign_production.data.normalize as normalize_mod
 import text_to_sign_production.data.raw as raw_mod
 import text_to_sign_production.data.reports as reports_mod
 import text_to_sign_production.data.utils as utils_mod
+import text_to_sign_production.workflows.dataset_build as dataset_build_workflow_mod
 from text_to_sign_production.data.constants import PROCESSED_SCHEMA_VERSION
 from text_to_sign_production.data.filtering import (
     FilterConfig,
@@ -142,19 +141,18 @@ def _patch_pipeline_paths(monkeypatch: Any, root: Path) -> None:
         filtering_mod, "FILTERED_MANIFESTS_ROOT", root / "data/interim/filtered_manifests"
     )
     monkeypatch.setattr(filtering_mod, "INTERIM_REPORTS_ROOT", root / "data/interim/reports")
-    monkeypatch.setattr(reports_mod, "RAW_MANIFESTS_ROOT", root / "data/interim/raw_manifests")
+    monkeypatch.setattr(manifests_mod, "RAW_MANIFESTS_ROOT", root / "data/interim/raw_manifests")
     monkeypatch.setattr(
-        reports_mod, "FILTERED_MANIFESTS_ROOT", root / "data/interim/filtered_manifests"
+        manifests_mod, "FILTERED_MANIFESTS_ROOT", root / "data/interim/filtered_manifests"
     )
     monkeypatch.setattr(
-        reports_mod, "PROCESSED_MANIFESTS_ROOT", root / "data/processed/v1/manifests"
+        manifests_mod, "PROCESSED_MANIFESTS_ROOT", root / "data/processed/v1/manifests"
     )
+    monkeypatch.setattr(manifests_mod, "PROCESSED_REPORTS_ROOT", root / "data/processed/v1/reports")
     monkeypatch.setattr(reports_mod, "PROCESSED_REPORTS_ROOT", root / "data/processed/v1/reports")
     monkeypatch.setattr(
         view_sample_script, "PROCESSED_MANIFESTS_ROOT", root / "data/processed/v1/manifests"
     )
-    monkeypatch.setattr(filter_samples_script, "PROJECT_ROOT", root)
-    monkeypatch.setattr(export_training_manifest_script, "PROJECT_ROOT", root)
 
 
 def _create_fixture_dataset(root: Path) -> None:
@@ -286,6 +284,22 @@ def _write_processed_sample_npz(
     np.savez_compressed(path, **payload)
 
 
+def _record_progress_calls(monkeypatch: Any, module: Any) -> list[dict[str, Any]]:
+    calls: list[dict[str, Any]] = []
+
+    def fake_iter_with_progress(
+        iterable: Iterable[Any],
+        total: int | None = None,
+        desc: str = "",
+        unit: str = "items",
+    ) -> Iterator[Any]:
+        calls.append({"total": total, "desc": desc, "unit": unit})
+        yield from iterable
+
+    monkeypatch.setattr(module, "iter_with_progress", fake_iter_with_progress)
+    return calls
+
+
 def test_parse_frame_tracks_multi_person_and_any_zeroed_required_joint(tmp_path: Path) -> None:
     frame_path = tmp_path / "frame.json"
     _write_openpose_frame(
@@ -324,6 +338,41 @@ def test_parse_frame_marks_face_missing_when_face_channel_has_no_confidence(tmp_
 
     assert parsed.face_missing is True
     assert parsed.frame_valid is True
+
+
+def test_long_running_pipeline_steps_use_shared_item_progress(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    _create_fixture_dataset(tmp_path)
+    _patch_pipeline_paths(monkeypatch, tmp_path)
+
+    raw_progress_calls = _record_progress_calls(monkeypatch, raw_mod)
+    raw_mod.build_raw_manifests(splits=("train",))
+    assert raw_progress_calls == [{"total": 2, "desc": "Raw manifest train", "unit": "rows"}]
+
+    normalize_progress_calls = _record_progress_calls(monkeypatch, normalize_mod)
+    normalize_mod.normalize_all_splits(splits=("train",))
+    assert normalize_progress_calls == [{"total": 2, "desc": "Normalize train", "unit": "samples"}]
+
+    filtering_progress_calls = _record_progress_calls(monkeypatch, filtering_mod)
+    filtering_mod.filter_all_splits(tmp_path / "configs/data/filter-v1.yaml", splits=("train",))
+    assert filtering_progress_calls == [{"total": 2, "desc": "Filter train", "unit": "records"}]
+
+    manifests_progress_calls = _record_progress_calls(monkeypatch, manifests_mod)
+    assumption_report = json.loads(
+        (tmp_path / "data/interim/reports/assumption-report.json").read_text(encoding="utf-8")
+    )
+    filter_report = json.loads(
+        (tmp_path / "data/interim/reports/filter-report.json").read_text(encoding="utf-8")
+    )
+    manifests_mod.export_final_manifests(
+        assumption_report=assumption_report,
+        filter_report=filter_report,
+        splits=("train",),
+    )
+    assert manifests_progress_calls == [
+        {"total": 1, "desc": "Export processed manifest train", "unit": "records"}
+    ]
 
 
 def test_build_raw_manifest_for_split_uses_deterministic_first_frame_without_sorting(
@@ -951,12 +1000,21 @@ def test_export_final_manifests_rejects_missing_source_keypoints_dir(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
     monkeypatch.setattr(
-        reports_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+        manifests_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "RAW_MANIFESTS_ROOT", tmp_path / "data/interim/raw_manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "FILTERED_MANIFESTS_ROOT", tmp_path / "data/interim/filtered_manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports"
     )
     monkeypatch.setattr(reports_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports")
-    monkeypatch.setattr(reports_mod, "_load_raw_records", lambda split: [])
+    monkeypatch.setattr(manifests_mod, "_load_raw_records", lambda split: [])
     monkeypatch.setattr(
-        reports_mod,
+        manifests_mod,
         "_load_filtered_records",
         lambda split: (
             [
@@ -998,7 +1056,7 @@ def test_export_final_manifests_rejects_missing_source_keypoints_dir(
     )
 
     with pytest.raises(ValueError, match="missing source_keypoints_dir"):
-        reports_mod.export_final_manifests(
+        manifests_mod.export_final_manifests(
             assumption_report={
                 "generated_at": "2026-04-07T00:00:00+00:00",
                 "splits": {
@@ -1029,12 +1087,21 @@ def test_export_final_manifests_rejects_missing_sample_path(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
     monkeypatch.setattr(
-        reports_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+        manifests_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "RAW_MANIFESTS_ROOT", tmp_path / "data/interim/raw_manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "FILTERED_MANIFESTS_ROOT", tmp_path / "data/interim/filtered_manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports"
     )
     monkeypatch.setattr(reports_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports")
-    monkeypatch.setattr(reports_mod, "_load_raw_records", lambda split: [])
+    monkeypatch.setattr(manifests_mod, "_load_raw_records", lambda split: [])
     monkeypatch.setattr(
-        reports_mod,
+        manifests_mod,
         "_load_filtered_records",
         lambda split: (
             [
@@ -1076,7 +1143,7 @@ def test_export_final_manifests_rejects_missing_sample_path(
     )
 
     with pytest.raises(ValueError, match="missing sample_path"):
-        reports_mod.export_final_manifests(
+        manifests_mod.export_final_manifests(
             assumption_report={
                 "generated_at": "2026-04-07T00:00:00+00:00",
                 "splits": {
@@ -1107,14 +1174,23 @@ def test_export_final_manifests_rejects_sample_paths_outside_processed_samples_r
     tmp_path: Path, monkeypatch: Any
 ) -> None:
     monkeypatch.setattr(
-        reports_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+        manifests_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "RAW_MANIFESTS_ROOT", tmp_path / "data/interim/raw_manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "FILTERED_MANIFESTS_ROOT", tmp_path / "data/interim/filtered_manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports"
     )
     monkeypatch.setattr(reports_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports")
-    monkeypatch.setattr(reports_mod, "_load_raw_records", lambda split: [])
+    monkeypatch.setattr(manifests_mod, "_load_raw_records", lambda split: [])
     monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
     _write_processed_sample_npz(tmp_path / "data/interim/sample.npz")
     monkeypatch.setattr(
-        reports_mod,
+        manifests_mod,
         "_load_filtered_records",
         lambda split: (
             [
@@ -1156,7 +1232,7 @@ def test_export_final_manifests_rejects_sample_paths_outside_processed_samples_r
     )
 
     with pytest.raises(ValueError, match="data/processed/v1/samples"):
-        reports_mod.export_final_manifests(
+        manifests_mod.export_final_manifests(
             assumption_report={
                 "generated_at": "2026-04-07T00:00:00+00:00",
                 "splits": {
@@ -1185,14 +1261,23 @@ def test_export_final_manifests_rejects_sample_paths_outside_processed_samples_r
 
 def test_export_final_manifests_supports_subset_splits(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.setattr(
-        reports_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+        manifests_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "RAW_MANIFESTS_ROOT", tmp_path / "data/interim/raw_manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "FILTERED_MANIFESTS_ROOT", tmp_path / "data/interim/filtered_manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports"
     )
     monkeypatch.setattr(reports_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports")
     (tmp_path / "data/processed/manifests").mkdir(parents=True, exist_ok=True)
     (tmp_path / "data/processed/manifests/val.jsonl").write_text("stale\n", encoding="utf-8")
     (tmp_path / "data/processed/manifests/test.jsonl").write_text("stale\n", encoding="utf-8")
     monkeypatch.setattr(
-        reports_mod,
+        manifests_mod,
         "_load_raw_records",
         lambda split: (
             [
@@ -1222,7 +1307,7 @@ def test_export_final_manifests_supports_subset_splits(tmp_path: Path, monkeypat
         ),
     )
     monkeypatch.setattr(
-        reports_mod,
+        manifests_mod,
         "_load_filtered_records",
         lambda split: (
             [
@@ -1263,7 +1348,7 @@ def test_export_final_manifests_supports_subset_splits(tmp_path: Path, monkeypat
         ),
     )
 
-    result = reports_mod.export_final_manifests(
+    result = manifests_mod.export_final_manifests(
         assumption_report={
             "generated_at": "2026-04-07T00:00:00+00:00",
             "splits": {
@@ -1359,14 +1444,23 @@ def test_export_final_manifests_rejects_missing_requested_report_splits(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
     monkeypatch.setattr(
-        reports_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+        manifests_mod, "PROCESSED_MANIFESTS_ROOT", tmp_path / "data/processed/manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "RAW_MANIFESTS_ROOT", tmp_path / "data/interim/raw_manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "FILTERED_MANIFESTS_ROOT", tmp_path / "data/interim/filtered_manifests"
+    )
+    monkeypatch.setattr(
+        manifests_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports"
     )
     monkeypatch.setattr(reports_mod, "PROCESSED_REPORTS_ROOT", tmp_path / "data/processed/reports")
-    monkeypatch.setattr(reports_mod, "_load_raw_records", lambda split: [])
-    monkeypatch.setattr(reports_mod, "_load_filtered_records", lambda split: [])
+    monkeypatch.setattr(manifests_mod, "_load_raw_records", lambda split: [])
+    monkeypatch.setattr(manifests_mod, "_load_filtered_records", lambda split: [])
 
     with pytest.raises(ValueError, match="assumption_report is missing requested splits: train"):
-        reports_mod.export_final_manifests(
+        manifests_mod.export_final_manifests(
             assumption_report={"generated_at": "2026-04-07T00:00:00+00:00", "splits": {}},
             filter_report={
                 "generated_at": "2026-04-07T00:00:00+00:00",
@@ -1376,7 +1470,7 @@ def test_export_final_manifests_rejects_missing_requested_report_splits(
         )
 
     with pytest.raises(ValueError, match="filter_report is missing requested splits: train"):
-        reports_mod.export_final_manifests(
+        manifests_mod.export_final_manifests(
             assumption_report={
                 "generated_at": "2026-04-07T00:00:00+00:00",
                 "splits": {
@@ -1391,6 +1485,86 @@ def test_export_final_manifests_rejects_missing_requested_report_splits(
                 },
             },
             filter_report={"generated_at": "2026-04-07T00:00:00+00:00", "splits": {}},
+            splits=("train",),
+        )
+
+
+@pytest.mark.parametrize(
+    "report",
+    [
+        {"generated_at": "2026-04-07T00:00:00+00:00"},
+        {"generated_at": "2026-04-07T00:00:00+00:00", "splits": None},
+        {"generated_at": "2026-04-07T00:00:00+00:00", "splits": []},
+    ],
+)
+def test_validate_report_splits_rejects_missing_or_invalid_splits_mapping(
+    report: dict[str, Any],
+) -> None:
+    with pytest.raises(ValueError, match="filter_report is missing a splits mapping"):
+        manifests_mod._validate_report_splits("filter_report", report, ("train",))
+
+
+def test_build_quality_report_rejects_missing_final_records_split() -> None:
+    with pytest.raises(
+        ValueError,
+        match="final_records_by_split is missing requested split: train",
+    ):
+        reports_mod.build_quality_report(
+            final_records_by_split={},
+            filter_report={
+                "generated_at": "2026-04-07T00:00:00+00:00",
+                "splits": {"train": {"dropped_samples": 0, "drop_reason_counts": {}}},
+            },
+            generated_at="2026-04-07T00:00:00+00:00",
+            splits=("train",),
+        )
+
+
+@pytest.mark.parametrize(
+    ("filter_report", "message"),
+    [
+        (
+            {"generated_at": "2026-04-07T00:00:00+00:00"},
+            "filter_report is missing a splits mapping",
+        ),
+        (
+            {"generated_at": "2026-04-07T00:00:00+00:00", "splits": {}},
+            "filter_report is missing requested split: train",
+        ),
+    ],
+)
+def test_build_quality_report_rejects_missing_filter_report_split_mapping(
+    filter_report: dict[str, Any], message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        reports_mod.build_quality_report(
+            final_records_by_split={"train": []},
+            filter_report=filter_report,
+            generated_at="2026-04-07T00:00:00+00:00",
+            splits=("train",),
+        )
+
+
+def test_build_split_report_rejects_missing_requested_split_records() -> None:
+    with pytest.raises(
+        ValueError,
+        match="raw_records_by_split is missing requested split: train",
+    ):
+        reports_mod.build_split_report(
+            raw_records_by_split={},
+            final_records_by_split={"train": []},
+            generated_at="2026-04-07T00:00:00+00:00",
+            splits=("train",),
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="final_records_by_split is missing requested split: train",
+    ):
+        reports_mod.build_split_report(
+            raw_records_by_split={"train": []},
+            final_records_by_split={},
+            generated_at="2026-04-07T00:00:00+00:00",
             splits=("train",),
         )
 
@@ -1493,15 +1667,29 @@ def test_view_sample_reports_malformed_manifest_without_traceback(
     assert view_sample_script.main() == 1
 
 
-def test_cli_pipeline_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
+def test_run_dataset_build_rejects_duplicate_splits() -> None:
+    with pytest.raises(ValueError, match="Duplicate Dataset Build split"):
+        dataset_build_workflow_mod.run_dataset_build(
+            splits=("train", "train"),
+            output_mode="none",
+        )
+
+
+def test_run_dataset_build_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
     _create_fixture_dataset(tmp_path)
     _patch_pipeline_paths(monkeypatch, tmp_path)
     outside_dir = tmp_path / "outside"
     outside_dir.mkdir()
     monkeypatch.chdir(outside_dir)
 
-    monkeypatch.setattr(sys, "argv", ["prepare_raw.py", "--splits", "train", "val", "test"])
-    assert prepare_raw_script.main() == 0
+    result = dataset_build_workflow_mod.run_dataset_build(
+        splits=("train", "val", "test"),
+        filter_config_path=tmp_path / "configs/data/filter-v1.yaml",
+        output_mode="none",
+    )
+
+    assert result.splits == ("train", "val", "test")
+    assert result.output_paths == ()
 
     raw_manifest = tmp_path / "data/interim/raw_manifests/raw_train.jsonl"
     raw_records = [
@@ -1524,25 +1712,6 @@ def test_cli_pipeline_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
         ],
     )
     assert validate_manifest_script.main() == 0
-
-    monkeypatch.setattr(sys, "argv", ["normalize_keypoints.py", "--splits", "train", "val", "test"])
-    assert normalize_keypoints_script.main() == 0
-
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "filter_samples.py",
-            "--splits",
-            "train",
-            "val",
-            "test",
-        ],
-    )
-    assert filter_samples_script.main() == 0
-
-    monkeypatch.setattr(sys, "argv", ["export_training_manifest.py"])
-    assert export_training_manifest_script.main() == 0
 
     train_manifest = tmp_path / "data/processed/v1/manifests/train.jsonl"
     processed_records = [
@@ -1595,3 +1764,30 @@ def test_cli_pipeline_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
     assert (tmp_path / "data/processed/v1/reports/assumption-report.md").exists()
     assert (tmp_path / "data/processed/v1/reports/data-quality-report.md").exists()
     assert (tmp_path / "data/processed/v1/reports/split-report.md").exists()
+
+
+def test_dataset_build_cli_end_to_end(tmp_path: Path, monkeypatch: Any) -> None:
+    _create_fixture_dataset(tmp_path)
+    _patch_pipeline_paths(monkeypatch, tmp_path)
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    monkeypatch.chdir(outside_dir)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "dataset_build.py",
+            "--config",
+            str(tmp_path / "configs/data/filter-v1.yaml"),
+            "--no-package",
+        ],
+    )
+
+    assert dataset_build_script.main() == 0
+
+    train_manifest = tmp_path / "data/processed/v1/manifests/train.jsonl"
+    processed_records = [
+        json.loads(line) for line in train_manifest.read_text(encoding="utf-8").splitlines() if line
+    ]
+    assert len(processed_records) == 1
+    assert processed_records[0]["processed_schema_version"] == PROCESSED_SCHEMA_VERSION
