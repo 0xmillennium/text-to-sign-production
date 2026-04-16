@@ -52,6 +52,9 @@ The archive set is:
 Subset packaging removes stale unrequested sample archives from the local archive directory so the
 local packaging output reflects the requested split selection.
 
+Each split sample archive is packaged from the corresponding processed manifest and contains
+exactly the `.npz` files referenced by that manifest's `sample_path` values.
+
 ## Future Stage Reuse
 
 Later thesis stages can reuse stored Dataset Build artifacts by restoring the packaged outputs into

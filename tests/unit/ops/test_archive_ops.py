@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, BinaryIO, cast
@@ -349,6 +350,106 @@ def test_create_tar_zst_archive_keeps_unknown_total_for_unmodeled_members(
 
     assert created_path == archive_path
     assert stream_calls == [{"total_bytes": None, "desc": "Archive source (tar stream)"}]
+
+
+def test_create_tar_zst_archive_passes_absolute_files_from_path_for_relative_archive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    process_cwd = tmp_path / "process_cwd"
+    tar_cwd = tmp_path / "tar_cwd"
+    process_cwd.mkdir()
+    write_text(tar_cwd / "sample.txt", "sample")
+    archive_path = Path("out/archive.tar.zst")
+    monkeypatch.chdir(process_cwd)
+    monkeypatch.setattr(archive_ops_mod, "ensure_tar_zst_create_prerequisites", lambda: None)
+    files_from_paths: list[Path] = []
+
+    def fake_stream_file_with_progress(
+        src: Any,
+        writer: Any,
+        total_bytes: int | None,
+        desc: str = "",
+    ) -> int:
+        writer(b"tar-stream")
+        return len(b"tar-stream")
+
+    def fake_popen(command: Sequence[str], **kwargs: Any) -> Any:
+        stderr_file = cast(BinaryIO, kwargs["stderr"])
+        if command[0] == "tar":
+            files_from_path = Path(command[command.index("--files-from") + 1])
+            files_from_paths.append(files_from_path)
+            assert files_from_path.is_absolute()
+            assert files_from_path.read_bytes() == b"sample.txt\0"
+            assert kwargs["cwd"] == tar_cwd
+            return _FakeCreateTarProcess(stderr_file)
+        if command[0] == "zstd":
+            output_path = Path(command[command.index("-o") + 1])
+            return _FakeCreateZstdSuccessProcess(stderr_file, output_path)
+        raise AssertionError(f"Unexpected subprocess command: {command}")
+
+    monkeypatch.setattr(
+        archive_ops_mod,
+        "stream_file_with_progress",
+        fake_stream_file_with_progress,
+    )
+    monkeypatch.setattr("text_to_sign_production.ops.archive_ops.subprocess.Popen", fake_popen)
+
+    created_path = archive_ops_mod.create_tar_zst_archive(
+        archive_path=archive_path,
+        members=(Path("sample.txt"),),
+        cwd=tar_cwd,
+        label="Archive source",
+    )
+
+    assert created_path == archive_path
+    assert files_from_paths
+    assert not files_from_paths[0].exists()
+    assert (process_cwd / archive_path).exists()
+
+
+def test_write_tar_member_list_removes_partial_file_after_write_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _FailingMemberList:
+        def __init__(self, path: Path) -> None:
+            self.name = path.as_posix()
+            self._handle = path.open("wb")
+            self._writes = 0
+
+        def __enter__(self) -> _FailingMemberList:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            self._handle.close()
+
+        def write(self, data: bytes) -> int:
+            self._writes += 1
+            if self._writes == 2:
+                raise OSError("simulated member list write failure")
+            return self._handle.write(data)
+
+    def fake_named_temporary_file(
+        *,
+        prefix: str,
+        suffix: str,
+        dir: Path,
+        delete: bool,
+    ) -> _FailingMemberList:
+        assert delete is False
+        return _FailingMemberList(Path(dir) / f"{prefix}partial{suffix}")
+
+    monkeypatch.setattr(tempfile, "NamedTemporaryFile", fake_named_temporary_file)
+
+    with pytest.raises(OSError, match="simulated member list write failure"):
+        archive_ops_mod._write_tar_member_list(
+            tmp_path,
+            "archive.tar.zst",
+            ("sample.txt",),
+        )
+
+    assert not list(tmp_path.glob(".archive.tar.zst.members.*.txt"))
 
 
 def test_create_tar_zst_archive_rejects_non_tar_zst_archives(tmp_path: Path) -> None:
