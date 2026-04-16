@@ -1,0 +1,2 @@
+VIDEO_ID	VIDEO_NAME	SENTENCE_ID	SENTENCE_NAME	START_REALIGNED	END_REALIGNED	SENTENCE
+train_video	train_video-1-rgb_front	train_video_0	train_sample_0-1-rgb_front	0.0	0.5	train text

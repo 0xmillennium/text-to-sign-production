@@ -1,4 +1,6 @@
-"""Smoke and environment override tests for the repository scaffold."""
+"""Package import and repository path smoke tests."""
+
+from __future__ import annotations
 
 import os
 from importlib import import_module, reload
@@ -9,29 +11,23 @@ import pytest
 
 from text_to_sign_production import __version__, smoke_check
 
+pytestmark = pytest.mark.unit
+
 
 def test_package_is_importable() -> None:
-    """The src-layout package should be importable after installation."""
-
     package = import_module("text_to_sign_production")
     assert package.__name__ == "text_to_sign_production"
 
 
 def test_version_string_is_exposed() -> None:
-    """The package should expose an explicit version string."""
-
     assert __version__ == "0.1.0"
 
 
 def test_smoke_check_returns_expected_sentinel() -> None:
-    """The smoke helper should remain deterministic."""
-
     assert smoke_check() == "t2sp-smoke-ok"
 
 
 def test_repo_root_respects_env_override(tmp_path: Path, monkeypatch: Any) -> None:
-    """The repo root can be overridden for non-editable package installs."""
-
     import text_to_sign_production.data.constants as constants_mod
     import text_to_sign_production.data.utils as utils_mod
 
@@ -53,8 +49,6 @@ def test_repo_root_respects_env_override(tmp_path: Path, monkeypatch: Any) -> No
 
 
 def test_resolve_repo_path_rejects_relative_escape(tmp_path: Path, monkeypatch: Any) -> None:
-    """Repo-relative paths must stay within the repo root."""
-
     import text_to_sign_production.data.utils as utils_mod
 
     monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path.resolve())

@@ -28,13 +28,18 @@ make test
 make docs
 make check
 make ci-local
+python -m pytest -m unit
+python -m pytest -m integration
+python -m pytest -m e2e
 ```
 
 ## Quality Gates
 
 - `ruff` handles linting and formatting checks.
 - `mypy` provides lightweight static type verification for the scaffold.
-- `pytest` validates package importability and smoke behavior.
+- `pytest` validates the layered unit, integration, and local e2e test suite. Operational Colab,
+  Drive, large-archive, and real How2Sign checks are documented under `tests/operational/` and are
+  excluded from normal pytest runs.
 - `pre-commit` enforces file hygiene, branch protection, secret scanning, and commit message rules.
 - `pip-audit` checks installed dependencies for known vulnerabilities during CI-style runs.
 

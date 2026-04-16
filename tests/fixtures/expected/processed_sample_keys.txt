@@ -1,0 +1,12 @@
+body
+body_confidence
+face
+face_confidence
+frame_valid_mask
+left_hand
+left_hand_confidence
+people_per_frame
+processed_schema_version
+right_hand
+right_hand_confidence
+selected_person_index
