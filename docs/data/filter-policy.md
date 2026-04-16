@@ -7,9 +7,10 @@ Dataset Build uses intentionally minimal filtering so the dataset remains explic
 Drop a sample only when keeping it would make the processed dataset structurally unreliable. Report
 everything else.
 
-## v1 Structural Drop Reasons
+## Active Policy
 
-The Dataset Build filter policy in `configs/data/filter-v1.yaml` enables these checks:
+The active Dataset Build filter policy is `configs/data/filter-v2.yaml`. It enables these
+structural checks:
 
 - missing text
 - non-positive time range
@@ -17,15 +18,24 @@ The Dataset Build filter policy in `configs/data/filter-v1.yaml` enables these c
 - zero frame JSON files
 - sample-level parse failure
 - all frames structurally invalid
-- unusable required core channels
+- unusable required body channel
+- unusable required hand group
 
-## Required Core Channels
+The legacy `configs/data/filter-v1.yaml` policy is still loadable for reproducibility. It used the
+stricter rule that body, left hand, and right hand all had to be usable.
 
-These channels are required in v1:
+## Required Core Channel Policy
 
-- body
-- left hand
-- right hand
+Filter v2 keeps a sample only when:
+
+- body is usable
+- at least one hand is usable: left hand or right hand
+
+Filter v2 drops a sample when body is unusable, or when both hands are unusable. The canonical
+both-hands drop reason is `unusable_core_channel_group:left_hand|right_hand`.
+
+A secondary hand with zero usable frames does not drop a sample by itself. It remains auditable
+through `core_channel_nonzero_frames` in normalized and processed manifests.
 
 The face channel is retained in schema and export, but missing face data does not drop a sample.
 

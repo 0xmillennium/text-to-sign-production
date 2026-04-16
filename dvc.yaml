@@ -6,7 +6,7 @@ stages:
       - src/text_to_sign_production/data
       - src/text_to_sign_production/ops
       - src/text_to_sign_production/workflows
-      - configs/data/filter-v1.yaml
+      - configs/data/filter-v2.yaml
       - data/raw/how2sign/translations
       - data/raw/how2sign/bfh_keypoints
     outs:

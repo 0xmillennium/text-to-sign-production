@@ -9,7 +9,10 @@ import pytest
 
 import scripts.dataset_build as dataset_build_script
 from tests.support.assertions import assert_jsonl_record_count
-from text_to_sign_production.data.constants import PROCESSED_SCHEMA_VERSION
+from text_to_sign_production.data.constants import (
+    DEFAULT_FILTER_CONFIG_RELATIVE_PATH,
+    PROCESSED_SCHEMA_VERSION,
+)
 
 pytestmark = pytest.mark.e2e
 
@@ -27,7 +30,7 @@ def test_dataset_build_cli_end_to_end(
         [
             "dataset_build.py",
             "--config",
-            str(tiny_dataset_workspace / "configs/data/filter-v1.yaml"),
+            str(tiny_dataset_workspace / DEFAULT_FILTER_CONFIG_RELATIVE_PATH),
             "--no-package",
         ],
     )

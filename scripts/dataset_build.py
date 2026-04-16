@@ -11,13 +11,11 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from text_to_sign_production.data.constants import SPLITS  # noqa: E402
+from text_to_sign_production.data.constants import DEFAULT_FILTER_CONFIG_PATH, SPLITS  # noqa: E402
 from text_to_sign_production.workflows.dataset_build import (  # noqa: E402
     DatasetBuildOutputMode,
     run_dataset_build,
 )
-
-DEFAULT_FILTER_CONFIG_PATH = PROJECT_ROOT / "configs" / "data" / "filter-v1.yaml"
 
 
 def parse_args() -> argparse.Namespace:

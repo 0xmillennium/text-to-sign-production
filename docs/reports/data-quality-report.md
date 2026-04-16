@@ -20,9 +20,14 @@ Per split, the generated report includes:
 - out-of-bounds coordinate counts
 - `frames_with_any_zeroed_required_joint`
 
-This metric counts frames where at least one required core-channel joint is encoded as `[0, 0, 0]`
-in the raw OpenPose output. It is an audit/debug metric and does not by itself invalidate the
-frame.
+Drop reasons include the canonical grouped hand reason
+`unusable_core_channel_group:left_hand|right_hand` when both hands are unusable. A single unusable
+secondary hand is not a drop reason under the active filter v2 policy; it remains auditable through
+`core_channel_nonzero_frames` in the processed manifest.
+
+`frames_with_any_zeroed_required_joint` counts frames where at least one parser-required
+core-channel joint is encoded as `[0, 0, 0]` in the raw OpenPose output. It is an audit/debug
+metric and does not by itself invalidate the frame.
 
 ## Why It Exists
 

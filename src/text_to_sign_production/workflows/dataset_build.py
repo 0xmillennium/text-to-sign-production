@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from text_to_sign_production.data.constants import REPO_ROOT, SPLITS
+from text_to_sign_production.data.constants import DEFAULT_FILTER_CONFIG_PATH, SPLITS
 from text_to_sign_production.data.filtering import filter_all_splits
 from text_to_sign_production.data.manifests import export_final_manifests
 from text_to_sign_production.data.normalize import normalize_all_splits
@@ -19,8 +19,6 @@ from text_to_sign_production.ops.colab_workflow import (
 
 DatasetBuildInputMode = Literal["existing_raw", "fixed_colab_drive"]
 DatasetBuildOutputMode = Literal["none", "local_archives", "fixed_colab_drive"]
-
-DEFAULT_FILTER_CONFIG_PATH = REPO_ROOT / "configs" / "data" / "filter-v1.yaml"
 
 
 @dataclass(frozen=True, slots=True)

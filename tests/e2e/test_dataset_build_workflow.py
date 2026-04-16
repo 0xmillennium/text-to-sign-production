@@ -23,6 +23,7 @@ from tests.support.builders.media import write_minimal_mp4
 from tests.support.builders.openpose import build_channel, person_payload, write_openpose_frame
 from tests.support.builders.translations import translation_row, write_translation_file
 from text_to_sign_production.data.constants import (
+    DEFAULT_FILTER_CONFIG_RELATIVE_PATH,
     PROCESSED_SCHEMA_VERSION,
     SPLIT_TO_KEYPOINT_DIR,
     SPLIT_TO_TRANSLATION_FILE,
@@ -46,7 +47,7 @@ def test_run_dataset_build_end_to_end(
 
     result = dataset_build_workflow_mod.run_dataset_build(
         splits=("train", "val", "test"),
-        filter_config_path=tiny_dataset_workspace / "configs/data/filter-v1.yaml",
+        filter_config_path=tiny_dataset_workspace / DEFAULT_FILTER_CONFIG_RELATIVE_PATH,
         output_mode="none",
     )
 
@@ -74,7 +75,7 @@ def test_run_dataset_build_end_to_end(
             encoding="utf-8"
         )
     )
-    assert filter_report["config_path"] == "configs/data/filter-v1.yaml"
+    assert filter_report["config_path"] == DEFAULT_FILTER_CONFIG_RELATIVE_PATH.as_posix()
     assert filter_report["splits"]["train"]["dropped_samples"] == 1
     assert filter_report["splits"]["train"]["drop_reason_counts"]["missing_keypoints_dir"] == 1
 
@@ -103,8 +104,14 @@ def test_dataset_build_sample_archive_matches_processed_manifest_after_filtering
     tiny_dataset_workspace: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    dropped_sample_id = "train_dropped_left_hand_0-1-rgb_front"
-    _add_train_sample_with_unusable_left_hand(tiny_dataset_workspace, dropped_sample_id)
+    dropped_sample_id = "train_dropped_both_hands_0-1-rgb_front"
+    _add_train_sample_with_hand_confidences(
+        tiny_dataset_workspace,
+        dropped_sample_id,
+        left_hand_confidence=0.0,
+        right_hand_confidence=0.0,
+        text="train sample with unusable hands",
+    )
 
     outside_dir = tiny_dataset_workspace / "outside"
     outside_dir.mkdir()
@@ -112,15 +119,15 @@ def test_dataset_build_sample_archive_matches_processed_manifest_after_filtering
 
     result = dataset_build_workflow_mod.run_dataset_build(
         splits=("train",),
-        filter_config_path=tiny_dataset_workspace / "configs/data/filter-v1.yaml",
+        filter_config_path=tiny_dataset_workspace / DEFAULT_FILTER_CONFIG_RELATIVE_PATH,
         output_mode="none",
     )
 
     train_filter_report = result.filter_report["splits"]["train"]
-    assert train_filter_report["drop_reason_counts"]["unusable_core_channel:left_hand"] >= 1
+    group_reason = "unusable_core_channel_group:left_hand|right_hand"
+    assert train_filter_report["drop_reason_counts"][group_reason] >= 1
     assert any(
-        example["sample_id"] == dropped_sample_id
-        and "unusable_core_channel:left_hand" in example["drop_reasons"]
+        example["sample_id"] == dropped_sample_id and group_reason in example["drop_reasons"]
         for example in train_filter_report["dropped_examples"]
     )
 
@@ -161,7 +168,86 @@ def test_dataset_build_sample_archive_matches_processed_manifest_after_filtering
     assert normalized_dropped["sample_path"] not in archive_members
 
 
-def _add_train_sample_with_unusable_left_hand(root: Path, sample_id: str) -> None:
+@requires_tar_and_zstd
+def test_dataset_build_keeps_one_hand_sample_in_processed_manifest_and_archive(
+    tiny_dataset_workspace: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    one_hand_sample_id = "train_one_hand_left_missing_0-1-rgb_front"
+    _add_train_sample_with_hand_confidences(
+        tiny_dataset_workspace,
+        one_hand_sample_id,
+        left_hand_confidence=0.0,
+        right_hand_confidence=0.9,
+        text="train one-hand usable sample",
+    )
+
+    outside_dir = tiny_dataset_workspace / "outside"
+    outside_dir.mkdir()
+    monkeypatch.chdir(outside_dir)
+
+    result = dataset_build_workflow_mod.run_dataset_build(
+        splits=("train",),
+        filter_config_path=tiny_dataset_workspace / DEFAULT_FILTER_CONFIG_RELATIVE_PATH,
+        output_mode="none",
+    )
+
+    train_filter_report = result.filter_report["splits"]["train"]
+    assert not any(
+        example["sample_id"] == one_hand_sample_id
+        for example in train_filter_report["dropped_examples"]
+    )
+
+    normalized_records = load_jsonl(
+        tiny_dataset_workspace / "data/interim/normalized_manifests/normalized_train.jsonl"
+    )
+    normalized_one_hand = next(
+        record for record in normalized_records if record["sample_id"] == one_hand_sample_id
+    )
+    assert normalized_one_hand["core_channel_nonzero_frames"] == {
+        "body": 2,
+        "left_hand": 0,
+        "right_hand": 2,
+    }
+    assert normalized_one_hand["sample_path"] == (
+        f"data/processed/v1/samples/train/{one_hand_sample_id}.npz"
+    )
+    assert (tiny_dataset_workspace / normalized_one_hand["sample_path"]).is_file()
+
+    filtered_records = load_jsonl(
+        tiny_dataset_workspace / "data/interim/filtered_manifests/filtered_train.jsonl"
+    )
+    assert one_hand_sample_id in {record["sample_id"] for record in filtered_records}
+
+    processed_manifest = tiny_dataset_workspace / "data/processed/v1/manifests/train.jsonl"
+    processed_records = load_jsonl(processed_manifest)
+    processed_sample_paths = {record["sample_path"] for record in processed_records}
+    assert normalized_one_hand["sample_path"] in processed_sample_paths
+
+    colab_workflow_mod.package_dataset_build_outputs(
+        project_root=tiny_dataset_workspace,
+        splits=("train",),
+    )
+
+    archive_members = {
+        member
+        for member in list_tar_zst_members(
+            tiny_dataset_workspace / "data/archives/dataset_build_samples_train.tar.zst"
+        ).splitlines()
+        if member.endswith(".npz")
+    }
+    assert archive_members == processed_sample_paths
+    assert normalized_one_hand["sample_path"] in archive_members
+
+
+def _add_train_sample_with_hand_confidences(
+    root: Path,
+    sample_id: str,
+    *,
+    left_hand_confidence: float,
+    right_hand_confidence: float,
+    text: str,
+) -> None:
     write_translation_file(
         root / "data/raw/how2sign/translations" / SPLIT_TO_TRANSLATION_FILE["train"],
         [
@@ -178,19 +264,25 @@ def _add_train_sample_with_unusable_left_hand(root: Path, sample_id: str) -> Non
                 split="train",
                 sentence_name=sample_id,
                 sentence_index=2,
-                text="train sample with unusable left hand",
+                text=text,
                 start_time="1.0",
                 end_time="1.5",
             ),
         ],
     )
 
-    dropped_person = person_payload()
-    dropped_person["hand_left_keypoints_2d"] = build_channel(
+    sample_person = person_payload()
+    sample_person["hand_left_keypoints_2d"] = build_channel(
         21,
         x_offset=400.0,
         y_offset=350.0,
-        confidence=0.0,
+        confidence=left_hand_confidence,
+    )
+    sample_person["hand_right_keypoints_2d"] = build_channel(
+        21,
+        x_offset=500.0,
+        y_offset=320.0,
+        confidence=right_hand_confidence,
     )
     keypoints_root = (
         root
@@ -202,6 +294,6 @@ def _add_train_sample_with_unusable_left_hand(root: Path, sample_id: str) -> Non
     for frame_index in range(2):
         write_openpose_frame(
             json_dir / f"{sample_id}_{frame_index:012d}_keypoints.json",
-            people=[dropped_person],
+            people=[sample_person],
         )
     write_minimal_mp4(keypoints_root / "video" / f"{sample_id}.mp4")

@@ -13,6 +13,7 @@ import text_to_sign_production.data.filtering as filtering_mod
 import text_to_sign_production.data.manifests as manifests_mod
 import text_to_sign_production.data.normalize as normalize_mod
 import text_to_sign_production.data.raw as raw_mod
+from text_to_sign_production.data.constants import DEFAULT_FILTER_CONFIG_RELATIVE_PATH
 
 pytestmark = pytest.mark.integration
 
@@ -47,7 +48,7 @@ def test_long_running_pipeline_steps_use_shared_item_progress(
 
     filtering_progress_calls = _record_progress_calls(monkeypatch, filtering_mod)
     filtering_mod.filter_all_splits(
-        tiny_dataset_workspace / "configs/data/filter-v1.yaml",
+        tiny_dataset_workspace / DEFAULT_FILTER_CONFIG_RELATIVE_PATH,
         splits=("train",),
     )
     assert filtering_progress_calls == [{"total": 2, "desc": "Filter train", "unit": "records"}]

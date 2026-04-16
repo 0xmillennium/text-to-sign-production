@@ -9,10 +9,38 @@ from tests.support.builders.media import write_minimal_mp4
 from tests.support.builders.openpose import person_payload, write_openpose_frame
 from tests.support.builders.translations import translation_row, write_translation_file
 from tests.support.paths import write_text
-from text_to_sign_production.data.constants import SPLIT_TO_KEYPOINT_DIR, SPLIT_TO_TRANSLATION_FILE
+from text_to_sign_production.data.constants import (
+    DEFAULT_FILTER_CONFIG_RELATIVE_PATH,
+    SPLIT_TO_KEYPOINT_DIR,
+    SPLIT_TO_TRANSLATION_FILE,
+)
 
 
 def write_filter_config(path: Path) -> None:
+    write_text(
+        path,
+        "\n".join(
+            [
+                "schema_version: 2",
+                "require_nonempty_text: true",
+                "require_positive_duration: true",
+                "require_keypoints_dir: true",
+                "require_frames: true",
+                "drop_on_sample_parse_error: true",
+                "require_at_least_one_valid_frame: true",
+                "minimum_nonzero_frames_per_core_channel: 1",
+                "required_all_core_channels:",
+                "  - body",
+                "required_any_core_channel_groups:",
+                "  - - left_hand",
+                "    - right_hand",
+            ]
+        )
+        + "\n",
+    )
+
+
+def write_legacy_filter_config(path: Path) -> None:
     write_text(
         path,
         "\n".join(
@@ -38,7 +66,8 @@ def create_tiny_dataset_workspace(
 ) -> Path:
     translations_dir = root / "data/raw/how2sign/translations"
     bfh_root = root / "data/raw/how2sign/bfh_keypoints"
-    write_filter_config(root / "configs/data/filter-v1.yaml")
+    write_filter_config(root / DEFAULT_FILTER_CONFIG_RELATIVE_PATH)
+    write_legacy_filter_config(root / "configs/data/filter-v1.yaml")
 
     for split in splits:
         sentence_name = f"{split}_sample_0-1-rgb_front"
