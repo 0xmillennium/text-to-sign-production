@@ -31,7 +31,11 @@ Required arrays and fields:
 | `face_confidence` | `(frames, 70)` | Face confidence values or zero-fill. |
 | `people_per_frame` | `(frames,)` | Number of people observed in each frame. |
 | `selected_person_index` | scalar | Pipeline-generated samples use `0` in v1; validators treat non-zero manifest values as auditable warnings and payload/manifest mismatches as errors. |
-| `frame_valid_mask` | `(frames,)` | Whether required core channels were structurally valid. |
+| `frame_valid_mask` | `(frames,)` | Whether parser-required OpenPose core channels were structurally valid. |
+
+The processed sample file contract still requires both hand arrays. Under the active filter v2
+policy, a kept sample may have zero usable frames for one hand when body and the other hand are
+usable.
 
 ## Normalization
 
@@ -71,8 +75,14 @@ Required fields:
 | `max_people_per_frame` | Maximum detected people count in the clip. |
 
 Dataset Build also carries audit fields such as source paths, video metadata, frame-valid counts,
-face-missing counts, `frames_with_any_zeroed_required_joint`, and per-sample issue summaries.
+face-missing counts, `core_channel_nonzero_frames`,
+`frames_with_any_zeroed_required_joint`, and per-sample issue summaries.
 
-`frames_with_any_zeroed_required_joint` counts frames where at least one required core-channel
-joint is encoded as `[0, 0, 0]` in the raw OpenPose output. This is an audit metric and does not
-by itself invalidate the frame. The previous metric name was more ambiguous about that behavior.
+`core_channel_nonzero_frames` records usable-frame counts for body, left hand, and right hand.
+Consumers that require two complete hands should inspect this field explicitly instead of assuming
+that every kept sample has both hands usable.
+
+`frames_with_any_zeroed_required_joint` counts frames where at least one parser-required
+core-channel joint is encoded as `[0, 0, 0]` in the raw OpenPose output. This is an audit metric and
+does not by itself invalidate the frame. The previous metric name was more ambiguous about that
+behavior.

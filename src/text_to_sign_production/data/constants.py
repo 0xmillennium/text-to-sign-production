@@ -33,6 +33,9 @@ PROCESSED_SAMPLES_ROOT: Final[Path] = PROCESSED_ROOT / "samples"
 PROCESSED_MANIFESTS_ROOT: Final[Path] = PROCESSED_ROOT / "manifests"
 PROCESSED_REPORTS_ROOT: Final[Path] = PROCESSED_ROOT / "reports"
 
+DEFAULT_FILTER_CONFIG_RELATIVE_PATH: Final[Path] = Path("configs") / "data" / "filter-v2.yaml"
+DEFAULT_FILTER_CONFIG_PATH: Final[Path] = REPO_ROOT / DEFAULT_FILTER_CONFIG_RELATIVE_PATH
+
 SPLITS: Final[tuple[str, str, str]] = ("train", "val", "test")
 SPLIT_TO_TRANSLATION_FILE: Final[dict[str, str]] = {
     "train": "how2sign_realigned_train.csv",
@@ -90,7 +93,8 @@ OPENPOSE_CHANNEL_SPECS: Final[dict[str, tuple[str, int, bool]]] = {
     "left_hand": ("hand_left_keypoints_2d", 21, True),
     "right_hand": ("hand_right_keypoints_2d", 21, True),
 }
-REQUIRED_CORE_CHANNELS: Final[tuple[str, ...]] = ("body", "left_hand", "right_hand")
+CORE_CHANNELS: Final[tuple[str, ...]] = ("body", "left_hand", "right_hand")
+LEGACY_REQUIRED_CORE_CHANNELS: Final[tuple[str, ...]] = CORE_CHANNELS
 OPTIONAL_CHANNELS: Final[tuple[str, ...]] = ("face",)
 
 CANVAS_WIDTH: Final[int] = 1280

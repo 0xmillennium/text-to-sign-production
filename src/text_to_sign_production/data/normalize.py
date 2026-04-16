@@ -9,12 +9,12 @@ import numpy.typing as npt
 
 from ..ops.progress import iter_with_progress
 from .constants import (
+    CORE_CHANNELS,
     NORMALIZED_MANIFESTS_ROOT,
     OPENPOSE_CHANNEL_SPECS,
     PROCESSED_SAMPLES_ROOT,
     PROCESSED_SCHEMA_VERSION,
     RAW_MANIFESTS_ROOT,
-    REQUIRED_CORE_CHANNELS,
     SPLITS,
 )
 from .jsonl import count_jsonl_records, iter_jsonl, write_jsonl
@@ -104,7 +104,7 @@ def normalize_sample(raw_entry: RawManifestEntry) -> NormalizedManifestEntry:
             out_of_bounds_coordinate_count=0,
             frames_with_any_zeroed_required_joint=0,
             frame_issue_counts={},
-            core_channel_nonzero_frames={channel: 0 for channel in REQUIRED_CORE_CHANNELS},
+            core_channel_nonzero_frames={channel: 0 for channel in CORE_CHANNELS},
             sample_parse_error=None,
         )
 
@@ -139,7 +139,7 @@ def normalize_sample(raw_entry: RawManifestEntry) -> NormalizedManifestEntry:
             out_of_bounds_coordinate_count=0,
             frames_with_any_zeroed_required_joint=0,
             frame_issue_counts={"missing_frame_json_files": 1},
-            core_channel_nonzero_frames={channel: 0 for channel in REQUIRED_CORE_CHANNELS},
+            core_channel_nonzero_frames={channel: 0 for channel in CORE_CHANNELS},
             sample_parse_error=None,
         )
 
@@ -208,13 +208,13 @@ def normalize_sample(raw_entry: RawManifestEntry) -> NormalizedManifestEntry:
             out_of_bounds_coordinate_count=out_of_bounds_coordinate_count,
             frames_with_any_zeroed_required_joint=frames_with_any_zeroed_required_joint,
             frame_issue_counts={str(key): int(value) for key, value in issue_counter.items()},
-            core_channel_nonzero_frames={channel: 0 for channel in REQUIRED_CORE_CHANNELS},
+            core_channel_nonzero_frames={channel: 0 for channel in CORE_CHANNELS},
             sample_parse_error=f"{exc.__class__.__name__}:{exc}",
         )
 
     core_channel_nonzero_frames = {
         channel: int(np.count_nonzero(np.any(confidence_tensors[channel] > 0.0, axis=1)))
-        for channel in REQUIRED_CORE_CHANNELS
+        for channel in CORE_CHANNELS
     }
     sample_output_path = (
         PROCESSED_SAMPLES_ROOT / raw_entry.source_split / f"{raw_entry.sample_id}.npz"

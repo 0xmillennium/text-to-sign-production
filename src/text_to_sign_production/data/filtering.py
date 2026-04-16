@@ -11,10 +11,11 @@ import yaml
 
 from ..ops.progress import iter_with_progress
 from .constants import (
+    CORE_CHANNELS,
     FILTERED_MANIFESTS_ROOT,
     INTERIM_REPORTS_ROOT,
+    LEGACY_REQUIRED_CORE_CHANNELS,
     NORMALIZED_MANIFESTS_ROOT,
-    REQUIRED_CORE_CHANNELS,
     SPLITS,
 )
 from .jsonl import count_jsonl_records, iter_jsonl, write_jsonl
@@ -28,13 +29,15 @@ from .utils import (
     write_json,
 )
 
-FILTER_CONFIG_SCHEMA_VERSION = 1
+FILTER_CONFIG_SCHEMA_VERSION = 2
+SUPPORTED_FILTER_CONFIG_SCHEMA_VERSIONS = (1, FILTER_CONFIG_SCHEMA_VERSION)
 
 
 @dataclass(frozen=True, slots=True)
 class FilterConfig:
-    """The structural filtering policy for v1 dataset export."""
+    """The structural filtering policy for Dataset Build export."""
 
+    schema_version: int
     require_nonempty_text: bool
     require_positive_duration: bool
     require_keypoints_dir: bool
@@ -42,6 +45,8 @@ class FilterConfig:
     drop_on_sample_parse_error: bool
     require_at_least_one_valid_frame: bool
     minimum_nonzero_frames_per_core_channel: int
+    required_all_core_channels: tuple[str, ...]
+    required_any_core_channel_groups: tuple[tuple[str, ...], ...]
 
 
 def _require_boolean_config_value(payload: dict[str, Any], field_name: str) -> bool:
@@ -67,6 +72,72 @@ def _require_nonnegative_int_config_value(payload: dict[str, Any], field_name: s
     return int(value)
 
 
+def _validate_core_channel_list(
+    value: Any,
+    field_name: str,
+) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        raise ValueError(
+            f"Filter config field {field_name!r} must be a list of core channel names."
+        )
+    if not value:
+        raise ValueError(f"Filter config field {field_name!r} must not be empty.")
+
+    seen_channels: set[str] = set()
+    for channel in value:
+        if not isinstance(channel, str):
+            raise ValueError(
+                f"Filter config field {field_name!r} must contain only core channel names."
+            )
+        if channel not in CORE_CHANNELS:
+            expected = ", ".join(CORE_CHANNELS)
+            raise ValueError(
+                f"Filter config field {field_name!r} contains unsupported core channel "
+                f"{channel!r}; expected one of: {expected}."
+            )
+        if channel in seen_channels:
+            raise ValueError(
+                f"Filter config field {field_name!r} contains duplicate core channel {channel!r}."
+            )
+        seen_channels.add(channel)
+
+    return tuple(channel for channel in CORE_CHANNELS if channel in seen_channels)
+
+
+def _require_core_channel_list_config_value(
+    payload: dict[str, Any],
+    field_name: str,
+) -> tuple[str, ...]:
+    return _validate_core_channel_list(_require_config_field(payload, field_name), field_name)
+
+
+def _require_core_channel_groups_config_value(
+    payload: dict[str, Any],
+    field_name: str,
+) -> tuple[tuple[str, ...], ...]:
+    value = _require_config_field(payload, field_name)
+    if not isinstance(value, list):
+        raise ValueError(
+            f"Filter config field {field_name!r} must be a list of core channel groups."
+        )
+    if not value:
+        raise ValueError(f"Filter config field {field_name!r} must not be empty.")
+
+    groups: list[tuple[str, ...]] = []
+    for index, group in enumerate(value):
+        canonical_group = _validate_core_channel_list(
+            group,
+            f"{field_name}[{index}]",
+        )
+        if canonical_group in groups:
+            raise ValueError(
+                f"Filter config field {field_name!r} contains duplicate core channel group "
+                f"{'|'.join(canonical_group)!r}."
+            )
+        groups.append(canonical_group)
+    return tuple(groups)
+
+
 def _require_config_field(payload: dict[str, Any], field_name: str) -> Any:
     if field_name not in payload:
         raise ValueError(f"Filter config is missing required field {field_name!r}.")
@@ -80,23 +151,37 @@ def _require_schema_version(payload: dict[str, Any], path: Path) -> int:
             "Filter config field 'schema_version' must be an integer, "
             f"got {type(schema_version).__name__} in {path}."
         )
-    if schema_version != FILTER_CONFIG_SCHEMA_VERSION:
+    if schema_version not in SUPPORTED_FILTER_CONFIG_SCHEMA_VERSIONS:
         raise ValueError(
             f"Unsupported filter config schema_version {schema_version!r} in {path}; "
-            f"expected {FILTER_CONFIG_SCHEMA_VERSION}."
+            f"expected one of {SUPPORTED_FILTER_CONFIG_SCHEMA_VERSIONS}."
         )
     return int(schema_version)
 
 
 def load_filter_config(path: Path) -> FilterConfig:
-    """Load the v1 filtering policy from YAML."""
+    """Load a supported filtering policy from YAML."""
 
     with path.open("r", encoding="utf-8") as handle:
         payload = yaml.safe_load(handle)
     if not isinstance(payload, dict):
         raise ValueError(f"Expected mapping in filter config {path}.")
-    _require_schema_version(payload, path)
+    schema_version = _require_schema_version(payload, path)
+    required_all_core_channels = (
+        LEGACY_REQUIRED_CORE_CHANNELS
+        if schema_version == 1
+        else _require_core_channel_list_config_value(payload, "required_all_core_channels")
+    )
+    required_any_core_channel_groups = (
+        ()
+        if schema_version == 1
+        else _require_core_channel_groups_config_value(
+            payload,
+            "required_any_core_channel_groups",
+        )
+    )
     return FilterConfig(
+        schema_version=schema_version,
         require_nonempty_text=_require_boolean_config_value(payload, "require_nonempty_text"),
         require_positive_duration=_require_boolean_config_value(
             payload, "require_positive_duration"
@@ -113,7 +198,24 @@ def load_filter_config(path: Path) -> FilterConfig:
             payload,
             "minimum_nonzero_frames_per_core_channel",
         ),
+        required_all_core_channels=required_all_core_channels,
+        required_any_core_channel_groups=required_any_core_channel_groups,
     )
+
+
+def _core_channel_is_usable(
+    entry: NormalizedManifestEntry,
+    config: FilterConfig,
+    channel: str,
+) -> bool:
+    return (
+        entry.core_channel_nonzero_frames.get(channel, 0)
+        >= config.minimum_nonzero_frames_per_core_channel
+    )
+
+
+def _core_channel_group_drop_reason(group: tuple[str, ...]) -> str:
+    return f"unusable_core_channel_group:{'|'.join(group)}"
 
 
 def determine_drop_reasons(entry: NormalizedManifestEntry, config: FilterConfig) -> list[str]:
@@ -132,12 +234,12 @@ def determine_drop_reasons(entry: NormalizedManifestEntry, config: FilterConfig)
         drop_reasons.append("sample_parse_error")
     if config.require_at_least_one_valid_frame and entry.frame_valid_count <= 0:
         drop_reasons.append("all_frames_invalid")
-    for channel in REQUIRED_CORE_CHANNELS:
-        if (
-            entry.core_channel_nonzero_frames.get(channel, 0)
-            < config.minimum_nonzero_frames_per_core_channel
-        ):
+    for channel in config.required_all_core_channels:
+        if not _core_channel_is_usable(entry, config, channel):
             drop_reasons.append(f"unusable_core_channel:{channel}")
+    for group in config.required_any_core_channel_groups:
+        if not any(_core_channel_is_usable(entry, config, channel) for channel in group):
+            drop_reasons.append(_core_channel_group_drop_reason(group))
     if (
         entry.sample_path is None
         and entry.source_keypoints_dir is not None

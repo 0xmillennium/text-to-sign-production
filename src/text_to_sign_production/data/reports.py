@@ -256,7 +256,7 @@ def write_markdown_reports(
                 f"- parse/schema issue samples: `{split_data['parse_or_schema_issue_samples']}`",
                 f"- out-of-bounds coordinates: `{split_data['out_of_bounds_coordinate_count']}`",
                 (
-                    f"- frames with any zeroed required joint: "
+                    f"- frames with any zeroed parser-required joint: "
                     f"`{split_data['frames_with_any_zeroed_required_joint']}`"
                 ),
                 f"- text length summary: `{split_data['text_length']}`",

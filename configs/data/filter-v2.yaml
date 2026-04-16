@@ -1,0 +1,13 @@
+schema_version: 2
+require_nonempty_text: true
+require_positive_duration: true
+require_keypoints_dir: true
+require_frames: true
+drop_on_sample_parse_error: true
+require_at_least_one_valid_frame: true
+minimum_nonzero_frames_per_core_channel: 1
+required_all_core_channels:
+  - body
+required_any_core_channel_groups:
+  - - left_hand
+    - right_hand

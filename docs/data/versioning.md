@@ -37,6 +37,16 @@ The processed dataset contract is versioned separately from the folder name thro
 This value travels with every processed sample and every processed manifest record so downstream
 code can reject incompatible layouts explicitly.
 
+## Filter Policy Versioning
+
+The active filter config is `configs/data/filter-v2.yaml`. It changes dataset membership semantics
+from the legacy `configs/data/filter-v1.yaml` all-hands-required policy to body-required plus
+at-least-one-hand-required.
+
+Regenerating outputs with filter v2 may change processed row counts compared with earlier filter v1
+builds. The processed schema version remains `t2sp-processed-v1` because required manifest fields,
+sample arrays, and file layout did not change.
+
 ## Access Policy
 
 - Raw files are not the training interface.
