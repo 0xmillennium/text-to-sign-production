@@ -3,7 +3,8 @@
 `text-to-sign-production` is a graduation thesis repository focused on building a reproducible
 research foundation for future text-to-sign work. The current implemented stage is **Dataset
 Build**, a How2Sign/BFH data pipeline that produces training-ready manifests and `.npz` samples
-without crossing into modeling. The next major stage is **Baseline Modeling**.
+without making Baseline Modeling the public implemented stage. Sprint 3 now has an internal
+baseline training surface for reproducible train/val runs.
 
 ## Current State
 
@@ -21,6 +22,8 @@ without crossing into modeling. The next major stage is **Baseline Modeling**.
 - Artifact packaging and private/shared storage guidance are documented without exposing private
   links.
 - Notebooks remain explicitly limited to thin runner behavior.
+- Sprint 3 baseline training is available as an internal modeling surface; evaluation records,
+  qualitative export, and thesis-contribution modeling remain future work.
 
 For details, start with [Dataset Build execution](execution/dataset-build.md),
 [filter policy](data/filter-policy.md), [data versioning](data/versioning.md),
@@ -35,7 +38,8 @@ The following are intentionally outside Dataset Build:
 - text tokenization
 - retrieval components
 - pose-token generation or training
-- text-to-pose model training or inference
+- text-to-pose inference
+- broad baseline evaluation or qualitative export
 - skeleton or avatar rendering
 
 This boundary is deliberate so the repository remains honest about its current maturity.

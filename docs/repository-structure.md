@@ -41,8 +41,8 @@
 - `docs/` contains the MkDocs site, ADRs, experiment logging templates, and operational workflow
   guidance.
 - `notebooks/` contains runner-only notebooks with no critical project logic.
-- `scripts/` contains the primary Dataset Build CLI, optional developer utilities, and Sprint 3
-  placeholder commands.
+- `scripts/` contains the primary Dataset Build CLI, optional developer utilities, the Sprint 3
+  baseline training command, and later Sprint 3 placeholder commands.
 - `src/text_to_sign_production/data/` contains reusable data-pipeline logic.
 - `src/text_to_sign_production/modeling/` contains the Sprint 3 baseline modeling scaffold for
   future backbones, processed-data loading, models, training, inference, and configuration code.
@@ -70,10 +70,10 @@ The `workflows` package composes those reusable functions into the public Datase
 
 The `modeling` package is reserved for Sprint 3 Baseline Modeling. It now contains the Phase 2
 processed-manifest, processed-`.npz`, and variable-length collation contracts for baseline modeling
-inputs, the Phase 3 backbone wrapper and conservative model forward surface, and Phase 4 reusable
-mask-aware loss and validation-metric utilities. It does not implement training loops, evaluation
-behavior, checkpointing, experiment logging, or qualitative export logic. The future-facing baseline
-scripts are placeholders that fail cleanly until later Sprint 3 phases fill in the command behavior.
+inputs, the Phase 3 backbone wrapper and conservative model forward surface, Phase 4 reusable
+mask-aware loss and validation-metric utilities, and the Phase 5 config-driven training,
+validation-loop, checkpointing, and runtime-provenance surface. It does not implement qualitative
+export, experiment-record authoring, broad evaluation behavior, or public workflow polishing.
 
 ## Structural Principles
 
@@ -87,7 +87,8 @@ scripts are placeholders that fail cleanly until later Sprint 3 phases fill in t
 - The Colab notebook supports only the fixed mounted-Drive workflow and exposes only
   `PIPELINE_SPLITS`.
 - Optional scripts are developer utilities, not stage execution entrypoints.
-- Sprint 3 baseline scripts are placeholders until the modeling implementation phases land.
+- Sprint 3 baseline training has a minimal command surface; evaluation and qualitative export
+  scripts remain placeholders until later modeling phases land.
 - Documentation is versioned with the codebase.
 - `tests/conftest.py` remains narrow and only contains pytest wiring, not reusable domain helpers.
 - Models must read processed manifests, not raw files.
