@@ -70,10 +70,10 @@ The `workflows` package composes those reusable functions into the public Datase
 
 The `modeling` package is reserved for Sprint 3 Baseline Modeling. It now contains the Phase 2
 processed-manifest, processed-`.npz`, and variable-length collation contracts for baseline modeling
-inputs plus the Phase 3 backbone wrapper and conservative model forward surface. It does not
-implement losses, metrics, training loops, evaluation behavior, checkpointing, or qualitative export
-logic. The future-facing baseline scripts are placeholders that fail cleanly until later Sprint 3
-phases fill in the command behavior.
+inputs, the Phase 3 backbone wrapper and conservative model forward surface, and Phase 4 reusable
+mask-aware loss and validation-metric utilities. It does not implement training loops, evaluation
+behavior, checkpointing, experiment logging, or qualitative export logic. The future-facing baseline
+scripts are placeholders that fail cleanly until later Sprint 3 phases fill in the command behavior.
 
 ## Structural Principles
 
