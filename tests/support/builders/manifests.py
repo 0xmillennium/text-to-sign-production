@@ -84,17 +84,21 @@ def processed_record(
     *,
     split: str = "train",
     sample_id: str = "sample",
+    text: str = "text",
+    fps: float | None = 24.0,
+    num_frames: int = 2,
     selected_person_index: int = 0,
-    frame_valid_count: int = 2,
+    frame_valid_count: int | None = None,
     frame_invalid_count: int = 0,
 ) -> dict[str, Any]:
+    resolved_frame_valid_count = num_frames if frame_valid_count is None else frame_valid_count
     return {
         "sample_id": sample_id,
         "processed_schema_version": PROCESSED_SCHEMA_VERSION,
-        "text": "text",
+        "text": text,
         "split": split,
-        "fps": 24.0,
-        "num_frames": 2,
+        "fps": fps,
+        "num_frames": num_frames,
         "sample_path": sample_path,
         "source_video_id": "video",
         "source_sentence_id": "sentence",
@@ -108,13 +112,17 @@ def processed_record(
         "video_width": 1280,
         "video_height": 720,
         "video_metadata_error": None,
-        "frame_valid_count": frame_valid_count,
+        "frame_valid_count": resolved_frame_valid_count,
         "frame_invalid_count": frame_invalid_count,
         "face_missing_frame_count": 0,
         "out_of_bounds_coordinate_count": 0,
         "frames_with_any_zeroed_required_joint": 0,
         "frame_issue_counts": {},
-        "core_channel_nonzero_frames": {"body": 2, "left_hand": 2, "right_hand": 2},
+        "core_channel_nonzero_frames": {
+            "body": num_frames,
+            "left_hand": num_frames,
+            "right_hand": num_frames,
+        },
     }
 
 
