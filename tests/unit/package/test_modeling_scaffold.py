@@ -28,24 +28,18 @@ def test_modeling_scaffold_packages_are_importable() -> None:
         assert package.__name__ == package_name
 
 
-def test_later_baseline_placeholder_scripts_fail_cleanly(
+def test_later_baseline_evaluation_placeholder_script_fails_cleanly(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import scripts.evaluate_baseline as evaluate_baseline_script
-    import scripts.export_qualitative_panel as export_qualitative_panel_script
 
-    script_modules = (
-        evaluate_baseline_script,
-        export_qualitative_panel_script,
-    )
+    monkeypatch.setattr(sys, "argv", ["evaluate_baseline.py"])
 
-    for script_module in script_modules:
-        monkeypatch.setattr(sys, "argv", [f"{script_module.__name__}.py"])
-        assert script_module.main() == 1
-        captured = capsys.readouterr()
-        assert "not implemented yet" in captured.err
-        assert "Phase 1 placeholder" in captured.err
+    assert evaluate_baseline_script.main() == 1
+    captured = capsys.readouterr()
+    assert "not implemented yet" in captured.err
+    assert "Phase 1 placeholder" in captured.err
 
 
 def test_train_baseline_script_calls_training_runner(

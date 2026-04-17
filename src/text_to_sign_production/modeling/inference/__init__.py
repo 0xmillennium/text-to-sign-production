@@ -1,1 +1,1 @@
-"""Inference placeholders for future baseline modeling."""
+"""Inference helpers for Sprint 3 baseline qualitative export."""
