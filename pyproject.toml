@@ -82,6 +82,19 @@ python_version = "3.11"
 strict = true
 files = ["src", "tests"]
 
+[[tool.mypy.overrides]]
+module = ["torch", "torch.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+  "text_to_sign_production.modeling.backbones.flan_t5",
+  "text_to_sign_production.modeling.models.baseline",
+  "text_to_sign_production.modeling.models.decoder",
+  "text_to_sign_production.modeling.models.heads",
+]
+disallow_subclassing_any = false
+
 [tool.coverage.run]
 branch = true
 source = ["text_to_sign_production"]
