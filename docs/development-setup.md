@@ -14,11 +14,20 @@ If you only need one side of the toolchain, use:
 ```bash
 make install-dev
 make install-docs
+make install-modeling
 ```
 
 - `make install-dev` installs code-quality and test tooling only.
 - `make install-docs` installs the MkDocs toolchain only.
+- `make install-modeling` installs the optional Sprint 3 PyTorch and Hugging Face modeling stack.
 - `make install` remains the default because the local CI-style workflow also builds docs.
+
+Sprint 3 modeling dependencies are optional during the Phase 1 scaffold because Dataset Build does
+not need PyTorch or Hugging Face libraries:
+
+```bash
+make install-modeling
+```
 
 ## Local Quality Commands
 
