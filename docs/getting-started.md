@@ -65,5 +65,9 @@ The supported Colab workflow publishes archives only to
 - Read the development setup guide before contributing.
 - Read the [Dataset Build execution guide](execution/dataset-build.md) before running the full data
   pipeline.
+- Read the [roadmap](roadmap.md) for the Baseline Modeling stage and later thesis contribution
+  sequence.
+- Read the [literature positioning](literature-positioning.md) page for the rationale behind the
+  post-Dataset-Build research direction.
 - Use ADRs for non-trivial architectural decisions.
 - Record future empirical work with the experiment log template.
