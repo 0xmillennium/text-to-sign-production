@@ -54,7 +54,6 @@ dataset layer for later thesis stages instead of placeholder ML code.
 │   ├── operational/          # Manual/external-runtime validation guidance
 │   ├── fixtures/             # Small static test fixtures and golden snippets
 │   └── support/              # Reusable test-only builders, scenarios, and assertions
-├── dvc.yaml                  # Reproducible Dataset Build stage
 ├── Makefile                  # Common local developer commands
 ├── mkdocs.yml                # MkDocs configuration
 ├── pyproject.toml            # Primary Python project configuration
@@ -92,14 +91,12 @@ python scripts/dataset_build.py
 python scripts/dataset_build.py --no-package
 python scripts/validate_manifest.py --manifest data/interim/raw_manifests/raw_train.jsonl --kind raw
 python scripts/view_sample.py --split train --sample-id <sample_id>
-dvc repro
 ```
 
 - `python scripts/dataset_build.py` runs the full Dataset Build stage against the canonical local
   raw dataset layout, uses the active `configs/data/filter-v2.yaml` policy by default, and creates
   local `.tar.zst` archives under `data/archives/`.
 - `python scripts/dataset_build.py --no-package` runs the stage without local archive packaging.
-- `dvc repro` executes the same Dataset Build stage without packaging.
 - `validate_manifest.py` and `view_sample.py` are optional developer utilities, not primary
   workflow entrypoints.
 
@@ -156,7 +153,7 @@ intentional reproducibility or comparison runs, but it is not the current defaul
 
 ## Artifact Storage And Git Hygiene
 
-- Large raw, interim, processed, archive, and DVC-cache artifacts are kept out of GitHub.
+- Large raw, interim, processed, and archive artifacts are kept out of GitHub.
 - The supported Colab workflow reads only from the fixed Drive raw paths under
   `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/`.
 - Keypoint inputs are `.tar.zst` archives only; translations use the canonical `.csv` filenames.

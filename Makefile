@@ -31,8 +31,7 @@ check: lint test docs
 
 ci-local:
 	PRE_COMMIT_HOME=$(CURDIR)/.cache/pre-commit SKIP=no-commit-to-branch sh -c 'git ls-files -z --cached --others --exclude-standard | xargs -0 -r -n 200 $(PYTHON) -m pre_commit run --show-diff-on-failure --files'
-	# Temporary ignore: unpatched transitive diskcache advisory brought in by DVC.
 	# Skip the local editable project package, which is not published on PyPI.
-	$(PYTHON) -m pip_audit --local --skip-editable --cache-dir $(CURDIR)/.cache/pip-audit --ignore-vuln CVE-2025-69872
+	$(PYTHON) -m pip_audit --local --skip-editable --cache-dir $(CURDIR)/.cache/pip-audit
 	$(PYTHON) -m pytest --cov=text_to_sign_production --cov-report=term-missing --cov-report=xml
 	$(PYTHON) -m mkdocs build --strict

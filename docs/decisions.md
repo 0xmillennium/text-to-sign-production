@@ -34,5 +34,6 @@ whole sample directories.
 - ADR-0009: `.npz` processed sample format
 - ADR-0010: face is optional in v1
 - ADR-0011: adopt Filter V2 one-hand policy for Dataset Build
+- ADR-0012: remove DVC from the active workflow
 
 Use the template in this section for future records.

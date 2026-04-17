@@ -42,21 +42,13 @@ For local Dataset Build runs, use the primary CLI against the canonical raw layo
 python scripts/dataset_build.py
 ```
 
-The CLI uses the active `configs/data/filter-v2.yaml` policy by default and writes local archives
-under `data/archives/`.
+The CLI uses the active `configs/data/filter-v2.yaml` policy by default, writes manifests and
+reports, and packages local archives under `data/archives/`.
 
-To build without local archive packaging, use either:
-
-Option A:
+To build without local archive packaging, run:
 
 ```bash
 python scripts/dataset_build.py --no-package
-```
-
-Option B:
-
-```bash
-dvc repro
 ```
 
 For heavy Colab execution, use the fixed runner notebook:

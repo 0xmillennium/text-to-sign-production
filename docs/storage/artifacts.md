@@ -13,7 +13,6 @@ The following should not be committed to GitHub:
 - processed `.npz` samples
 - large interim manifests and reports
 - packaged Dataset Build archives
-- DVC cache content
 
 Git ignore rules cover the canonical generated locations, including `data/archives/`.
 
