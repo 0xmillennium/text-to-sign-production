@@ -1,13 +1,17 @@
 # Dataset Build Execution
 
-Dataset Build supports exactly two primary public execution interfaces:
+Dataset Build keeps its public execution surface narrow:
 
 - Colab notebook: `notebooks/colab/dataset_build_colab.ipynb`
 - CLI script: `python scripts/dataset_build.py`
+- reusable workflow entrypoint:
+  `text_to_sign_production.workflows.dataset_build.run_dataset_build`
 
-Both call the same reusable stage workflow:
+The operator-facing interfaces both call the reusable stage workflow.
 
-`text_to_sign_production.workflows.dataset_build.run_dataset_build`
+The active default filter policy is `configs/data/filter-v2.yaml`. The legacy strict policy
+`configs/data/filter-v1.yaml` remains available only when intentionally selected for
+reproducibility or comparison.
 
 ## Colab Notebook
 
@@ -38,8 +42,8 @@ Subset runs remain split-aware:
 python scripts/dataset_build.py --splits train val
 ```
 
-The CLI is intentionally thin: it parses arguments, calls `run_dataset_build`, and prints concise
-status output.
+The CLI is intentionally thin: it parses arguments, uses the active default filter config unless
+`--config` is provided, calls `run_dataset_build`, and prints concise status output.
 
 ## Fixed Colab Inputs
 
@@ -58,9 +62,10 @@ It reads keypoints only from `.tar.zst` archives at:
 Archives are copied into `/content/how2sign_downloads`, extracted there, staged into the canonical
 repo raw layout, and then temporary local extraction artifacts are cleaned.
 
-## Fixed Outputs
+## Outputs
 
-The supported Colab output destination is:
+Local packaging writes Dataset Build archives under `data/archives/`. The supported Colab workflow
+packages locally first, then publishes the resulting archives only to:
 
 `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/`
 
@@ -71,7 +76,12 @@ The archive set is:
 - `dataset_build_samples_val.tar.zst`
 - `dataset_build_samples_test.tar.zst`
 
-Subset runs publish only the selected split archives plus the shared manifests/reports archive.
+Equivalently, split sample archives use `dataset_build_samples_<split>.tar.zst`. Subset runs
+create or publish only the selected split archives plus the shared manifests/reports archive.
+
+Split sample archives are manifest-driven. Each `dataset_build_samples_<split>.tar.zst` contains
+exactly the `.npz` files referenced by `data/processed/v1/manifests/<split>.jsonl`; it is built
+from manifest sample paths rather than the entire `data/processed/v1/samples/<split>/` directory.
 
 ## Developer Utilities
 

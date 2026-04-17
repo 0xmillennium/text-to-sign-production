@@ -3,6 +3,18 @@
 This repository uses Architecture Decision Records (ADRs) to document project-level technical and
 process decisions that affect implementation, collaboration, or reproducibility.
 
+## How To Read These Records
+
+ADRs are historical design records. They explain why a decision was accepted at the time it was
+made, but they are not a complete replacement for current implementation guidance.
+
+Use the data, execution, testing, and storage docs for active Dataset Build behavior. Later
+implementation hardening may narrow or extend earlier ADR assumptions without rewriting the
+historical record. For example, the current Dataset Build uses `configs/data/filter-v2.yaml`,
+retains samples with usable `body` plus at least one usable hand, keeps the processed schema at
+`t2sp-processed-v1`, and packages split sample archives from processed manifests rather than from
+whole sample directories.
+
 ## Why ADRs Matter Here
 
 - A thesis project benefits from explicit historical context.
@@ -21,5 +33,6 @@ process decisions that affect implementation, collaboration, or reproducibility.
 - ADR-0008: manifest-driven processed dataset
 - ADR-0009: `.npz` processed sample format
 - ADR-0010: face is optional in v1
+- ADR-0011: adopt Filter V2 one-hand policy for Dataset Build
 
 Use the template in this section for future records.

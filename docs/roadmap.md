@@ -13,20 +13,22 @@ Sprint 1 delivers repository infrastructure only:
 
 ## Sprint 2
 
-Sprint 2 delivers the first real dataset pipeline:
+Sprint 2 delivers the current implemented Dataset Build pipeline:
 
 - raw How2Sign layout inspection and documentation
 - raw manifest generation and validation
 - OpenPose 2D normalization into versioned `.npz` samples
+- active `filter-v2.yaml` policy with usable body plus at least one usable hand
 - manifest-driven processed dataset export
 - data-quality, split-integrity, and assumption reporting
-- working DVC stages for the full data pipeline
+- working DVC stage for the full data pipeline
 - Colab-oriented heavy execution support through the Dataset Build workflow
-- explicit output packaging and private/shared artifact storage guidance
+- manifest-driven output packaging and private/shared artifact storage guidance
 
 ## Planned Follow-On Work
 
-Future sprints may introduce:
+The next major stage is Baseline Modeling on top of the processed manifests. Future sprints may
+introduce:
 
 1. tokenizer, retrieval, and modeling experiments on top of the processed manifests
 2. richer evaluation and error-analysis workflows

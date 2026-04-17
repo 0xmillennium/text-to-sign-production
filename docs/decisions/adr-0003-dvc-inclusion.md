@@ -3,6 +3,10 @@
 - Status: Accepted
 - Date: 2026-04-04
 
+Historical status note: this ADR records the Sprint 1 decision to include DVC as a reproducibility
+foundation before real data workflow stages existed. Dataset Build has since been implemented; use
+the current data and execution documentation for active DVC stage behavior.
+
 ## Context
 
 The long-term system will eventually depend on datasets, derived artifacts, and model-adjacent

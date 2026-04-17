@@ -9,6 +9,8 @@ The explicit processed schema version is:
 `t2sp-processed-v1`
 
 This value is stored in every processed manifest entry and every `.npz` sample payload.
+Filter v2 changes which samples are kept, not the `.npz` keys, processed manifest fields, or
+`data/processed/v1/samples/<split>/<sample_id>.npz` layout.
 
 ## Processed Sample Files
 
@@ -33,9 +35,9 @@ Required arrays and fields:
 | `selected_person_index` | scalar | Pipeline-generated samples use `0` in v1; validators treat non-zero manifest values as auditable warnings and payload/manifest mismatches as errors. |
 | `frame_valid_mask` | `(frames,)` | Whether parser-required OpenPose core channels were structurally valid. |
 
-The processed sample file contract still requires both hand arrays. Under the active filter v2
-policy, a kept sample may have zero usable frames for one hand when body and the other hand are
-usable.
+The processed sample file contract still requires both hand arrays in every processed sample. Under
+the active filter v2 policy, a kept one-hand sample may have zero usable frames for one hand when
+body and the other hand are usable.
 
 ## Normalization
 
@@ -78,7 +80,8 @@ Dataset Build also carries audit fields such as source paths, video metadata, fr
 face-missing counts, `core_channel_nonzero_frames`,
 `frames_with_any_zeroed_required_joint`, and per-sample issue summaries.
 
-`core_channel_nonzero_frames` records usable-frame counts for body, left hand, and right hand.
+`core_channel_nonzero_frames` records usable-frame counts for body, left hand, and right hand as an
+audit field. It is not proof that all core channels are required by the active filter policy.
 Consumers that require two complete hands should inspect this field explicitly instead of assuming
 that every kept sample has both hands usable.
 

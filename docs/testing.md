@@ -18,6 +18,15 @@ correctness, workflow correctness, and operational runtime validation.
   Google Drive mount, large archive transfer, publish, and real How2Sign smoke checks belong there,
   not in normal CI-safe pytest runs.
 
+The active Dataset Build policy under test is `configs/data/filter-v2.yaml`: body must be usable
+and at least one hand must be usable. `configs/data/filter-v1.yaml` is covered as the legacy strict
+policy only when a test intentionally selects it.
+
+Packaging regression coverage is independent from filter-policy coverage. Execution-facing tests
+verify local archive creation, fixed Colab publish behavior, and manifest-driven
+`dataset_build_samples_<split>.tar.zst` membership so sample archives match processed manifests
+instead of unfiltered whole-directory contents.
+
 ## Fixtures And Support
 
 `tests/fixtures/` holds small static examples when a checked-in file is clearer than generated
