@@ -1,6 +1,6 @@
 # Experiment Logs
 
-Experiment logs will capture empirical work as the thesis repository moves beyond Sprint 1.
+Experiment logs capture empirical work that needs provenance beyond routine generated reports.
 
 ## Why Log Experiments
 
@@ -8,10 +8,23 @@ Experiment logs will capture empirical work as the thesis repository moves beyon
 - to compare results across iterations
 - to make future claims traceable and reviewable
 
-## Sprint 1 Status
+## Current Practice
 
-Sprint 1 does not run model or data experiments yet. Instead, it provides:
+Dataset Build is the implemented data stage. Baseline Modeling is the next major stage, so most
+new experiment records should describe modeling runs, modeling ablations, or intentional Dataset
+Build comparisons used as experiment evidence.
 
-- a reusable experiment log template
-- a documentation page explaining how records should be written
-- a repository structure that keeps code, docs, and future experiment metadata aligned
+Routine Dataset Build runs are documented by manifests, reports, and artifact archives. Create an
+experiment log when a run supports a research or engineering claim that needs interpretation across
+datasets, configs, metrics, or artifacts.
+
+When Dataset Build output is used, record the processed manifest or archive references, split
+scope, filter config, and processed schema version. The active filter config is
+`configs/data/filter-v2.yaml`; the legacy strict policy at `configs/data/filter-v1.yaml` should be
+named only when it is intentionally selected for reproducibility or comparison.
+
+## Validation Records
+
+- [Dataset Build Filter V2 Full-Run Validation](experiments/2026-04-dataset-build-filter-v2-full-validation.md):
+  full `train / val / test` validation after manifest-driven packaging hardening and Filter V2
+  adoption.

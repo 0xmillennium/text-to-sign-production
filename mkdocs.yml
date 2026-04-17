@@ -36,7 +36,9 @@ nav:
   - ADR 0008: decisions/adr-0008-manifest-driven-processed-dataset.md
   - ADR 0009: decisions/adr-0009-npz-processed-sample-format.md
   - ADR 0010: decisions/adr-0010-face-optional-in-v1.md
+  - ADR 0011: decisions/adr-0011-adopt-filter-v2-one-hand-policy-for-dataset-build.md
   - Experiments Overview: experiments.md
+  - Dataset Build Filter V2 Full Validation: experiments/2026-04-dataset-build-filter-v2-full-validation.md
   - Experiment Log Guide: experiments/README.md
   - Experiment Template: experiments/template.md
   - Roadmap: roadmap.md

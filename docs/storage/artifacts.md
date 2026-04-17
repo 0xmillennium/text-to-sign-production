@@ -52,8 +52,10 @@ The archive set is:
 Subset packaging removes stale unrequested sample archives from the local archive directory so the
 local packaging output reflects the requested split selection.
 
-Each split sample archive is packaged from the corresponding processed manifest and contains
-exactly the `.npz` files referenced by that manifest's `sample_path` values.
+Split sample archives are manifest-driven. Each `dataset_build_samples_<split>.tar.zst` contains
+exactly the `.npz` files referenced by `sample_path` values in
+`data/processed/v1/manifests/<split>.jsonl`; it is not a blind snapshot of
+`data/processed/v1/samples/<split>/`.
 
 ## Future Stage Reuse
 

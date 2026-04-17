@@ -43,9 +43,9 @@ The active filter config is `configs/data/filter-v2.yaml`. It changes dataset me
 from the legacy `configs/data/filter-v1.yaml` all-hands-required policy to body-required plus
 at-least-one-hand-required.
 
-Regenerating outputs with filter v2 may change processed row counts compared with earlier filter v1
-builds. The processed schema version remains `t2sp-processed-v1` because required manifest fields,
-sample arrays, and file layout did not change.
+Regenerating outputs with filter v2 may change processed row counts and sample membership compared
+with earlier filter v1 builds. The processed schema version remains `t2sp-processed-v1` because
+required manifest fields, sample arrays, and file layout did not change.
 
 ## Access Policy
 

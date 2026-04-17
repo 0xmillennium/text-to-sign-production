@@ -35,7 +35,8 @@
 ## Purpose Of Each Area
 
 - `.github/workflows/` contains CI, documentation deployment, and release automation.
-- `configs/` contains the Dataset Build filtering policy.
+- `configs/` contains Dataset Build filter policies, including active `filter-v2.yaml` and legacy
+  `filter-v1.yaml`.
 - `data/` contains the canonical raw, interim, processed, and archive dataset roots.
 - `docs/` contains the MkDocs site, ADRs, experiment logging templates, and operational workflow
   guidance.
@@ -66,8 +67,12 @@ The `workflows` package composes those reusable functions into the public Datase
 ## Structural Principles
 
 - Critical logic belongs in `src/`, not notebooks.
-- Dataset Build has exactly two primary public execution interfaces: one Colab notebook and one
-  CLI script.
+- Dataset Build has two operator-facing execution interfaces: one Colab notebook and one CLI
+  script.
+- The reusable Python workflow entrypoint is
+  `text_to_sign_production.workflows.dataset_build.run_dataset_build`.
+- The active Dataset Build default filter policy is `configs/data/filter-v2.yaml`; legacy
+  `configs/data/filter-v1.yaml` is retained for reproducibility-oriented runs.
 - The Colab notebook supports only the fixed mounted-Drive workflow and exposes only
   `PIPELINE_SPLITS`.
 - Optional scripts are developer utilities, not stage execution entrypoints.

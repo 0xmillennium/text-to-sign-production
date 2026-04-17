@@ -31,11 +31,12 @@ Filter v2 keeps a sample only when:
 - body is usable
 - at least one hand is usable: left hand or right hand
 
-Filter v2 drops a sample when body is unusable, or when both hands are unusable. The canonical
-both-hands drop reason is `unusable_core_channel_group:left_hand|right_hand`.
+Filter v2 drops a sample when body is unusable, or when both hands are unusable. A single missing or
+unusable hand does not itself force a drop. The canonical both-hands drop reason is
+`unusable_core_channel_group:left_hand|right_hand`.
 
-A secondary hand with zero usable frames does not drop a sample by itself. It remains auditable
-through `core_channel_nonzero_frames` in normalized and processed manifests.
+A missing secondary hand or a secondary hand with zero usable frames remains auditable through
+`core_channel_nonzero_frames` in normalized and processed manifests.
 
 The face channel is retained in schema and export, but missing face data does not drop a sample.
 

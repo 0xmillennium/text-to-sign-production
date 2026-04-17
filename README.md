@@ -16,8 +16,9 @@ explicitly deferring tokenizer, modeling, and rendering work.
 - Normalized `.npz` sample export under `data/processed/v1/samples/`
 - Manifest-driven processed dataset access under `data/processed/v1/manifests/`
 - Runtime assumption validation, split-integrity reporting, and data-quality reporting
-- One stage-level workflow function backed by reusable package code
-- Exactly two primary public execution interfaces:
+- One reusable Python workflow entrypoint:
+  `text_to_sign_production.workflows.dataset_build.run_dataset_build`
+- Two operator-facing execution interfaces:
   - Colab: `notebooks/colab/dataset_build_colab.ipynb`
   - CLI: `python scripts/dataset_build.py`
 
@@ -36,7 +37,7 @@ dataset layer for later thesis stages instead of placeholder ML code.
 
 ```text
 .
-├── configs/                  # Dataset Build filter policy
+├── configs/                  # Dataset Build filter policies
 ├── data/                     # Raw, interim, processed, and archive dataset roots
 ├── docs/                     # MkDocs source, ADRs, experiment records, and ops docs
 ├── notebooks/
@@ -95,7 +96,8 @@ dvc repro
 ```
 
 - `python scripts/dataset_build.py` runs the full Dataset Build stage against the canonical local
-  raw dataset layout and creates local `.tar.zst` archives under `data/archives/`.
+  raw dataset layout, uses the active `configs/data/filter-v2.yaml` policy by default, and creates
+  local `.tar.zst` archives under `data/archives/`.
 - `python scripts/dataset_build.py --no-package` runs the stage without local archive packaging.
 - `dvc repro` executes the same Dataset Build stage without packaging.
 - `validate_manifest.py` and `view_sample.py` are optional developer utilities, not primary
@@ -148,6 +150,10 @@ It orchestrates the existing reusable functions for raw manifest creation, norma
 filtering, final manifest/report export, and output packaging or publishing. Pipeline logic stays
 in `src/text_to_sign_production/data/`; scripts and notebooks remain thin.
 
+The active default filter policy is `configs/data/filter-v2.yaml`: body must be usable and at least
+one hand must be usable. The legacy strict `configs/data/filter-v1.yaml` policy remains available for
+intentional reproducibility or comparison runs, but it is not the current default.
+
 ## Artifact Storage And Git Hygiene
 
 - Large raw, interim, processed, archive, and DVC-cache artifacts are kept out of GitHub.
@@ -157,6 +163,8 @@ in `src/text_to_sign_production/data/`; scripts and notebooks remain thin.
 - The supported Colab workflow publishes only to
   `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/`.
 - Local packaging writes only to `data/archives/`.
+- Packaged outputs are `dataset_build_manifests_reports.tar.zst` plus one manifest-driven
+  `dataset_build_samples_<split>.tar.zst` archive for each selected split.
 - GitHub Pages documents the workflow but must not expose private storage links or folder IDs.
 
 ## Verified Raw Data Facts
@@ -180,7 +188,8 @@ Local inspection confirmed:
 
 - Processed schema version: `t2sp-processed-v1`
 - Processed sample format: compressed `.npz`
-- Required core channels: body, left hand, right hand
+- Processed samples include body, left-hand, and right-hand arrays
+- Active filtering keeps samples with usable body and at least one usable hand
 - Face is retained in schema, export, and reporting but is optional for v1 completion
 - Future models must read processed manifests only
 
