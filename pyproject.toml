@@ -44,6 +44,11 @@ docs = [
   "mkdocs>=1.6,<2",
   "mkdocs-material>=9.6,<10",
 ]
+modeling = [
+  "sentencepiece>=0.2,<0.3",
+  "torch>=2.5,<3",
+  "transformers>=5.0.0rc3,<6",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

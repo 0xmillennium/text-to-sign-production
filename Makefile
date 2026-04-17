@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: install install-dev install-docs lint test docs check ci-local
+.PHONY: install install-dev install-docs install-modeling lint test docs check ci-local
 
 install-dev:
 	$(PYTHON) -m pip install --upgrade pip setuptools wheel
@@ -10,6 +10,10 @@ install-dev:
 install-docs:
 	$(PYTHON) -m pip install --upgrade pip setuptools wheel
 	$(PYTHON) -m pip install -e ".[docs]"
+
+install-modeling:
+	$(PYTHON) -m pip install --upgrade pip setuptools wheel
+	$(PYTHON) -m pip install -e ".[modeling]"
 
 install:
 	$(PYTHON) -m pip install --upgrade pip setuptools wheel
