@@ -71,9 +71,10 @@ The `workflows` package composes those reusable functions into the public Datase
 The `modeling` package is reserved for Sprint 3 Baseline Modeling. It now contains the Phase 2
 processed-manifest, processed-`.npz`, and variable-length collation contracts for baseline modeling
 inputs, the Phase 3 backbone wrapper and conservative model forward surface, Phase 4 reusable
-mask-aware loss and validation-metric utilities, and the Phase 5 config-driven training,
-validation-loop, checkpointing, and runtime-provenance surface. It does not implement qualitative
-export, experiment-record authoring, broad evaluation behavior, or public workflow polishing.
+mask-aware loss and validation-metric utilities, the Phase 5 config-driven training,
+validation-loop, checkpointing, and runtime-provenance surface, and a Phase 6 qualitative panel
+export/evidence surface for inspecting baseline outputs. It does not implement experiment-record
+authoring, broad evaluation behavior, playback/rendering, or public workflow polishing.
 
 ## Structural Principles
 
@@ -87,8 +88,8 @@ export, experiment-record authoring, broad evaluation behavior, or public workfl
 - The Colab notebook supports only the fixed mounted-Drive workflow and exposes only
   `PIPELINE_SPLITS`.
 - Optional scripts are developer utilities, not stage execution entrypoints.
-- Sprint 3 baseline training has a minimal command surface; evaluation and qualitative export
-  scripts remain placeholders until later modeling phases land.
+- Sprint 3 baseline training and qualitative export have minimal command surfaces; baseline
+  evaluation remains a placeholder until later modeling phases land.
 - Documentation is versioned with the codebase.
 - `tests/conftest.py` remains narrow and only contains pytest wiring, not reusable domain helpers.
 - Models must read processed manifests, not raw files.
