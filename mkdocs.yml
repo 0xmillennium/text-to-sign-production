@@ -38,11 +38,13 @@ nav:
   - ADR 0010: decisions/adr-0010-face-optional-in-v1.md
   - ADR 0011: decisions/adr-0011-adopt-filter-v2-one-hand-policy-for-dataset-build.md
   - ADR 0012: decisions/adr-0012-remove-dvc-active-workflow.md
+  - ADR 0013: decisions/adr-0013-define-post-dataset-build-research-roadmap.md
   - Experiments Overview: experiments.md
   - Dataset Build Filter V2 Full Validation: experiments/2026-04-dataset-build-filter-v2-full-validation.md
   - Experiment Log Guide: experiments/README.md
   - Experiment Template: experiments/template.md
   - Roadmap: roadmap.md
+  - Literature Positioning: literature-positioning.md
 
 markdown_extensions:
   - admonition

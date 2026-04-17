@@ -6,8 +6,11 @@ text-to-sign production. The long-term system direction is:
 `English text -> pose tokens -> keypoints -> skeleton/avatar`
 
 The current implemented ML/data-pipeline stage is **Dataset Build**. It builds training-ready
-How2Sign/BFH dataset artifacts from fixed translation files and OpenPose keypoint inputs while
-explicitly deferring tokenizer, modeling, and rendering work.
+How2Sign/BFH dataset artifacts from fixed translation files and OpenPose keypoint inputs, and the
+repository currently stops at that processed dataset layer. Modeling begins in the next major stage,
+**Baseline Modeling**. Later thesis contribution work is centered on evaluation,
+discrete/data-driven pose representation, and structure-aware / multi-channel improvement; see
+`docs/roadmap.md` and `docs/literature-positioning.md` for the roadmap and rationale.
 
 ## Dataset Build Includes
 
@@ -190,5 +193,6 @@ Local inspection confirmed:
 - Face is retained in schema, export, and reporting but is optional for v1 completion
 - Future models must read processed manifests only
 
-Future thesis stages can build tokenization, retrieval, modeling, evaluation, and downstream
-rendering on top of this versioned, auditable dataset layer instead of reading raw files directly.
+Future thesis stages can build Baseline Modeling, evaluation, discrete/data-driven pose
+representation, structure-aware / multi-channel improvement, and downstream inspection on top of
+this versioned, auditable dataset layer instead of reading raw files directly.

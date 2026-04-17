@@ -35,5 +35,6 @@ whole sample directories.
 - ADR-0010: face is optional in v1
 - ADR-0011: adopt Filter V2 one-hand policy for Dataset Build
 - ADR-0012: remove DVC from the active workflow
+- ADR-0013: define the post-Dataset-Build research roadmap
 
 Use the template in this section for future records.

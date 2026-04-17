@@ -3,7 +3,7 @@
 `text-to-sign-production` is a graduation thesis repository focused on building a reproducible
 research foundation for future text-to-sign work. The current implemented stage is **Dataset
 Build**, a How2Sign/BFH data pipeline that produces training-ready manifests and `.npz` samples
-without crossing into modeling.
+without crossing into modeling. The next major stage is **Baseline Modeling**.
 
 ## Current State
 
@@ -24,7 +24,9 @@ without crossing into modeling.
 
 For details, start with [Dataset Build execution](execution/dataset-build.md),
 [filter policy](data/filter-policy.md), [data versioning](data/versioning.md),
-[processed schema](data/processed-schema.md), and [artifact storage](storage/artifacts.md).
+[processed schema](data/processed-schema.md), and [artifact storage](storage/artifacts.md). For the
+post-Dataset-Build thesis direction, read the [roadmap](roadmap.md) and
+[literature positioning](literature-positioning.md).
 
 ## Not Yet Implemented
 
