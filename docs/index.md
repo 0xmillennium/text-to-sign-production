@@ -9,9 +9,10 @@ without crossing into modeling.
 
 - The repository is installable as a Python package.
 - Tests, linting, type checks, and docs builds are automated.
-- DVC reproduces the Dataset Build stage.
 - Heavy Colab runs are supported through one fixed Dataset Build notebook.
 - Local terminal runs are supported through one Dataset Build CLI script.
+- Dataset Build reproducibility is expressed through the workflow entrypoint, manifests, reports,
+  and packaged `.tar.zst` archives.
 - The active default filter policy is `configs/data/filter-v2.yaml` with usable body plus at least
   one usable hand; the stricter `configs/data/filter-v1.yaml` policy is
   legacy/reproducibility-oriented.

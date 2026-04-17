@@ -25,7 +25,6 @@
 │   ├── operational/
 │   ├── fixtures/
 │   └── support/
-├── dvc.yaml
 ├── Makefile
 ├── mkdocs.yml
 ├── pyproject.toml
@@ -53,7 +52,6 @@
 - `tests/fixtures/` holds small static fixtures and golden snippets.
 - `tests/support/` holds reusable test-only builders, scenarios, archive helpers, path helpers, and
   shared assertions.
-- `dvc.yaml` defines the reproducible Dataset Build stage.
 
 ## Dataset Build Boundaries
 

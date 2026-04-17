@@ -3,6 +3,10 @@
 - Status: Accepted
 - Date: 2026-04-06
 
+Historical status note: this ADR records the Sprint 2 data-first decision at the time DVC
+reproduction was still part of the repository workflow. ADR-0012 later removes DVC from the active
+workflow. Use the current data and execution documentation for active Dataset Build behavior.
+
 ## Context
 
 The repository already had Sprint 1 infrastructure in place, but it did not yet expose a

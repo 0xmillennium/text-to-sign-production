@@ -52,9 +52,8 @@ jobs:
 
       - name: Audit installed dependencies
         run: |
-          # Temporary ignore for an unpatched transitive diskcache advisory pulled in by DVC.
           # Skip the local editable project package, which is not published on PyPI.
-          python -m pip_audit --local --skip-editable --ignore-vuln CVE-2025-69872
+          python -m pip_audit --local --skip-editable
 
       - name: Lint commit messages
         if: github.event_name != 'workflow_call'

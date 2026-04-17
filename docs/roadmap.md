@@ -8,7 +8,7 @@ Sprint 1 delivers repository infrastructure only:
 - tests
 - documentation
 - CI/CD
-- DVC bootstrap
+- historical DVC bootstrap, later removed from the active workflow by ADR-0012
 - ADR and experiment logging support
 
 ## Sprint 2
@@ -21,7 +21,7 @@ Sprint 2 delivers the current implemented Dataset Build pipeline:
 - active `filter-v2.yaml` policy with usable body plus at least one usable hand
 - manifest-driven processed dataset export
 - data-quality, split-integrity, and assumption reporting
-- working DVC stage for the full data pipeline
+- Dataset Build execution through the reusable workflow, CLI, and Colab runner
 - Colab-oriented heavy execution support through the Dataset Build workflow
 - manifest-driven output packaging and private/shared artifact storage guidance
 

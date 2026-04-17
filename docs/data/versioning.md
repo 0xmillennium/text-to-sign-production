@@ -1,6 +1,7 @@
 # Data Versioning
 
-Dataset Build uses DVC plus explicit schema versioning to keep the dataset reproducible.
+Dataset Build uses explicit schema versioning, manifests, reports, and packaged archives to keep
+the dataset reproducible.
 
 ## Canonical Roots
 
@@ -8,25 +9,21 @@ Dataset Build uses DVC plus explicit schema versioning to keep the dataset repro
 - interim: `data/interim/`
 - processed: `data/processed/v1/`
 
-## DVC Stage
+## Reproducible Execution Surface
 
-The implemented `dvc.yaml` stage is:
-
-`dataset_build`
-
-Run it with:
-
-```bash
-dvc repro
-```
-
-DVC runs the stage without local archive packaging. The primary terminal workflow is:
+The primary terminal workflow is:
 
 ```bash
 python scripts/dataset_build.py
 ```
 
-Both routes call the same stage-level workflow in `src/`.
+For a run without local archive packaging, use:
+
+```bash
+python scripts/dataset_build.py --no-package
+```
+
+The CLI and Colab runner both call the same stage-level workflow in `src/`.
 
 ## Schema Versioning
 
@@ -58,4 +55,5 @@ required manifest fields, sample arrays, and file layout did not change.
 - Raw downloads stay out of Git.
 - Interim and processed outputs are ignored in Git and are intended to be regenerated.
 - Packaged Dataset Build output archives stay out of Git.
-- DVC provides the reproducible pipeline definition for rebuilding the dataset state.
+- The workflow entrypoint, manifests, reports, and packaged archives provide the active
+  reproducibility surface for rebuilding or restoring Dataset Build state.
