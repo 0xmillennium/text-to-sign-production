@@ -22,8 +22,8 @@ make install-modeling
 - `make install-modeling` installs the optional Sprint 3 PyTorch and Hugging Face modeling stack.
 - `make install` remains the default because the local CI-style workflow also builds docs.
 
-Sprint 3 modeling dependencies are optional during the Phase 1 scaffold because Dataset Build does
-not need PyTorch or Hugging Face libraries:
+Sprint 3 modeling dependencies are optional for Dataset Build because the implemented public stage
+does not need PyTorch or Hugging Face libraries. They are required for baseline training work:
 
 ```bash
 make install-modeling
