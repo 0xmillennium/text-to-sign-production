@@ -25,7 +25,7 @@ class _FakeTensor:
 
     @property
     def shape(self) -> tuple[int, ...]:
-        return self._array.shape
+        return tuple(self._array.shape)
 
     def tolist(self) -> list[Any]:
         return cast(list[Any], self._array.tolist())
