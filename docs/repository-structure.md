@@ -16,7 +16,7 @@ the right layer without turning notebooks, scripts, or tests into homes for prod
 ├── scripts/                 # Thin CLI wrappers and developer utilities
 ├── src/text_to_sign_production/
 │   ├── data/                # Dataset Build data pipeline logic
-│   ├── modeling/            # Sprint 3 baseline-only modeling surface
+│   ├── modeling/            # Baseline Modeling surface
 │   ├── ops/                 # Archive, Colab, progress, and publish helpers
 │   └── workflows/           # Stage-oriented orchestration
 ├── tests/                   # Unit, integration, e2e, operational docs, fixtures, support
@@ -75,11 +75,11 @@ Git.
 ## Documentation And Records
 
 - `docs/decisions/`: ADRs for long-lived architecture and workflow decisions
-- `docs/experiments/`: validation records, Sprint 3 baseline record guidance, and templates
+- `docs/experiments/`: validation records, Baseline Modeling record guidance, and templates
 - `docs/execution/`: operator-facing stage execution docs
 - `docs/storage/`: artifact naming, run roots, publish locations, and archive/resume policy
 - `notes/LLM_PROJECT_HANDOFF.md`: project-wide handoff
-- `notes/SPRINT3_BRIEFING.md`: Sprint 3 handoff companion
+- `notes/SPRINT3_BRIEFING.md`: Baseline Modeling handoff companion
 
 ## Testing Layout
 

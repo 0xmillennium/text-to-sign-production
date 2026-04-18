@@ -1,6 +1,6 @@
-# Sprint 3 Baseline Record Guide
+# Baseline Modeling Record Guide
 
-This guide defines the formal Sprint 3 baseline experiment-record surface.
+This guide defines the formal Baseline Modeling experiment-record surface.
 
 Current public stage: Dataset Build.
 
@@ -10,8 +10,8 @@ Not yet implemented: broader evaluation, contribution modeling, playback/demo.
 
 ## What The Formal Record Is
 
-The formal Sprint 3 baseline record is a Markdown document stored under `docs/experiments/`. It is
-the durable comparison surface for later sprints. It explains what was run, which Dataset Build
+The formal Baseline Modeling record is a Markdown document stored under `docs/experiments/`. It is
+the durable comparison surface for later phases. It explains what was run, which Dataset Build
 artifacts were consumed, which baseline config was used, which runtime outputs were produced, and
 what the run means.
 
@@ -19,7 +19,7 @@ It is not a database, tracking server, notebook output dump, or replacement for 
 
 ## Runtime Artifacts It Depends On
 
-A complete Sprint 3 baseline record should cite these runtime artifacts:
+A complete Baseline Modeling record should cite these runtime artifacts:
 
 - run root: `outputs/modeling/baseline-modeling/runs/<run_name>/` locally or the matching Colab
   Drive run root
@@ -78,7 +78,7 @@ A formal record should include:
 
 ## Later-Phase Consumption
 
-Sprint 4 should use the formal record to attach broader evaluation and error analysis to a known
-baseline run. Sprint 5 and Sprint 6 should cite the formal record when comparing contribution
-models against Sprint 3. Sprint 7 may use the referenced checkpoints and qualitative artifacts for
-downstream inspection or playback once those capabilities exist.
+Later broader-evaluation work should use the formal record to attach error analysis to a known
+baseline run. Later contribution-modeling work should cite the formal record when comparing new
+models against Baseline Modeling. Playback/demo work may use the referenced checkpoints and
+qualitative artifacts for downstream inspection once those capabilities exist.

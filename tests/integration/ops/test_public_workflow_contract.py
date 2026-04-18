@@ -13,7 +13,13 @@ pytestmark = pytest.mark.integration
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 NOTEBOOK_NAME = "text_to_sign_production_colab.ipynb"
 NOTEBOOK_PATH = PROJECT_ROOT / "notebooks" / "colab" / NOTEBOOK_NAME
+CURRENT_NOTEBOOK_REFERENCE = f"notebooks/colab/{NOTEBOOK_NAME}"
 OLD_NOTEBOOK_NAME = "dataset_build" + "_colab.ipynb"
+PUBLIC_STATUS_LINES = (
+    "Current public stage: Dataset Build",
+    "Implemented internal downstream surface: Baseline Modeling",
+    "Not yet implemented: broader evaluation, contribution modeling, playback/demo",
+)
 
 
 def _load_notebook() -> dict[str, Any]:
@@ -40,6 +46,19 @@ def _load_notebook_sources() -> tuple[str, str]:
 
 def _load_notebook_cells() -> list[dict[str, Any]]:
     return list(_load_notebook()["cells"])
+
+
+def _read_repo_file(relative_path: str) -> str:
+    return (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+
+
+def _durable_public_text_paths() -> list[Path]:
+    return [
+        PROJECT_ROOT / "README.md",
+        PROJECT_ROOT / "mkdocs.yml",
+        *sorted((PROJECT_ROOT / "docs").rglob("*.md")),
+        *sorted((PROJECT_ROOT / "tests/operational").rglob("*.md")),
+    ]
 
 
 def test_colab_notebook_contains_stage_oriented_supported_workflow() -> None:
@@ -75,9 +94,7 @@ def test_colab_notebook_contains_stage_oriented_supported_workflow() -> None:
         assert heading in markdown_source
 
     required_snippets = (
-        "Current public stage: Dataset Build",
-        "Implemented internal downstream surface: Baseline Modeling",
-        "Not yet implemented: broader evaluation, contribution modeling, playback/demo",
+        *PUBLIC_STATUS_LINES,
         'PIPELINE_SPLITS = ["train", "val", "test"]',
         'BASELINE_RUN_NAME = "baseline-default"',
         "BASELINE_PANEL_SIZE = 8",
@@ -225,20 +242,107 @@ def test_public_workflow_surface_has_one_main_notebook_and_stage_clis() -> None:
 
 
 def test_public_docs_reference_current_notebook_only() -> None:
-    docs_and_public_paths = [
-        PROJECT_ROOT / "README.md",
-        PROJECT_ROOT / "mkdocs.yml",
-        *sorted((PROJECT_ROOT / "docs").rglob("*.md")),
-        *sorted((PROJECT_ROOT / "tests/operational").rglob("*.md")),
-    ]
-    current_reference = f"notebooks/colab/{NOTEBOOK_NAME}"
-    for path in docs_and_public_paths:
+    for path in _durable_public_text_paths():
         source = path.read_text(encoding="utf-8")
         assert OLD_NOTEBOOK_NAME not in source, path
-    assert current_reference in (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
-    assert current_reference in (PROJECT_ROOT / "docs/execution/dataset-build.md").read_text(
-        encoding="utf-8"
+
+    docs_expected_to_reference_notebook = (
+        "README.md",
+        "docs/index.md",
+        "docs/getting-started.md",
+        "docs/repository-structure.md",
+        "docs/execution/dataset-build.md",
+        "docs/execution/baseline-modeling.md",
     )
-    assert current_reference in (PROJECT_ROOT / "docs/execution/baseline-modeling.md").read_text(
-        encoding="utf-8"
+    for relative_path in docs_expected_to_reference_notebook:
+        assert CURRENT_NOTEBOOK_REFERENCE in _read_repo_file(relative_path), relative_path
+
+
+def test_public_docs_preserve_current_status_wording() -> None:
+    docs_expected_to_state_public_status = (
+        "README.md",
+        "docs/index.md",
+        "docs/repository-structure.md",
+        "docs/experiments.md",
     )
+
+    for relative_path in docs_expected_to_state_public_status:
+        source = _read_repo_file(relative_path)
+        for expected_line in PUBLIC_STATUS_LINES:
+            assert expected_line in source, relative_path
+
+
+def test_readme_public_surface_structure_is_stable() -> None:
+    source = _read_repo_file("README.md")
+
+    required_headings = (
+        "## What This Repository Is",
+        "## Current Public Workflow Surfaces",
+        "## Current Maturity And Boundaries",
+        "## Installation Matrix",
+        "## Quick Starts",
+        "### Dataset Build",
+        "### Baseline Modeling",
+        "### Colab Heavy-Run Path",
+        "## Docs Map",
+    )
+    for heading in required_headings:
+        assert heading in source
+
+    required_snippets = (
+        *PUBLIC_STATUS_LINES,
+        "Dataset Build CLI: `python scripts/dataset_build.py`",
+        "Baseline Modeling CLI: `python scripts/baseline_modeling.py "
+        "[prepare|train|export-panel|package|all]`",
+        "`python -m pip install -e .`",
+        '`python -m pip install -e ".[dev]"`',
+        '`python -m pip install -e ".[docs]"`',
+        '`python -m pip install -e ".[modeling]"`',
+        '`python -m pip install -e ".[dev,docs,modeling]"`',
+        CURRENT_NOTEBOOK_REFERENCE,
+    )
+    for snippet in required_snippets:
+        assert snippet in source
+
+
+def test_public_docs_use_baseline_modeling_record_names() -> None:
+    old_record_names = (
+        "sprint3-baseline-record-guide.md",
+        "sprint3-baseline-record-template.md",
+        "experiments/sprint3-baseline-record-guide.md",
+        "experiments/sprint3-baseline-record-template.md",
+        "Sprint 3 Baseline Record Guide",
+        "Sprint 3 Baseline Record Template",
+        "Sprint 3 baseline record guide",
+        "Sprint 3 baseline record template",
+    )
+    for path in _durable_public_text_paths():
+        source = path.read_text(encoding="utf-8")
+        for old_record_name in old_record_names:
+            assert old_record_name not in source, path
+
+    old_guide = PROJECT_ROOT / "docs/experiments/sprint3-baseline-record-guide.md"
+    old_template = PROJECT_ROOT / "docs/experiments/sprint3-baseline-record-template.md"
+    new_guide = PROJECT_ROOT / "docs/experiments/baseline-modeling-record-guide.md"
+    new_template = PROJECT_ROOT / "docs/experiments/baseline-modeling-record-template.md"
+    assert not old_guide.exists()
+    assert not old_template.exists()
+    assert new_guide.is_file()
+    assert new_template.is_file()
+
+    mkdocs_source = _read_repo_file("mkdocs.yml")
+    experiments_source = _read_repo_file("docs/experiments.md")
+    for source in (mkdocs_source, experiments_source):
+        has_record_guide_label = (
+            "Baseline Modeling Record Guide" in source or "Baseline Modeling record guide" in source
+        )
+        assert has_record_guide_label
+        assert (
+            "Baseline Modeling Record Template" in source
+            or "Baseline Modeling record template" in source
+        )
+        assert "experiments/baseline-modeling-record-guide.md" in source
+        assert "experiments/baseline-modeling-record-template.md" in source
+
+    assert "# Baseline Modeling Record Guide" in new_guide.read_text(encoding="utf-8")
+    assert "# Baseline Modeling Record Template" in new_template.read_text(encoding="utf-8")

@@ -20,9 +20,10 @@ reports, and manifest-driven archives that later modeling stages consume.
 
 Implemented internal downstream surface: Baseline Modeling.
 
-Baseline Modeling is the Sprint 3 baseline-only surface. It consumes processed Dataset Build
-outputs, runs train/validation baseline jobs, writes checkpoints and `run_summary.json`, exports a
-qualitative validation panel, and packages runtime evidence for formal experiment records.
+Baseline Modeling is the implemented internal downstream baseline surface. It consumes processed
+Dataset Build outputs, runs train/validation baseline jobs, writes checkpoints and
+`run_summary.json`, exports a qualitative validation panel, and packages runtime evidence for formal
+experiment records.
 
 Not yet implemented: broader evaluation, contribution modeling, playback/demo.
 
@@ -62,7 +63,7 @@ evaluation work starts.
 | Base package | `python -m pip install -e .` | Import package code and run lightweight utilities. |
 | Dev | `python -m pip install -e ".[dev]"` | Run tests, lint, type checks, and local quality tooling. |
 | Docs | `python -m pip install -e ".[docs]"` | Build the MkDocs site. |
-| Modeling | `python -m pip install -e ".[modeling]"` | Run Sprint 3 baseline training or qualitative export. |
+| Modeling | `python -m pip install -e ".[modeling]"` | Run Baseline Modeling training or qualitative export. |
 | Contributor/full | `python -m pip install -e ".[dev,docs,modeling]"` | Work across docs, tests, and baseline modeling. |
 
 The Makefile exposes the common setup paths:
@@ -171,7 +172,7 @@ Baseline Modeling archived outputs use stable names under each run root:
 - `baseline_qualitative_outputs.tar.zst`
 - `baseline_record_package.tar.zst`
 
-The runtime record package is baseline evidence. The formal Sprint 3 experiment record is a
+The runtime record package is baseline evidence. The formal Baseline Modeling experiment record is a
 Markdown record that cites `run_summary.json`, checkpoints, qualitative outputs, the evidence
 bundle, packaged runtime artifacts, and Dataset Build provenance.
 

@@ -1,7 +1,7 @@
 # Experiment Records
 
-Create one Markdown record per meaningful Dataset Build validation, Sprint 3 baseline run,
-modeling ablation, or intentional comparison.
+Create one Markdown record per meaningful Dataset Build validation, Baseline Modeling run, modeling
+ablation, or intentional comparison.
 
 ## Recording Guidance
 
@@ -23,5 +23,5 @@ Experiment records that consume Dataset Build output should name the processed s
 filter config, and artifact set used. The active filter config is `configs/data/filter-v2.yaml`;
 `configs/data/filter-v1.yaml` is legacy and should appear only when a run intentionally uses it.
 
-Sprint 3 baseline records should use `sprint3-baseline-record-guide.md` and
-`sprint3-baseline-record-template.md`.
+Baseline Modeling records should use `baseline-modeling-record-guide.md` and
+`baseline-modeling-record-template.md`.

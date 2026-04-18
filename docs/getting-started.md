@@ -115,6 +115,5 @@ export, and record/package outputs.
 - Read [Development Setup](development-setup.md) before contributing.
 - Read [Repository Structure](repository-structure.md) before changing boundaries.
 - Read [Dataset Build execution](execution/dataset-build.md) before running the full data stage.
-- Read [Baseline Modeling execution](execution/baseline-modeling.md) before running Sprint 3
-  baseline jobs.
-- Read [Experiments](experiments.md) before writing Sprint 3 baseline records.
+- Read [Baseline Modeling execution](execution/baseline-modeling.md) before running baseline jobs.
+- Read [Experiments](experiments.md) before writing Baseline Modeling records.

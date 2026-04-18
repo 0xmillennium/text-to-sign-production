@@ -44,8 +44,8 @@ nav:
   - ADR 0015: decisions/adr-0015-define-sprint-3-runtime-artifact-archive-resume-and-evidence-strategy.md
   - Experiments Overview: experiments.md
   - Dataset Build Filter V2 Full Validation: experiments/2026-04-dataset-build-filter-v2-full-validation.md
-  - Sprint 3 Baseline Record Guide: experiments/sprint3-baseline-record-guide.md
-  - Sprint 3 Baseline Record Template: experiments/sprint3-baseline-record-template.md
+  - Baseline Modeling Record Guide: experiments/baseline-modeling-record-guide.md
+  - Baseline Modeling Record Template: experiments/baseline-modeling-record-template.md
   - Experiment Log Guide: experiments/README.md
   - Experiment Template: experiments/template.md
   - Roadmap: roadmap.md

@@ -121,7 +121,7 @@ Resume behavior is stable:
 ## Runtime Evidence And Formal Records
 
 The `record/` directory is a runtime-side evidence package. It is not a tracking database and it is
-not a replacement for the formal Sprint 3 baseline experiment record.
+not a replacement for the formal Baseline Modeling experiment record.
 
 The formal record is a Markdown experiment record that cites:
 

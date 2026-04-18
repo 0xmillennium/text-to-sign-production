@@ -139,8 +139,8 @@ This strategy is recorded in ADR-0015.
 
 Sprint 3 formal baseline records are documented by:
 
-- `docs/experiments/sprint3-baseline-record-guide.md`
-- `docs/experiments/sprint3-baseline-record-template.md`
+- `docs/experiments/baseline-modeling-record-guide.md`
+- `docs/experiments/baseline-modeling-record-template.md`
 
 A formal record should cite:
 
@@ -166,7 +166,7 @@ surface for Sprint 4 and later sprints.
 Sprint 4 should consume Sprint 3 records and runtime artifacts to implement broader evaluation and
 error analysis.
 
-Sprint 5 and Sprint 6 should compare contribution models against formal Sprint 3 baseline records.
+Sprint 5 and Sprint 6 should compare contribution models against formal Baseline Modeling records.
 
 Sprint 7 may use selected baseline or later artifacts for playback/demo once those capabilities are
 implemented.
