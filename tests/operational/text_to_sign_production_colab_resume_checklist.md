@@ -5,7 +5,7 @@ behavior.
 
 ## Preconditions
 
-- The notebook is `notebooks/colab/dataset_build_colab.ipynb`.
+- The notebook is `notebooks/colab/text_to_sign_production_colab.ipynb`.
 - Google Drive is mounted at `/content/drive`.
 - Dataset Build processed outputs are present in the Colab worktree after the Dataset Build step:
   - `data/processed/v1/manifests/train.jsonl`
@@ -34,23 +34,25 @@ behavior.
    - `baseline_qualitative_outputs.tar.zst`
    - `baseline_record_package.tar.zst`
 7. Confirm `record/baseline_modeling_package.json` states that the package is runtime-side
-   baseline evidence, not a formal experiment record.
+   baseline evidence.
+8. Confirm a formal Sprint 3 baseline experiment record can be authored from the guide and
+   template under `docs/experiments/`.
 
 ## Archive-Present, Extracted-Absent Scenario
 
 1. Keep the three archive files under `archives/`.
 2. Remove the extracted `checkpoints/`, `metrics/`, `qualitative/`, and `record/` directories.
-3. Re-run the Sprint 3 training cell and confirm it reports `train: extract_archive`.
-4. Re-run the Sprint 3 qualitative cell and confirm it reports `export-panel: extract_archive`.
-5. Re-run the Sprint 3 package cell and confirm it reports `package: extract_archive`.
+3. Run the Sprint 3 training extract cell and confirm it restores `checkpoints/` and `metrics/`.
+4. Run the Sprint 3 qualitative extract cell and confirm it restores `qualitative/`.
+5. Run the Sprint 3 package extract cell and confirm it restores `record/`.
 6. Confirm `archives/` still exists and still contains all three archive files after extraction.
 
 ## Extracted-Present Reuse Scenario
 
 1. Keep extracted `checkpoints/`, `metrics/`, `qualitative/`, and `record/` directories in place.
-2. Re-run the Sprint 3 training cell and confirm it reports `train: reuse_extracted`.
-3. Re-run the Sprint 3 qualitative cell and confirm it reports `export-panel: reuse_extracted`.
-4. Re-run the Sprint 3 package cell and confirm it reports `package: reuse_extracted`.
+2. Re-run the Sprint 3 training reuse cell and confirm extracted outputs are detected.
+3. Re-run the Sprint 3 qualitative reuse cell and confirm extracted outputs are detected.
+4. Re-run the Sprint 3 package reuse cell and confirm extracted outputs are detected.
 5. Confirm no new model training or qualitative export work starts.
 
 ## Notes

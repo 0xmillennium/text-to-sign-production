@@ -2,32 +2,31 @@
 
 ## Install Tooling
 
-```bash
-make install
-```
-
-This installs the package in editable mode, both optional extra sets (`dev` and `docs`), and
-registers `pre-commit` plus `commit-msg` hooks.
-
-If you only need one side of the toolchain, use:
+Use the smallest install path that matches the work.
 
 ```bash
 make install-dev
 make install-docs
 make install-modeling
+make install
 ```
 
-- `make install-dev` installs code-quality and test tooling only.
-- `make install-docs` installs the MkDocs toolchain only.
-- `make install-modeling` installs the optional Sprint 3 PyTorch and Hugging Face modeling stack.
-- `make install` remains the default because the local CI-style workflow also builds docs.
+- `make install-dev` installs code-quality and test tooling.
+- `make install-docs` installs the MkDocs toolchain.
+- `make install-modeling` installs the optional PyTorch and Hugging Face modeling stack used by
+  Baseline Modeling.
+- `make install` installs `dev` and `docs` and registers local hooks.
 
-Sprint 3 modeling dependencies are optional for Dataset Build because the implemented public stage
-does not need PyTorch or Hugging Face libraries. They are required for baseline training work:
+Equivalent direct installs:
 
 ```bash
-make install-modeling
+python -m pip install -e ".[dev]"
+python -m pip install -e ".[docs]"
+python -m pip install -e ".[modeling]"
+python -m pip install -e ".[dev,docs,modeling]"
 ```
+
+Dataset Build does not require the `modeling` extra. Baseline training and qualitative export do.
 
 ## Local Quality Commands
 
@@ -45,12 +44,14 @@ python -m pytest -m e2e
 ## Quality Gates
 
 - `ruff` handles linting and formatting checks.
-- `mypy` provides lightweight static type verification for the scaffold.
-- `pytest` validates the layered unit, integration, and local e2e test suite. Operational Colab,
-  Drive, large-archive, and real How2Sign checks are documented under `tests/operational/` and are
-  excluded from normal pytest runs.
+- `mypy` provides static type verification for `src` and `tests`.
+- `pytest` validates unit, integration, and local e2e tests.
+- `mkdocs build --strict` validates documentation and navigation.
 - `pre-commit` enforces file hygiene, branch protection, secret scanning, and commit message rules.
 - `pip-audit` checks installed dependencies for known vulnerabilities during CI-style runs.
+
+Operational Colab, Drive, large-archive, and real How2Sign checks are documented under
+`tests/operational/` and are excluded from normal pytest runs.
 
 ## Branch And Commit Discipline
 

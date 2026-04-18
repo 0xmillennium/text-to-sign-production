@@ -21,6 +21,10 @@ reproducibility or comparison.
 
 Record the exact command or notebook entry point used to run the experiment.
 
+For the project-wide Colab path, cite:
+
+`notebooks/colab/text_to_sign_production_colab.ipynb`
+
 ## Result Summary
 
 Summarize the main outputs, metrics, counts, artifacts, and interpretation.

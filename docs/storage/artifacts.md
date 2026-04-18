@@ -1,72 +1,75 @@
 # Artifact Storage Strategy
 
-Dataset Build produces large outputs that are important for reproducibility but are not appropriate
-for GitHub storage. This repository keeps the workflow explicit: code and documentation stay in
-Git, while heavy generated artifacts stay in the fixed Google Drive location used by the supported
-Colab workflow.
+Large generated artifacts are required for reproducibility but do not belong in GitHub. This page
+defines the current run roots, extracted outputs, archived outputs, and publish locations.
 
-## What Stays Outside GitHub
+## Policy
 
-The following should not be committed to GitHub:
+Git stores source, docs, tests, configs, ADRs, and experiment-record templates. Git does not store:
 
 - raw How2Sign downloads
 - processed `.npz` samples
-- large interim manifests and reports
-- packaged Dataset Build archives
-- Sprint 3 baseline checkpoints, qualitative outputs, runtime package records, and archives
+- generated manifests and reports
+- Dataset Build archives
+- Baseline Modeling checkpoints
+- qualitative panel outputs
+- runtime record/package outputs
+- baseline run archives
 
-Git ignore rules cover the canonical generated locations, including `data/archives/` and
-`outputs/`.
+## Fixed Colab Drive Layout
 
-## Fixed Google Drive Pattern
+The supported notebook uses one fixed Drive layout:
 
-The supported Colab workflow uses exactly one Drive layout:
-
-- Inputs live under `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/`
-- Published archives live under
+- Raw inputs:
+  `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/`
+- Dataset Build archived outputs:
   `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/`
-- Sprint 3 baseline runs live under
+- Baseline Modeling run roots:
   `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/`
 
-There is no storage-provider switch, no local-vs-Drive branch in the notebook, and no user-edited
-artifact destination configuration. The notebook does not support public download URLs or `gdown`.
+There is no storage-provider switch, no `gdown` path, and no user-edited artifact destination in
+the notebook.
 
-## Archive Packaging
+## Dataset Build Outputs
 
-Local packaging is part of the primary CLI by default:
+Dataset Build extracted outputs live in the worktree:
 
-```bash
-python scripts/dataset_build.py
-```
+- `data/interim/raw_manifests/`
+- `data/interim/normalized_manifests/`
+- `data/interim/filtered_manifests/`
+- `data/interim/reports/`
+- `data/processed/v1/manifests/`
+- `data/processed/v1/reports/`
+- `data/processed/v1/samples/<split>/`
 
-To skip packaging:
+Local archived outputs live under:
 
-```bash
-python scripts/dataset_build.py --no-package
-```
+`data/archives/`
 
-The archive set is:
+Published archived outputs live under:
+
+`/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/`
+
+Archive names:
 
 - `dataset_build_manifests_reports.tar.zst`
 - `dataset_build_samples_train.tar.zst`
 - `dataset_build_samples_val.tar.zst`
 - `dataset_build_samples_test.tar.zst`
 
-Subset packaging removes stale unrequested sample archives from the local archive directory so the
-local packaging output reflects the requested split selection.
+Split sample archives are manifest-driven and use `dataset_build_samples_<split>.tar.zst`.
 
-Split sample archives are manifest-driven. Each `dataset_build_samples_<split>.tar.zst` contains
-exactly the `.npz` files referenced by `sample_path` values in
-`data/processed/v1/manifests/<split>.jsonl`; it is not a blind snapshot of
-`data/processed/v1/samples/<split>/`.
+## Baseline Modeling Run Roots
 
-## Sprint 3 Baseline Run Layout
+Local CLI run roots default to:
 
-Sprint 3 baseline Colab runs use this root:
+`outputs/modeling/baseline-modeling/runs/<run_name>/`
+
+Colab run roots publish to:
 
 `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/`
 
-Each run uses this stable structure:
+Each run root has this stable structure:
 
 - `config/`
 - `checkpoints/`
@@ -75,33 +78,61 @@ Each run uses this stable structure:
 - `record/`
 - `archives/`
 
-`config/baseline.yaml` is the effective config used by the workflow and points
-`checkpoint.output_dir` at the run's `checkpoints/` directory.
-`config/source_baseline.yaml` preserves the original operator-provided config for provenance.
+## Baseline Modeling Extracted Outputs
 
-The deterministic archive names are:
+Training extracted outputs:
+
+- `config/baseline.yaml`
+- `config/source_baseline.yaml`
+- `checkpoints/last.pt`
+- `checkpoints/best.pt` when present
+- `checkpoints/run_summary.json`
+- `metrics/run_summary.json`
+
+Qualitative extracted outputs:
+
+- `qualitative/panel_definition.json`
+- `qualitative/records.jsonl`
+- `qualitative/panel_summary.json`
+- `qualitative/baseline_evidence_bundle.json`
+- `qualitative/references/*.npz`
+- `qualitative/predictions/*.npz`
+
+Record/package extracted outputs:
+
+- `record/baseline_modeling_package.json`
+- `record/baseline_evidence_bundle.json`
+- `record/run_summary.json`
+
+## Baseline Modeling Archived Outputs
+
+Archives are stored under each run root's `archives/` directory:
 
 - `archives/baseline_training_outputs.tar.zst`
 - `archives/baseline_qualitative_outputs.tar.zst`
 - `archives/baseline_record_package.tar.zst`
 
-For training, qualitative export, and record packaging, resume behavior is:
+Resume behavior is stable:
 
-1. Reuse already-extracted outputs in the expected run directory.
-2. Otherwise extract the corresponding archive from `archives/`.
-3. Otherwise run the step and write both extracted outputs and the archive under the run root.
+1. Reuse extracted outputs when required files already exist.
+2. Extract archived outputs when the archive exists and extracted outputs are absent.
+3. Run and publish when neither extracted outputs nor archived outputs exist.
 
-The `record/` directory is a runtime-side package surface. It is not a formal experiment record.
+## Runtime Evidence And Formal Records
 
-## Future Stage Reuse
+The `record/` directory is a runtime-side evidence package. It is not a tracking database and it is
+not a replacement for the formal Sprint 3 baseline experiment record.
 
-Later thesis stages can reuse stored Dataset Build artifacts by restoring the packaged outputs into
-a working environment instead of rerunning the full raw-data pipeline every time. They can also use
-Sprint 3 baseline run roots as baseline evidence, while keeping formal experiment-record authoring
-for later phases.
+The formal record is a Markdown experiment record that cites:
 
-The boundary remains unchanged:
+- Dataset Build processed manifests or archives
+- effective baseline config
+- `run_summary.json`
+- `last.pt` and `best.pt`
+- qualitative panel outputs
+- `baseline_evidence_bundle.json`
+- `baseline_modeling_package.json`
+- deterministic training, qualitative, and record archives
 
-- GitHub Pages may describe the workflow.
-- GitHub Pages must not expose private artifact locations.
-- The repository remains the source of truth for code, docs, and reproducible commands.
+Later phases should consume the formal record for comparison context and the runtime artifacts for
+reproduction or inspection.

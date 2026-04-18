@@ -4,22 +4,52 @@
 
 - Python 3.11 or newer
 - `git`
+- `zstd` and `tar` for local archive creation or extraction
 
-## Install
+## Install Paths
 
-Full contributor setup:
+Base package only:
 
 ```bash
 python -m pip install --upgrade pip
-python -m pip install -e ".[dev,docs]"
+python -m pip install -e .
 ```
 
-Or install one extra set at a time:
+Developer tooling:
 
 ```bash
 python -m pip install -e ".[dev]"
+```
+
+Documentation tooling:
+
+```bash
 python -m pip install -e ".[docs]"
 ```
+
+Baseline Modeling tooling:
+
+```bash
+python -m pip install -e ".[modeling]"
+```
+
+Full contributor path:
+
+```bash
+python -m pip install -e ".[dev,docs,modeling]"
+```
+
+The Makefile exposes the same setup paths:
+
+```bash
+make install-dev
+make install-docs
+make install-modeling
+make install
+```
+
+`make install` installs `dev` and `docs`. Run `make install-modeling` as well before baseline
+training or qualitative export.
 
 ## Smoke Check
 
@@ -33,41 +63,58 @@ Expected output:
 t2sp-smoke-ok
 ```
 
-## Dataset Build Start Path
+## Dataset Build Quick Start
 
-For local Dataset Build runs, use the primary CLI against the canonical raw layout under
+Current public stage: Dataset Build.
+
+For local Dataset Build runs, use the stage CLI against the canonical raw layout under
 `data/raw/how2sign/`:
 
 ```bash
 python scripts/dataset_build.py
 ```
 
-The CLI uses the active `configs/data/filter-v2.yaml` policy by default, writes manifests and
-reports, and packages local archives under `data/archives/`.
+This writes extracted outputs under `data/interim/` and `data/processed/v1/`, then publishes
+archived outputs under `data/archives/`.
 
-To build without local archive packaging, run:
+To skip local archive publication:
 
 ```bash
 python scripts/dataset_build.py --no-package
 ```
 
-For heavy Colab execution, use the fixed runner notebook:
+## Baseline Modeling Quick Start
 
-```text
-notebooks/colab/dataset_build_colab.ipynb
+Implemented internal downstream surface: Baseline Modeling.
+
+Baseline Modeling requires processed Dataset Build outputs and the `modeling` extra:
+
+```bash
+python scripts/baseline_modeling.py all --run-name baseline-default
 ```
 
-The supported Colab workflow publishes archives only to
-`/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/`.
+Local run roots default to:
+
+`outputs/modeling/baseline-modeling/runs/<run_name>/`
+
+The workflow uses archive-aware resume for training outputs, qualitative outputs, and
+record/package outputs.
+
+## Colab Heavy-Run Path
+
+Use the single project-wide notebook:
+
+`notebooks/colab/text_to_sign_production_colab.ipynb`
+
+The notebook uses fixed Google Drive paths, supports reuse of extracted outputs, extraction from
+archived outputs, and run/publish cells for Dataset Build, baseline training, qualitative panel
+export, and record/package outputs.
 
 ## Next Steps
 
-- Read the development setup guide before contributing.
-- Read the [Dataset Build execution guide](execution/dataset-build.md) before running the full data
-  pipeline.
-- Read the [roadmap](roadmap.md) for the Baseline Modeling stage and later thesis contribution
-  sequence.
-- Read the [literature positioning](literature-positioning.md) page for the rationale behind the
-  post-Dataset-Build research direction.
-- Use ADRs for non-trivial architectural decisions.
-- Record future empirical work with the experiment log template.
+- Read [Development Setup](development-setup.md) before contributing.
+- Read [Repository Structure](repository-structure.md) before changing boundaries.
+- Read [Dataset Build execution](execution/dataset-build.md) before running the full data stage.
+- Read [Baseline Modeling execution](execution/baseline-modeling.md) before running Sprint 3
+  baseline jobs.
+- Read [Experiments](experiments.md) before writing Sprint 3 baseline records.

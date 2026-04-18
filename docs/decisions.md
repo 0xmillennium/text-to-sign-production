@@ -8,12 +8,9 @@ process decisions that affect implementation, collaboration, or reproducibility.
 ADRs are historical design records. They explain why a decision was accepted at the time it was
 made, but they are not a complete replacement for current implementation guidance.
 
-Use the data, execution, testing, and storage docs for active Dataset Build behavior. Later
-implementation hardening may narrow or extend earlier ADR assumptions without rewriting the
-historical record. For example, the current Dataset Build uses `configs/data/filter-v2.yaml`,
-retains samples with usable `body` plus at least one usable hand, keeps the processed schema at
-`t2sp-processed-v1`, and packages split sample archives from processed manifests rather than from
-whole sample directories.
+Use the execution, storage, testing, data, and experiment docs for active behavior. Current public
+stage: Dataset Build. Implemented internal downstream surface: Baseline Modeling. Not yet
+implemented: broader evaluation, contribution modeling, playback/demo.
 
 ## Why ADRs Matter Here
 
@@ -36,5 +33,7 @@ whole sample directories.
 - ADR-0011: adopt Filter V2 one-hand policy for Dataset Build
 - ADR-0012: remove DVC from the active workflow
 - ADR-0013: define the post-Dataset-Build research roadmap
+- ADR-0014: adopt Sprint 3 stage-oriented baseline workflow and notebook extension
+- ADR-0015: define Sprint 3 runtime artifact, archive/resume, and evidence strategy
 
 Use the template in this section for future records.
