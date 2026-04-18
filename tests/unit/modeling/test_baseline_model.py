@@ -2,49 +2,19 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Any
 
 import pytest
 
 torch: Any = pytest.importorskip("torch")
 
-from text_to_sign_production.modeling.backbones import TextBackboneOutput  # noqa: E402
+from tests.support.modeling_torch import DeterministicTextBackbone  # noqa: E402
 from text_to_sign_production.modeling.data import SPRINT3_TARGET_CHANNEL_SHAPES  # noqa: E402
 from text_to_sign_production.modeling.models.baseline import (  # noqa: E402
     BaselineTextToPoseModel,
 )
 
 pytestmark = pytest.mark.unit
-
-
-class _DeterministicBackbone:
-    output_dim = 4
-
-    def __init__(self) -> None:
-        self.seen_devices: list[Any] = []
-
-    def __call__(
-        self,
-        texts: Sequence[str],
-        *,
-        device: Any | None = None,
-    ) -> TextBackboneOutput:
-        resolved_device = torch.device("cpu") if device is None else torch.device(device)
-        self.seen_devices.append(resolved_device)
-        batch_size = len(texts)
-        pooled_embedding = torch.arange(
-            batch_size * self.output_dim,
-            dtype=torch.float32,
-            device=resolved_device,
-        ).view(batch_size, self.output_dim)
-        token_embeddings = pooled_embedding.unsqueeze(1).expand(batch_size, 2, self.output_dim)
-        attention_mask = torch.ones((batch_size, 2), dtype=torch.long, device=resolved_device)
-        return TextBackboneOutput(
-            token_embeddings=token_embeddings,
-            pooled_embedding=pooled_embedding,
-            attention_mask=attention_mask,
-        )
 
 
 def _batch() -> dict[str, object]:
@@ -70,7 +40,7 @@ def _batch() -> dict[str, object]:
 
 def test_baseline_model_outputs_channel_separated_shapes() -> None:
     model = BaselineTextToPoseModel(
-        _DeterministicBackbone(),
+        DeterministicTextBackbone(),
         decoder_hidden_dim=8,
         latent_dim=6,
     )
@@ -88,7 +58,7 @@ def test_baseline_model_outputs_channel_separated_shapes() -> None:
 
 def test_baseline_model_heads_follow_target_channel_shapes() -> None:
     model = BaselineTextToPoseModel(
-        _DeterministicBackbone(),
+        DeterministicTextBackbone(),
         decoder_hidden_dim=8,
         latent_dim=6,
     )
@@ -105,7 +75,7 @@ def test_baseline_model_heads_follow_target_channel_shapes() -> None:
 
 
 def test_baseline_model_uses_model_device_for_backbone_and_masks() -> None:
-    backbone = _DeterministicBackbone()
+    backbone = DeterministicTextBackbone()
     model = BaselineTextToPoseModel(
         backbone,
         decoder_hidden_dim=8,
@@ -122,7 +92,7 @@ def test_baseline_model_uses_model_device_for_backbone_and_masks() -> None:
 
 def test_baseline_model_zeroes_padding_frames_with_existing_mask_polarity() -> None:
     model = BaselineTextToPoseModel(
-        _DeterministicBackbone(),
+        DeterministicTextBackbone(),
         decoder_hidden_dim=8,
         latent_dim=6,
     )
@@ -136,7 +106,7 @@ def test_baseline_model_zeroes_padding_frames_with_existing_mask_polarity() -> N
 
 def test_baseline_model_rejects_missing_texts() -> None:
     model = BaselineTextToPoseModel(
-        _DeterministicBackbone(),
+        DeterministicTextBackbone(),
         decoder_hidden_dim=8,
         latent_dim=6,
     )
@@ -149,7 +119,7 @@ def test_baseline_model_rejects_missing_texts() -> None:
 
 def test_baseline_model_rejects_lengths_that_do_not_match_padding_mask() -> None:
     model = BaselineTextToPoseModel(
-        _DeterministicBackbone(),
+        DeterministicTextBackbone(),
         decoder_hidden_dim=8,
         latent_dim=6,
     )
@@ -162,7 +132,7 @@ def test_baseline_model_rejects_lengths_that_do_not_match_padding_mask() -> None
 
 def test_baseline_model_rejects_frame_valid_mask_marking_padding_valid() -> None:
     model = BaselineTextToPoseModel(
-        _DeterministicBackbone(),
+        DeterministicTextBackbone(),
         decoder_hidden_dim=8,
         latent_dim=6,
     )

@@ -3,21 +3,19 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 import pytest
-import yaml
 
 torch: Any = pytest.importorskip("torch")
 
-import text_to_sign_production.data.utils as utils_mod  # noqa: E402
 import text_to_sign_production.modeling.training.train as train_module  # noqa: E402
-from tests.support.builders.manifests import processed_record, write_jsonl_records  # noqa: E402
-from tests.support.builders.samples import write_processed_sample_npz  # noqa: E402
-from text_to_sign_production.modeling.backbones import TextBackboneOutput  # noqa: E402
-from text_to_sign_production.modeling.models import BaselineTextToPoseModel  # noqa: E402
+from tests.support.modeling import (  # noqa: E402
+    patch_modeling_repo_root,
+    write_tiny_baseline_modeling_workspace,
+)
+from tests.support.modeling_torch import build_dummy_baseline_model  # noqa: E402
 from text_to_sign_production.modeling.training.checkpointing import (  # noqa: E402
     CHECKPOINT_SCHEMA_VERSION,
     CheckpointMetrics,
@@ -29,35 +27,8 @@ from text_to_sign_production.modeling.training.checkpointing import (  # noqa: E
 pytestmark = pytest.mark.unit
 
 
-class _DummyBackbone:
-    output_dim = 4
-
-    def __call__(
-        self,
-        texts: Sequence[str],
-        *,
-        device: Any | None = None,
-    ) -> TextBackboneOutput:
-        resolved_device = torch.device("cpu") if device is None else torch.device(device)
-        batch_size = len(texts)
-        pooled_embedding = torch.ones((batch_size, self.output_dim), device=resolved_device)
-        return TextBackboneOutput(
-            token_embeddings=pooled_embedding.unsqueeze(1),
-            pooled_embedding=pooled_embedding,
-            attention_mask=torch.ones((batch_size, 1), dtype=torch.long, device=resolved_device),
-        )
-
-
-def _model() -> BaselineTextToPoseModel:
-    return BaselineTextToPoseModel(
-        _DummyBackbone(),
-        decoder_hidden_dim=8,
-        latent_dim=6,
-    )
-
-
 def test_save_and_load_training_checkpoint_round_trips_payload(tmp_path: Path) -> None:
-    model = _model()
+    model = build_dummy_baseline_model()
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
     path = tmp_path / "checkpoint.pt"
 
@@ -171,75 +142,14 @@ def test_run_baseline_training_writes_runtime_provenance_summary(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
-    train_sample_path = "data/processed/v1/samples/train/train-sample.npz"
-    val_sample_path = "data/processed/v1/samples/val/val-sample.npz"
-    write_processed_sample_npz(tmp_path / train_sample_path)
-    write_processed_sample_npz(tmp_path / val_sample_path)
-    train_manifest_path = tmp_path / "data/processed/v1/manifests/train.jsonl"
-    val_manifest_path = tmp_path / "data/processed/v1/manifests/val.jsonl"
-    write_jsonl_records(
-        train_manifest_path,
-        [
-            processed_record(
-                train_sample_path,
-                split="train",
-                sample_id="train-sample",
-            )
-        ],
+    patch_modeling_repo_root(monkeypatch, tmp_path)
+    workspace = write_tiny_baseline_modeling_workspace(tmp_path)
+    config_path = workspace.config_path
+    monkeypatch.setattr(
+        train_module,
+        "build_baseline_model",
+        lambda _config: build_dummy_baseline_model(),
     )
-    write_jsonl_records(
-        val_manifest_path,
-        [
-            processed_record(
-                val_sample_path,
-                split="val",
-                sample_id="val-sample",
-            )
-        ],
-    )
-    config_path = tmp_path / "baseline.yaml"
-    config_path.write_text(
-        yaml.safe_dump(
-            {
-                "data": {
-                    "train_manifest": "data/processed/v1/manifests/train.jsonl",
-                    "val_manifest": "data/processed/v1/manifests/val.jsonl",
-                    "train_split": "train",
-                    "val_split": "val",
-                },
-                "backbone": {
-                    "name": "dummy",
-                    "max_length": 8,
-                    "local_files_only": True,
-                    "freeze": True,
-                },
-                "model": {
-                    "decoder_hidden_dim": 8,
-                    "latent_dim": 6,
-                },
-                "training": {
-                    "epochs": 1,
-                    "batch_size": 1,
-                    "shuffle_train": False,
-                    "num_workers": 0,
-                    "seed": 5,
-                    "device": "cpu",
-                },
-                "optimizer": {
-                    "name": "adamw",
-                    "learning_rate": 0.001,
-                    "weight_decay": 0.0,
-                },
-                "checkpoint": {
-                    "output_dir": "outputs/modeling/baseline-test",
-                },
-            },
-            sort_keys=False,
-        ),
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(train_module, "build_baseline_model", lambda _config: _model())
 
     result = train_module.run_baseline_training(config_path)
 

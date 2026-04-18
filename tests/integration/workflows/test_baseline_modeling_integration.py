@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-import text_to_sign_production.data.utils as utils_mod
 import text_to_sign_production.workflows.baseline_modeling as baseline_workflow_mod
 from tests.support.modeling import (
-    write_baseline_modeling_config,
+    fake_create_archive,
+    patch_modeling_repo_root,
     write_fake_qualitative_outputs,
     write_fake_training_outputs,
-    write_processed_modeling_split,
+    write_tiny_baseline_modeling_workspace,
 )
 
 pytestmark = pytest.mark.integration
@@ -22,11 +22,9 @@ def test_baseline_modeling_all_chains_training_qualitative_and_record(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
-    _patch_archive_creation(monkeypatch)
-    write_processed_modeling_split(tmp_path, split="train", sample_ids=("train-sample",))
-    write_processed_modeling_split(tmp_path, split="val", sample_ids=("val-sample",))
-    config_path = write_baseline_modeling_config(tmp_path)
+    patch_modeling_repo_root(monkeypatch, tmp_path)
+    monkeypatch.setattr(baseline_workflow_mod, "create_tar_zst_archive", fake_create_archive)
+    workspace = write_tiny_baseline_modeling_workspace(tmp_path, run_name="integration-run")
 
     def fake_training_runner(config: Path, *, checkpoint_output_dir: Path | None = None) -> None:
         assert config.name == "baseline.yaml"
@@ -50,9 +48,9 @@ def test_baseline_modeling_all_chains_training_qualitative_and_record(
 
     result = baseline_workflow_mod.run_baseline_modeling(
         step="all",
-        config_path=config_path,
-        run_name="integration-run",
-        artifact_runs_root=tmp_path / "runs",
+        config_path=workspace.config_path,
+        run_name=workspace.run_name,
+        artifact_runs_root=workspace.artifact_runs_root,
         panel_size=2,
         training_runner=fake_training_runner,
         qualitative_runner=fake_qualitative_runner,
@@ -83,15 +81,13 @@ def test_baseline_modeling_reuses_extracted_training_outputs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
-    write_processed_modeling_split(tmp_path, split="train", sample_ids=("train-sample",))
-    write_processed_modeling_split(tmp_path, split="val", sample_ids=("val-sample",))
-    config_path = write_baseline_modeling_config(tmp_path)
-    layout = baseline_workflow_mod.resolve_baseline_run_layout(
+    patch_modeling_repo_root(monkeypatch, tmp_path)
+    workspace = write_tiny_baseline_modeling_workspace(
+        tmp_path,
         run_name="reuse-run",
-        artifact_runs_root=tmp_path / "runs",
     )
-    baseline_workflow_mod.prepare_baseline_modeling_run(config_path, layout=layout)
+    layout = workspace.layout
+    baseline_workflow_mod.prepare_baseline_modeling_run(workspace.config_path, layout=layout)
     write_fake_training_outputs(layout.checkpoints_dir)
     baseline_workflow_mod._sync_training_metrics(layout)
     layout.metrics_run_summary_path.unlink()
@@ -105,9 +101,9 @@ def test_baseline_modeling_reuses_extracted_training_outputs(
 
     result = baseline_workflow_mod.run_baseline_modeling(
         step="train",
-        config_path=config_path,
-        run_name="reuse-run",
-        artifact_runs_root=tmp_path / "runs",
+        config_path=workspace.config_path,
+        run_name=workspace.run_name,
+        artifact_runs_root=workspace.artifact_runs_root,
         training_runner=unexpected_training_runner,
     )
 
@@ -115,22 +111,3 @@ def test_baseline_modeling_reuses_extracted_training_outputs(
     assert result.steps[-1].action == "reuse_extracted"
     assert result.steps[-1].archive_path is None
     assert result.layout.metrics_run_summary_path.is_file()
-
-
-def _patch_archive_creation(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fake_create_archive(
-        *,
-        archive_path: Path,
-        members: tuple[Path, ...],
-        cwd: Path,
-        label: str,
-    ) -> Path:
-        archive_path.parent.mkdir(parents=True, exist_ok=True)
-        archive_path.write_bytes(b"archive")
-        return archive_path
-
-    monkeypatch.setattr(
-        baseline_workflow_mod,
-        "create_tar_zst_archive",
-        fake_create_archive,
-    )

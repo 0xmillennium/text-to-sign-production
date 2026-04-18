@@ -6,13 +6,13 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
 
 import pytest
 
-import text_to_sign_production.data.utils as utils_mod
-from tests.support.builders.manifests import processed_record, write_jsonl_records
-from tests.support.builders.samples import write_processed_sample_npz
+from tests.support.modeling import (
+    patch_modeling_repo_root,
+    write_processed_modeling_split,
+)
 from text_to_sign_production.modeling.data import read_processed_modeling_manifest
 from text_to_sign_production.modeling.inference.qualitative import (
     QUALITATIVE_PANEL_SCHEMA_VERSION,
@@ -65,29 +65,15 @@ print(panel.to_dict()["split"])
 
 
 def _write_val_manifest(root: Path, sample_ids: list[str]) -> Path:
-    records: list[dict[str, Any]] = []
-    for sample_id in sample_ids:
-        sample_path = f"data/processed/v1/samples/val/{sample_id}.npz"
-        write_processed_sample_npz(root / sample_path)
-        records.append(
-            processed_record(
-                sample_path,
-                split="val",
-                sample_id=sample_id,
-                text=f"text for {sample_id}",
-            )
-        )
-
-    manifest_path = root / "data/processed/v1/manifests/val.jsonl"
-    write_jsonl_records(manifest_path, records)
-    return manifest_path
+    write_processed_modeling_split(root, split="val", sample_ids=tuple(sample_ids))
+    return root / "data/processed/v1/manifests/val.jsonl"
 
 
 def test_generated_panel_uses_sorted_validation_sample_ids(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
+    patch_modeling_repo_root(monkeypatch, tmp_path)
     manifest_path = _write_val_manifest(tmp_path, ["sample-c", "sample-a", "sample-b"])
     records = read_processed_modeling_manifest(manifest_path, split="val")
 
@@ -103,7 +89,7 @@ def test_generated_panel_falls_back_to_available_validation_count(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
+    patch_modeling_repo_root(monkeypatch, tmp_path)
     manifest_path = _write_val_manifest(tmp_path, ["sample-b", "sample-a"])
     records = read_processed_modeling_manifest(manifest_path, split="val")
 
@@ -175,7 +161,7 @@ def test_select_panel_records_rejects_missing_validation_sample(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
+    patch_modeling_repo_root(monkeypatch, tmp_path)
     manifest_path = _write_val_manifest(tmp_path, ["sample-a"])
     records = read_processed_modeling_manifest(manifest_path, split="val")
     panel = QualitativePanelDefinition(
