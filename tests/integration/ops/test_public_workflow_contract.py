@@ -14,7 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 NOTEBOOK_NAME = "text_to_sign_production_colab.ipynb"
 NOTEBOOK_PATH = PROJECT_ROOT / "notebooks" / "colab" / NOTEBOOK_NAME
 CURRENT_NOTEBOOK_REFERENCE = f"notebooks/colab/{NOTEBOOK_NAME}"
-OLD_NOTEBOOK_NAME = "dataset_build" + "_colab.ipynb"
+OLD_NOTEBOOK_NAME = "dataset_build_colab.ipynb"
 PUBLIC_STATUS_LINES = (
     "Current public stage: Dataset Build",
     "Implemented internal downstream surface: Baseline Modeling",
