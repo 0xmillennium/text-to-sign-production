@@ -41,8 +41,9 @@
 - `docs/` contains the MkDocs site, ADRs, experiment logging templates, and operational workflow
   guidance.
 - `notebooks/` contains runner-only notebooks with no critical project logic.
-- `scripts/` contains the primary Dataset Build CLI, optional developer utilities, the Sprint 3
-  baseline training command, and later Sprint 3 placeholder commands.
+- `scripts/` contains the primary Dataset Build CLI, the Sprint 3 baseline-modeling stage CLI,
+  optional developer utilities, lower-level Sprint 3 baseline utilities, and later Sprint 3
+  placeholder commands.
 - `src/text_to_sign_production/data/` contains reusable data-pipeline logic.
 - `src/text_to_sign_production/modeling/` contains the Sprint 3 baseline modeling scaffold for
   future backbones, processed-data loading, models, training, inference, and configuration code.
@@ -64,7 +65,7 @@ raw manifest creation, normalization, filtering, processed-manifest export, repo
 validation, and small generic utilities are kept in separate modules.
 
 The `ops` package owns long-running copy, extract, archive, publish, and shared progress helpers.
-The `workflows` package composes those reusable functions into the public Dataset Build stage.
+The `workflows` package composes reusable functions into stage-level workflows.
 
 ## Modeling Scaffold Boundaries
 
@@ -73,23 +74,26 @@ processed-manifest, processed-`.npz`, and variable-length collation contracts fo
 inputs, the Phase 3 backbone wrapper and conservative model forward surface, Phase 4 reusable
 mask-aware loss and validation-metric utilities, the Phase 5 config-driven training,
 validation-loop, checkpointing, and runtime-provenance surface, and a Phase 6 qualitative panel
-export/evidence surface for inspecting baseline outputs. It does not implement experiment-record
-authoring, broad evaluation behavior, playback/rendering, or public workflow polishing.
+export/evidence surface for inspecting baseline outputs. Phase 7A adds public workflow
+operationalization around those existing baseline pieces. It does not implement experiment-record
+authoring, broad evaluation behavior, playback/rendering, or thesis-contribution model capability.
 
 ## Structural Principles
 
 - Critical logic belongs in `src/`, not notebooks.
-- Dataset Build has two operator-facing execution interfaces: one Colab notebook and one CLI
-  script.
+- Dataset Build has two operator-facing execution interfaces: the primary Colab notebook and one
+  CLI script.
+- Sprint 3 baseline modeling has one public stage-oriented CLI,
+  `scripts/baseline_modeling.py`, plus lower-level training and qualitative-export utilities.
 - The reusable Python workflow entrypoint is
   `text_to_sign_production.workflows.dataset_build.run_dataset_build`.
+- The reusable Sprint 3 baseline workflow entrypoint is
+  `text_to_sign_production.workflows.baseline_modeling.run_baseline_modeling`.
 - The active Dataset Build default filter policy is `configs/data/filter-v2.yaml`; legacy
   `configs/data/filter-v1.yaml` is retained for reproducibility-oriented runs.
-- The Colab notebook supports only the fixed mounted-Drive workflow and exposes only
-  `PIPELINE_SPLITS`.
+- The Colab notebook supports only fixed mounted-Drive roots and stage workflow calls.
 - Optional scripts are developer utilities, not stage execution entrypoints.
-- Sprint 3 baseline training and qualitative export have minimal command surfaces; baseline
-  evaluation remains a placeholder until later modeling phases land.
+- Baseline evaluation remains a placeholder until later modeling phases land.
 - Documentation is versioned with the codebase.
 - `tests/conftest.py` remains narrow and only contains pytest wiring, not reusable domain helpers.
 - Models must read processed manifests, not raw files.

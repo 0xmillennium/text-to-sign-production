@@ -1,6 +1,6 @@
 # Colab Smoke Checklist
 
-Use this checklist before release-time claims about the real Colab workflow.
+Use this checklist before release-time claims about the real Dataset Build Colab workflow.
 
 ## Preconditions
 
@@ -14,7 +14,7 @@ Use this checklist before release-time claims about the real Colab workflow.
 
 ## Smoke Steps
 
-1. Open the Dataset Build Colab notebook in a fresh runtime.
+1. Open the main Colab notebook in a fresh runtime.
 2. Run the environment setup cell and confirm the repository imports from `src/`.
 3. Mount Google Drive at `/content/drive`.
 4. Run Dataset Build with the default `PIPELINE_SPLITS = ["train", "val", "test"]`.
@@ -30,6 +30,8 @@ Use this checklist before release-time claims about the real Colab workflow.
 11. Confirm each `dataset_build_samples_<split>.tar.zst` contains exactly the `.npz` files
     referenced by `data/processed/v1/manifests/<split>.jsonl`.
 12. Record any runtime, storage, archive, or Drive anomalies in the thesis execution notes.
+13. If continuing into Sprint 3 baseline modeling, use
+    `baseline_modeling_colab_resume_checklist.md` for the separate baseline archive/resume checks.
 
 ## Failure Notes
 
