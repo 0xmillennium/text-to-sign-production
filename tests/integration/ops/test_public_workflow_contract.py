@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
 
@@ -52,6 +53,7 @@ def _read_repo_file(relative_path: str) -> str:
     return (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
 
 
+@lru_cache(maxsize=1)
 def _durable_public_text_paths() -> list[Path]:
     return [
         PROJECT_ROOT / "README.md",
