@@ -8,6 +8,7 @@ Use this layer for:
 - Real Colab notebook execution.
 - Real Google Drive mount validation.
 - Real `.tar.zst` archive copy, extract, local packaging, and fixed Drive publish checks on Colab.
+- Real Sprint 3 baseline archive-aware resume checks on Colab and Drive.
 - Real How2Sign/BFH smoke runs against the private raw data layout.
 - Release-time manual validation that depends on external storage, large files, or runtime speed.
 
@@ -27,6 +28,19 @@ Successful Colab runs publish this archive set under
 Each split sample archive is manifest-driven: `dataset_build_samples_<split>.tar.zst` must contain
 exactly the `.npz` files referenced by `data/processed/v1/manifests/<split>.jsonl`, rather than
 copying the whole split sample directory.
+
+Operational Sprint 3 Baseline Modeling checks use the existing main notebook and the run root:
+
+`/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/`
+
+The expected archive set under each run's `archives/` directory is:
+
+- `baseline_training_outputs.tar.zst`
+- `baseline_qualitative_outputs.tar.zst`
+- `baseline_record_package.tar.zst`
+
+Use `baseline_modeling_colab_resume_checklist.md` to validate mounted Drive, fresh publish,
+archive-present/extracted-absent extraction, extracted-present reuse, and publish/resume behavior.
 
 Normal CI runs:
 

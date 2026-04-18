@@ -11,6 +11,7 @@ nav:
   - Testing Architecture: testing.md
   - Execution:
       - Dataset Build: execution/dataset-build.md
+      - Baseline Modeling: execution/baseline-modeling.md
   - Data:
       - Raw Layout: data/raw-layout.md
       - Raw Schema: data/raw-schema.md

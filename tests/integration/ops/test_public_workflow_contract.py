@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -28,31 +29,54 @@ def _load_notebook_sources() -> tuple[str, str]:
     return markdown_source, code_source
 
 
+def _load_notebook_cells() -> list[dict[str, Any]]:
+    notebook_path = (
+        Path(__file__).resolve().parents[3] / "notebooks/colab/dataset_build_colab.ipynb"
+    )
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    return list(notebook["cells"])
+
+
 def test_colab_notebook_contains_only_the_supported_fixed_workflow() -> None:
     markdown_source, code_source = _load_notebook_sources()
 
     expected_headings = (
-        "# Dataset Build Colab",
+        "# Text-To-Sign Production Colab",
         "## 1. Environment And Repository Setup",
-        "## 2. Mount Google Drive",
+        "## 2. Mount Google Drive And Select Run Settings",
         "## 3. Run Dataset Build",
+        "## 4. Locate Dataset Build Processed Outputs",
+        "## 5. Prepare Sprint 3 Baseline Run Layout",
+        "## 6. Resolve Or Run Sprint 3 Training Outputs",
+        "## 7. Resolve Or Run Sprint 3 Qualitative Export",
+        "## 8. Resolve Or Build Sprint 3 Record Package",
     )
     for heading in expected_headings:
         assert heading in markdown_source
 
     required_snippets = (
         'PIPELINE_SPLITS = ["train", "val", "test"]',
+        'BASELINE_RUN_NAME = "baseline-default"',
+        "BASELINE_PANEL_SIZE = 8",
         'drive.mount("/content/drive", force_remount=False)',
         'if str(WORKTREE_ROOT / "src") not in sys.path:',
         'sys.path.insert(0, str(WORKTREE_ROOT / "src"))',
         "from text_to_sign_production.data.constants import DEFAULT_FILTER_CONFIG_RELATIVE_PATH",
         "from text_to_sign_production.workflows.dataset_build import run_dataset_build",
+        "from text_to_sign_production.workflows.baseline_modeling import",
+        "COLAB_BASELINE_ARTIFACT_RUNS_ROOT",
+        "run_baseline_modeling",
         "run_dataset_build(",
+        "run_baseline_modeling(",
         'input_mode="fixed_colab_drive"',
         'output_mode="fixed_colab_drive"',
         "filter_config_path=WORKTREE_ROOT / DEFAULT_FILTER_CONFIG_RELATIVE_PATH",
         "/content/how2sign_downloads",
         "/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/",
+        "/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/",
+        "baseline_training_outputs.tar.zst",
+        "baseline_qualitative_outputs.tar.zst",
+        "baseline_record_package.tar.zst",
         "train_2D_keypoints.tar.zst",
         "val_2D_keypoints.tar.zst",
         "test_2D_keypoints.tar.zst",
@@ -92,7 +116,27 @@ def test_colab_notebook_contains_only_the_supported_fixed_workflow() -> None:
         assert snippet not in (markdown_source + "\n" + code_source)
 
 
-def test_public_workflow_surface_has_one_notebook_and_one_cli() -> None:
+def test_colab_baseline_cells_redeclare_fixed_config_path() -> None:
+    cells = _load_notebook_cells()
+    baseline_cell_ids = {
+        "baseline-prepare-code",
+        "baseline-train-code",
+        "baseline-qualitative-code",
+        "baseline-package-code",
+    }
+
+    for cell in cells:
+        if cell.get("id") not in baseline_cell_ids:
+            continue
+        source = "".join(cell.get("source", []))
+        assert (
+            "from text_to_sign_production.modeling.config import DEFAULT_BASELINE_CONFIG_PATH"
+        ) in source
+        assert "BASELINE_CONFIG_PATH = DEFAULT_BASELINE_CONFIG_PATH" in source
+        assert "config_path=BASELINE_CONFIG_PATH" in source
+
+
+def test_public_workflow_surface_has_one_main_notebook_and_stage_clis() -> None:
     project_root = Path(__file__).resolve().parents[3]
     colab_notebooks = sorted(
         path.name for path in (project_root / "notebooks/colab").glob("*.ipynb")
@@ -101,6 +145,10 @@ def test_public_workflow_surface_has_one_notebook_and_one_cli() -> None:
 
     assert colab_notebooks == ["dataset_build_colab.ipynb"]
     assert "dataset_build.py" in script_names
+    assert "baseline_modeling.py" in script_names
+    assert "train_baseline.py" in script_names
+    assert "export_qualitative_panel.py" in script_names
+    assert "evaluate_baseline.py" in script_names
     assert "validate_manifest.py" in script_names
     assert "view_sample.py" in script_names
 

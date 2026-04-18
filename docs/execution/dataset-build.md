@@ -16,11 +16,12 @@ reproducibility or comparison.
 ## Colab Notebook
 
 The Colab notebook is orchestration-only. It mounts Google Drive, clones the repository, imports
-the Dataset Build workflow from `src/`, and calls it with the fixed Colab policy.
+the Dataset Build workflow from `src/`, and calls it with the fixed Colab policy. The same notebook
+also contains Sprint 3 baseline workflow orchestration after Dataset Build completes; Dataset Build
+logic still stays in the Dataset Build workflow.
 
-The notebook exposes only `PIPELINE_SPLITS`. It does not expose public URL downloads, `gdown`,
-mounted extracted keypoint directories, alternate archive formats, storage-provider switches, or
-custom input/output roots.
+The notebook does not expose public URL downloads, `gdown`, mounted extracted keypoint
+directories, alternate archive formats, storage-provider switches, or custom input/output roots.
 
 ## CLI Script
 

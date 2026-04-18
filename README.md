@@ -7,10 +7,12 @@ text-to-sign production. The long-term system direction is:
 
 The current implemented ML/data-pipeline stage is **Dataset Build**. It builds training-ready
 How2Sign/BFH dataset artifacts from fixed translation files and OpenPose keypoint inputs, and the
-repository currently stops at that processed dataset layer. Modeling begins in the next major stage,
-**Baseline Modeling**. Later thesis contribution work is centered on evaluation,
-discrete/data-driven pose representation, and structure-aware / multi-channel improvement; see
-`docs/roadmap.md` and `docs/literature-positioning.md` for the roadmap and rationale.
+repository's public project positioning still centers on that processed dataset layer. Sprint 3
+**Baseline Modeling** now has a baseline-only workflow surface for train/val runs, qualitative
+panel export, and runtime evidence packaging on top of processed Dataset Build outputs. Later
+thesis contribution work is centered on evaluation, discrete/data-driven pose representation, and
+structure-aware / multi-channel improvement; see `docs/roadmap.md` and
+`docs/literature-positioning.md` for the roadmap and rationale.
 
 ## Dataset Build Includes
 
@@ -29,12 +31,27 @@ discrete/data-driven pose representation, and structure-aware / multi-channel im
 
 - A tokenizer or retrieval system
 - Pose-token generation or tokenizer training
-- Text-to-pose model training or inference
+- Main thesis-contribution text-to-pose modeling
 - Skeleton rendering or avatar animation
 - Model-weight publishing or finalized weight licensing
 
 This boundary keeps the repository honest about its current maturity: it provides a reproducible
 dataset layer for later thesis stages instead of placeholder ML code.
+
+## Sprint 3 Baseline Modeling Surface
+
+Sprint 3 is baseline-only and consumes processed Dataset Build manifests and `.npz` samples. Its
+public workflow surface is:
+
+- CLI: `python scripts/baseline_modeling.py`
+- reusable workflow entrypoint:
+  `text_to_sign_production.workflows.baseline_modeling.run_baseline_modeling`
+- Colab integration in the existing main notebook:
+  `notebooks/colab/dataset_build_colab.ipynb`
+
+The lower-level `scripts/train_baseline.py` and `scripts/export_qualitative_panel.py` commands
+remain available as internal utilities. `scripts/evaluate_baseline.py` is still intentionally a
+placeholder; broad evaluation is outside Sprint 3 Phase 7A.
 
 ## Repository Structure
 
@@ -44,10 +61,11 @@ dataset layer for later thesis stages instead of placeholder ML code.
 ├── data/                     # Raw, interim, processed, and archive dataset roots
 ├── docs/                     # MkDocs source, ADRs, experiment records, and ops docs
 ├── notebooks/
-│   └── colab/                # Primary Dataset Build Colab notebook
+│   └── colab/                # Primary Colab runner for Dataset Build and baseline workflow
 ├── scripts/                  # Primary CLI plus optional developer utilities
 ├── src/text_to_sign_production/
 │   ├── data/                 # Reusable Dataset Build data pipeline package
+│   ├── modeling/             # Sprint 3 baseline-only modeling package
 │   ├── ops/                  # Reusable Colab/archive operations layer
 │   └── workflows/            # Stage-level workflow orchestration
 ├── tests/
@@ -92,6 +110,8 @@ python -m pytest -m integration
 python -m pytest -m e2e
 python scripts/dataset_build.py
 python scripts/dataset_build.py --no-package
+python scripts/baseline_modeling.py all --run-name baseline-default
+python scripts/baseline_modeling.py train --run-name baseline-default
 python scripts/validate_manifest.py --manifest data/interim/raw_manifests/raw_train.jsonl --kind raw
 python scripts/view_sample.py --split train --sample-id <sample_id>
 ```
@@ -100,6 +120,9 @@ python scripts/view_sample.py --split train --sample-id <sample_id>
   raw dataset layout, uses the active `configs/data/filter-v2.yaml` policy by default, and creates
   local `.tar.zst` archives under `data/archives/`.
 - `python scripts/dataset_build.py --no-package` runs the stage without local archive packaging.
+- `python scripts/baseline_modeling.py all --run-name baseline-default` runs the Sprint 3
+  baseline-only public workflow over processed Dataset Build outputs, with archive-aware resume
+  under `outputs/modeling/baseline-modeling/runs/<run_name>/` by default for local CLI use.
 - `validate_manifest.py` and `view_sample.py` are optional developer utilities, not primary
   workflow entrypoints.
 
@@ -132,13 +155,13 @@ explicit release-time procedure.
 Notebooks are runner-only interfaces. They may install the repository, import code from `src/`,
 and execute orchestrated workflows, but they must not become the home of core project logic.
 
-The Dataset Build Colab notebook is:
+The primary Colab notebook is:
 
 `notebooks/colab/dataset_build_colab.ipynb`
 
-It exposes only `PIPELINE_SPLITS`. It does not support public URLs, `gdown`, alternate archive
-formats, mounted extracted keypoint directories, storage-provider switches, or user-defined
-input/output roots.
+It covers Dataset Build and Sprint 3 baseline workflow orchestration. It does not support public
+URLs, `gdown`, alternate archive formats, mounted extracted keypoint directories,
+storage-provider switches, or user-defined input/output roots.
 
 ## Dataset Build Workflow
 
@@ -154,6 +177,21 @@ The active default filter policy is `configs/data/filter-v2.yaml`: body must be 
 one hand must be usable. The legacy strict `configs/data/filter-v1.yaml` policy remains available for
 intentional reproducibility or comparison runs, but it is not the current default.
 
+## Sprint 3 Baseline Workflow
+
+The stage-oriented baseline workflow entrypoint is:
+
+`text_to_sign_production.workflows.baseline_modeling.run_baseline_modeling`
+
+The public CLI is:
+
+`python scripts/baseline_modeling.py [prepare|train|export-panel|package|all]`
+
+The workflow uses `google/flan-t5-base` from the default Sprint 3 config unless a different config
+is explicitly provided. It remains modular and backbone-agnostic, reads processed Dataset Build
+manifests only, and writes training, qualitative, and runtime package artifacts into a stable run
+layout.
+
 ## Artifact Storage And Git Hygiene
 
 - Large raw, interim, processed, and archive artifacts are kept out of GitHub.
@@ -162,9 +200,14 @@ intentional reproducibility or comparison runs, but it is not the current defaul
 - Keypoint inputs are `.tar.zst` archives only; translations use the canonical `.csv` filenames.
 - The supported Colab workflow publishes only to
   `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/`.
+- Sprint 3 baseline Colab runs publish to
+  `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/`.
 - Local packaging writes only to `data/archives/`.
 - Packaged outputs are `dataset_build_manifests_reports.tar.zst` plus one manifest-driven
   `dataset_build_samples_<split>.tar.zst` archive for each selected split.
+- Sprint 3 baseline run archives are `baseline_training_outputs.tar.zst`,
+  `baseline_qualitative_outputs.tar.zst`, and `baseline_record_package.tar.zst` under each run's
+  `archives/` directory.
 - GitHub Pages documents the workflow but must not expose private storage links or folder IDs.
 
 ## Verified Raw Data Facts
@@ -191,8 +234,8 @@ Local inspection confirmed:
 - Processed samples include body, left-hand, and right-hand arrays
 - Active filtering keeps samples with usable body and at least one usable hand
 - Face is retained in schema, export, and reporting but is optional for v1 completion
-- Future models must read processed manifests only
+- Sprint 3 baseline models read processed manifests only
 
-Future thesis stages can build Baseline Modeling, evaluation, discrete/data-driven pose
-representation, structure-aware / multi-channel improvement, and downstream inspection on top of
-this versioned, auditable dataset layer instead of reading raw files directly.
+Future thesis stages can build evaluation, discrete/data-driven pose representation,
+structure-aware / multi-channel improvement, and downstream inspection on top of this versioned,
+auditable dataset layer instead of reading raw files directly.
