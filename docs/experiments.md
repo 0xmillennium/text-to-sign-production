@@ -14,14 +14,14 @@ Routine Dataset Build runs are documented by generated manifests, reports, and a
 Create an experiment record when a run supports a research or engineering claim that needs
 interpretation across data, configs, metrics, or artifacts.
 
-Sprint 3 Baseline Modeling now has a formal experiment-record documentation surface. A formal
-baseline record is a Markdown document that cites runtime artifacts rather than replacing them with
-a database or tracking server.
+Baseline Modeling has a formal experiment-record documentation surface. A formal baseline record is
+a Markdown document that cites runtime artifacts rather than replacing them with a database or
+tracking server.
 
 Use:
 
-- [Sprint 3 baseline record guide/schema](experiments/sprint3-baseline-record-guide.md)
-- [Sprint 3 baseline record template](experiments/sprint3-baseline-record-template.md)
+- [Baseline Modeling Record Guide](experiments/baseline-modeling-record-guide.md)
+- [Baseline Modeling Record Template](experiments/baseline-modeling-record-template.md)
 
 ## Dataset Build Provenance
 
@@ -36,9 +36,9 @@ When Dataset Build output is used, record:
 Use `configs/data/filter-v1.yaml` only when it is intentionally selected for legacy
 reproducibility or comparison.
 
-## Sprint 3 Baseline Provenance
+## Baseline Modeling Provenance
 
-A Sprint 3 baseline experiment record should cite:
+A Baseline Modeling experiment record should cite:
 
 - run root
 - effective config and source config
@@ -61,6 +61,6 @@ experiment comparison surface for later sprints.
 
 ## Later Use
 
-Sprint 4 should consume Sprint 3 formal baseline records when adding broader evaluation and error
-analysis. Sprint 5 and Sprint 6 should cite the relevant baseline record when comparing contribution
-models against the baseline.
+Later broader-evaluation work should consume formal Baseline Modeling records when adding error
+analysis. Later contribution-modeling work should cite the relevant baseline record when comparing
+new models against the baseline.

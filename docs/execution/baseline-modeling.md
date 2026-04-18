@@ -2,7 +2,7 @@
 
 Implemented internal downstream surface: Baseline Modeling.
 
-Baseline Modeling is a Sprint 3 baseline-only workflow on top of processed Dataset Build outputs.
+Baseline Modeling is a baseline-only workflow on top of processed Dataset Build outputs.
 It does not replace Dataset Build as the current public stage, and it is not the main thesis
 contribution.
 
@@ -30,7 +30,7 @@ is implemented in a later phase.
 
 ## Inputs
 
-The default Sprint 3 baseline config is:
+The default Baseline Modeling config is:
 
 `src/text_to_sign_production/modeling/config/baseline.yaml`
 
@@ -127,5 +127,5 @@ Record/package assembly writes:
 - `record/baseline_evidence_bundle.json`
 - `record/run_summary.json`
 
-The runtime record package is baseline evidence and an input to the formal Sprint 3 experiment
+The runtime record package is baseline evidence and an input to the formal Baseline Modeling
 record described in the experiment-record docs.

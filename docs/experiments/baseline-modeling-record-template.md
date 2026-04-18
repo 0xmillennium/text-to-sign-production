@@ -1,6 +1,6 @@
-# Sprint 3 Baseline Record Template
+# Baseline Modeling Record Template
 
-Copy this template for a formal Sprint 3 baseline experiment record.
+Copy this template for a formal Baseline Modeling experiment record.
 
 ## Objective
 

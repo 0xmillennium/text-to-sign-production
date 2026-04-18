@@ -22,8 +22,8 @@ Not yet implemented: broader evaluation, contribution modeling, playback/demo.
 - Processed schema version is `t2sp-processed-v1`.
 - Large generated artifacts stay outside GitHub and are restored through extracted outputs or
   archived outputs.
-- Sprint 3 has a formal experiment-record documentation surface that cites runtime artifacts rather
-  than replacing them with a tracking server.
+- Baseline Modeling has a formal experiment-record documentation surface that cites runtime
+  artifacts rather than replacing them with a tracking server.
 
 ## Start Here
 
@@ -31,7 +31,7 @@ Not yet implemented: broader evaluation, contribution modeling, playback/demo.
 - Run the internal baseline surface with [Baseline Modeling execution](execution/baseline-modeling.md).
 - Use [Getting Started](getting-started.md) for install and first commands.
 - Use [Artifact Storage](storage/artifacts.md) for run roots, publish locations, and archive names.
-- Use [Experiments](experiments.md) for Dataset Build validation records and Sprint 3 baseline
+- Use [Experiments](experiments.md) for Dataset Build validation records and Baseline Modeling
   experiment-record practice.
 - Use [Roadmap](roadmap.md) and [Literature Positioning](literature-positioning.md) for the thesis
   direction after Dataset Build.

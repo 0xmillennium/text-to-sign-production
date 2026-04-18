@@ -162,8 +162,8 @@ artifacts rather than replacing them.
 
 Use:
 
-- `docs/experiments/sprint3-baseline-record-guide.md`
-- `docs/experiments/sprint3-baseline-record-template.md`
+- `docs/experiments/baseline-modeling-record-guide.md`
+- `docs/experiments/baseline-modeling-record-template.md`
 
 A formal baseline record should cite:
 
