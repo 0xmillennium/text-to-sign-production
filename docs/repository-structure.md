@@ -1,100 +1,104 @@
 # Repository Structure
 
+This page summarizes the current repository architecture. It is intended to help contributors find
+the right layer without turning notebooks, scripts, or tests into homes for production logic.
+
 ## Top-Level Layout
 
 ```text
 .
-├── .github/workflows/
-├── configs/
-│   └── data/
-├── data/
-├── docs/
-│   ├── execution/
-│   └── storage/
-├── notebooks/
-│   └── colab/
-├── scripts/
+├── .github/workflows/       # CI, docs publishing, and release automation
+├── configs/                 # Versioned configuration files
+├── data/                    # Local raw/interim/processed/archive roots, ignored where generated
+├── docs/                    # MkDocs source, ADRs, experiment records, and reference docs
+├── notebooks/               # Runner-only notebooks
+├── notes/                   # Project handoff and sprint briefing artifacts
+├── scripts/                 # Thin CLI wrappers and developer utilities
 ├── src/text_to_sign_production/
-│   ├── data/
-│   ├── modeling/
-│   ├── ops/
-│   └── workflows/
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   ├── e2e/
-│   ├── operational/
-│   ├── fixtures/
-│   └── support/
+│   ├── data/                # Dataset Build data pipeline logic
+│   ├── modeling/            # Sprint 3 baseline-only modeling surface
+│   ├── ops/                 # Archive, Colab, progress, and publish helpers
+│   └── workflows/           # Stage-oriented orchestration
+├── tests/                   # Unit, integration, e2e, operational docs, fixtures, support
 ├── Makefile
 ├── mkdocs.yml
 ├── pyproject.toml
 └── requirements-colab.txt
 ```
 
-## Purpose Of Each Area
+## Current Architecture
 
-- `.github/workflows/` contains CI, documentation deployment, and release automation.
-- `configs/` contains Dataset Build filter policies, including active `filter-v2.yaml` and legacy
-  `filter-v1.yaml`.
-- `data/` contains the canonical raw, interim, processed, and archive dataset roots.
-- `docs/` contains the MkDocs site, ADRs, experiment logging templates, and operational workflow
-  guidance.
-- `notebooks/` contains runner-only notebooks with no critical project logic.
-- `scripts/` contains the primary Dataset Build CLI, the Sprint 3 baseline-modeling stage CLI,
-  optional developer utilities, lower-level Sprint 3 baseline utilities, and later Sprint 3
-  placeholder commands.
-- `src/text_to_sign_production/data/` contains reusable data-pipeline logic.
-- `src/text_to_sign_production/modeling/` contains the Sprint 3 baseline modeling scaffold for
-  future backbones, processed-data loading, models, training, inference, and configuration code.
-- `src/text_to_sign_production/ops/` contains reusable Colab, archive, and progress operations.
-- `src/text_to_sign_production/workflows/` contains stage-level orchestration.
-- `tests/unit/` holds isolated deterministic logic tests.
-- `tests/integration/` holds CI-safe stage, CLI, and ops collaboration tests.
-- `tests/e2e/` holds local happy paths that cross Dataset Build stage boundaries on tiny data.
-- `tests/operational/` holds manual/external-runtime validation guidance for Colab, Drive, large
-  archives, and real How2Sign smoke checks.
-- `tests/fixtures/` holds small static fixtures and golden snippets.
-- `tests/support/` holds reusable test-only builders, scenarios, archive helpers, path helpers, and
-  shared assertions.
+Current public stage: Dataset Build.
 
-## Dataset Build Boundaries
+Dataset Build lives primarily in `src/text_to_sign_production/data/` and is orchestrated by
+`src/text_to_sign_production/workflows/dataset_build.py`. It owns raw manifest creation,
+normalization, filtering, processed manifest export, reports, and versioned `.npz` sample output.
 
-The `data` package stays narrow: constants, schemas, JSONL I/O, MP4 metadata, OpenPose parsing,
-raw manifest creation, normalization, filtering, processed-manifest export, report rendering,
-validation, and small generic utilities are kept in separate modules.
+Implemented internal downstream surface: Baseline Modeling.
 
-The `ops` package owns long-running copy, extract, archive, publish, and shared progress helpers.
-The `workflows` package composes reusable functions into stage-level workflows.
+Baseline Modeling lives in `src/text_to_sign_production/modeling/` and is orchestrated by
+`src/text_to_sign_production/workflows/baseline_modeling.py`. It owns processed-data contracts,
+baseline model surface, mask-aware losses and metrics, train/validation runtime, checkpointing,
+qualitative panel export, evidence bundle writing, and archive-aware run packaging.
 
-## Modeling Scaffold Boundaries
+Not yet implemented: broader evaluation, contribution modeling, playback/demo.
 
-The `modeling` package is reserved for Sprint 3 Baseline Modeling. It now contains the Phase 2
-processed-manifest, processed-`.npz`, and variable-length collation contracts for baseline modeling
-inputs, the Phase 3 backbone wrapper and conservative model forward surface, Phase 4 reusable
-mask-aware loss and validation-metric utilities, the Phase 5 config-driven training,
-validation-loop, checkpointing, and runtime-provenance surface, and a Phase 6 qualitative panel
-export/evidence surface for inspecting baseline outputs. Phase 7A adds public workflow
-operationalization around those existing baseline pieces. It does not implement experiment-record
-authoring, broad evaluation behavior, playback/rendering, or thesis-contribution model capability.
+The `ops` package owns reusable long-running operational primitives such as copy, extract, archive,
+publish, and progress behavior. Notebooks and scripts call those primitives instead of
+reimplementing core behavior.
+
+## Public Interfaces
+
+- Main Colab notebook: `notebooks/colab/text_to_sign_production_colab.ipynb`
+- Dataset Build CLI: `python scripts/dataset_build.py`
+- Dataset Build workflow:
+  `text_to_sign_production.workflows.dataset_build.run_dataset_build`
+- Baseline Modeling CLI:
+  `python scripts/baseline_modeling.py [prepare|train|export-panel|package|all]`
+- Baseline Modeling workflow:
+  `text_to_sign_production.workflows.baseline_modeling.run_baseline_modeling`
+
+Developer utilities remain available for inspection or lower-level development, but they are not
+the main public workflow surface.
+
+## Data And Artifact Roots
+
+- `data/raw/how2sign/`: canonical local raw input layout
+- `data/interim/`: generated raw, normalized, filtered manifests, and interim reports
+- `data/processed/v1/`: generated processed manifests, reports, and `.npz` samples
+- `data/archives/`: local Dataset Build archived outputs
+- `outputs/modeling/baseline-modeling/runs/<run_name>/`: local Baseline Modeling run roots
+
+Generated data, checkpoints, qualitative outputs, runtime packages, and archives remain outside
+Git.
+
+## Documentation And Records
+
+- `docs/decisions/`: ADRs for long-lived architecture and workflow decisions
+- `docs/experiments/`: validation records, Sprint 3 baseline record guidance, and templates
+- `docs/execution/`: operator-facing stage execution docs
+- `docs/storage/`: artifact naming, run roots, publish locations, and archive/resume policy
+- `notes/LLM_PROJECT_HANDOFF.md`: project-wide handoff
+- `notes/SPRINT3_BRIEFING.md`: Sprint 3 handoff companion
+
+## Testing Layout
+
+- `tests/unit/`: isolated deterministic logic and contract tests
+- `tests/integration/`: CI-safe workflow, CLI, notebook, and multi-module tests
+- `tests/e2e/`: tiny local happy paths across stage boundaries
+- `tests/operational/`: manual Colab, Drive, large archive, and real data checklists
+- `tests/fixtures/`: small static fixtures and golden snippets
+- `tests/support/`: reusable test-only builders, fake collaborators, and assertions
+
+`tests/conftest.py` stays narrow and provides pytest wiring only.
 
 ## Structural Principles
 
-- Critical logic belongs in `src/`, not notebooks.
-- Dataset Build has two operator-facing execution interfaces: the primary Colab notebook and one
-  CLI script.
-- Sprint 3 baseline modeling has one public stage-oriented CLI,
-  `scripts/baseline_modeling.py`, plus lower-level training and qualitative-export utilities.
-- The reusable Python workflow entrypoint is
-  `text_to_sign_production.workflows.dataset_build.run_dataset_build`.
-- The reusable Sprint 3 baseline workflow entrypoint is
-  `text_to_sign_production.workflows.baseline_modeling.run_baseline_modeling`.
-- The active Dataset Build default filter policy is `configs/data/filter-v2.yaml`; legacy
-  `configs/data/filter-v1.yaml` is retained for reproducibility-oriented runs.
-- The Colab notebook supports only fixed mounted-Drive roots and stage workflow calls.
-- Optional scripts are developer utilities, not stage execution entrypoints.
-- Baseline evaluation remains a placeholder until later modeling phases land.
-- Documentation is versioned with the codebase.
-- `tests/conftest.py` remains narrow and only contains pytest wiring, not reusable domain helpers.
-- Models must read processed manifests, not raw files.
-- Large generated artifacts remain outside GitHub even when the workflow is documented publicly.
+- Business logic belongs in `src/`.
+- Notebooks are orchestration-only documentation artifacts.
+- Public workflow language is stage-oriented.
+- Dataset Build remains the current public stage.
+- Baseline Modeling remains a baseline-only internal downstream surface.
+- Models read processed manifests and processed `.npz` samples, not raw files.
+- Archive/resume behavior uses extracted outputs first, then archived outputs, then run/publish.
+- Large generated artifacts remain outside GitHub.

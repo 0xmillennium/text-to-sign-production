@@ -6,9 +6,8 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
-  - Repository Structure: repository-structure.md
   - Development Setup: development-setup.md
-  - Testing Architecture: testing.md
+  - Repository Structure: repository-structure.md
   - Execution:
       - Dataset Build: execution/dataset-build.md
       - Baseline Modeling: execution/baseline-modeling.md
@@ -22,6 +21,7 @@ nav:
       - Data Versioning: data/versioning.md
   - Storage:
       - Artifact Strategy: storage/artifacts.md
+  - Testing Architecture: testing.md
   - Reports:
       - Data Quality: reports/data-quality-report.md
       - Split Integrity: reports/split-report.md
@@ -40,8 +40,12 @@ nav:
   - ADR 0011: decisions/adr-0011-adopt-filter-v2-one-hand-policy-for-dataset-build.md
   - ADR 0012: decisions/adr-0012-remove-dvc-active-workflow.md
   - ADR 0013: decisions/adr-0013-define-post-dataset-build-research-roadmap.md
+  - ADR 0014: decisions/adr-0014-adopt-sprint-3-stage-oriented-baseline-workflow-and-notebook-extension.md
+  - ADR 0015: decisions/adr-0015-define-sprint-3-runtime-artifact-archive-resume-and-evidence-strategy.md
   - Experiments Overview: experiments.md
   - Dataset Build Filter V2 Full Validation: experiments/2026-04-dataset-build-filter-v2-full-validation.md
+  - Sprint 3 Baseline Record Guide: experiments/sprint3-baseline-record-guide.md
+  - Sprint 3 Baseline Record Template: experiments/sprint3-baseline-record-template.md
   - Experiment Log Guide: experiments/README.md
   - Experiment Template: experiments/template.md
   - Roadmap: roadmap.md

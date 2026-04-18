@@ -1,34 +1,66 @@
-# Experiment Logs
+# Experiment Records
 
-Experiment logs capture empirical work that needs provenance beyond routine generated reports.
+Experiment records capture empirical work that needs provenance beyond routine generated reports.
 
-## Why Log Experiments
+Current public stage: Dataset Build.
 
-- to preserve dataset and configuration provenance
-- to compare results across iterations
-- to make future claims traceable and reviewable
+Implemented internal downstream surface: Baseline Modeling.
+
+Not yet implemented: broader evaluation, contribution modeling, playback/demo.
 
 ## Current Practice
 
-Dataset Build is the implemented data stage. Baseline Modeling is the next major stage, so most
-new experiment records should describe baseline runs, evaluation comparisons, discrete
-representation experiments, structure-aware ablations, or intentional Dataset Build comparisons used
-as experiment evidence.
+Routine Dataset Build runs are documented by generated manifests, reports, and archived outputs.
+Create an experiment record when a run supports a research or engineering claim that needs
+interpretation across data, configs, metrics, or artifacts.
 
-Routine Dataset Build runs are documented by manifests, reports, and artifact archives. Create an
-experiment log when a run supports a research or engineering claim that needs interpretation across
-datasets, configs, metrics, or artifacts.
+Sprint 3 Baseline Modeling now has a formal experiment-record documentation surface. A formal
+baseline record is a Markdown document that cites runtime artifacts rather than replacing them with
+a database or tracking server.
 
-When Dataset Build output is used, record the processed manifest or archive references, split
-scope, filter config, and processed schema version. The active filter config is
-`configs/data/filter-v2.yaml`; the legacy strict policy at `configs/data/filter-v1.yaml` should be
-named only when it is intentionally selected for reproducibility or comparison.
+Use:
 
-The post-Dataset-Build experiment direction is summarized in the [roadmap](roadmap.md) and motivated
-in the [literature positioning](literature-positioning.md) page.
+- [Sprint 3 baseline record guide/schema](experiments/sprint3-baseline-record-guide.md)
+- [Sprint 3 baseline record template](experiments/sprint3-baseline-record-template.md)
 
-## Validation Records
+## Dataset Build Provenance
+
+When Dataset Build output is used, record:
+
+- processed schema version, currently `t2sp-processed-v1`
+- split scope
+- filter config, usually `configs/data/filter-v2.yaml`
+- processed manifest paths or archived output names
+- relevant reports or validation records
+
+Use `configs/data/filter-v1.yaml` only when it is intentionally selected for legacy
+reproducibility or comparison.
+
+## Sprint 3 Baseline Provenance
+
+A Sprint 3 baseline experiment record should cite:
+
+- run root
+- effective config and source config
+- Dataset Build manifests or Dataset Build archives consumed
+- `checkpoints/run_summary.json` or `metrics/run_summary.json`
+- `last.pt` and `best.pt`
+- qualitative panel outputs
+- `baseline_evidence_bundle.json`
+- `baseline_modeling_package.json`
+- deterministic archives under `archives/`
+
+The runtime record package is baseline evidence. The formal Markdown record is the durable
+experiment comparison surface for later sprints.
+
+## Existing Records
 
 - [Dataset Build Filter V2 Full-Run Validation](experiments/2026-04-dataset-build-filter-v2-full-validation.md):
   full `train / val / test` validation after manifest-driven packaging hardening and Filter V2
   adoption.
+
+## Later Use
+
+Sprint 4 should consume Sprint 3 formal baseline records when adding broader evaluation and error
+analysis. Sprint 5 and Sprint 6 should cite the relevant baseline record when comparing contribution
+models against the baseline.

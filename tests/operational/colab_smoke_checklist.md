@@ -4,7 +4,7 @@ Use this checklist before release-time claims about the real Dataset Build Colab
 
 ## Preconditions
 
-- The notebook is `notebooks/colab/dataset_build_colab.ipynb`.
+- The notebook is `notebooks/colab/text_to_sign_production_colab.ipynb`.
 - Google Drive contains the fixed raw input layout under
   `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/`.
 - Translation files exist for `train`, `val`, and `test`.
@@ -15,23 +15,28 @@ Use this checklist before release-time claims about the real Dataset Build Colab
 ## Smoke Steps
 
 1. Open the main Colab notebook in a fresh runtime.
-2. Run the environment setup cell and confirm the repository imports from `src/`.
+2. Run Section 0 runtime/session setup.
 3. Mount Google Drive at `/content/drive`.
-4. Run Dataset Build with the default `PIPELINE_SPLITS = ["train", "val", "test"]`.
-5. Confirm staging copies translations and extracts keypoint archives into the canonical raw layout.
-6. Confirm raw, normalized, filtered, and processed manifests are produced.
-7. Confirm processed `.npz` samples are produced for each split.
-8. Confirm reports are produced under `data/processed/v1/reports/`.
-9. Confirm output archives are published under
+4. Acquire and install the repository.
+5. In Section 3, reuse extracted Dataset Build outputs if they already exist.
+6. Otherwise extract archived Dataset Build outputs when the fixed Drive archives are present.
+7. Otherwise run Dataset Build with the default `PIPELINE_SPLITS = ["train", "val", "test"]`.
+8. Confirm staging copies translations and extracts keypoint archives into the canonical raw layout
+   when the run/publish cell is used.
+9. Confirm raw, normalized, filtered, and processed manifests are produced.
+10. Confirm processed `.npz` samples are produced for each split.
+11. Confirm reports are produced under `data/processed/v1/reports/`.
+12. Confirm output archives are published under
    `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/`.
-10. Confirm the published archive set includes `dataset_build_manifests_reports.tar.zst` and
+13. Confirm the published archive set includes `dataset_build_manifests_reports.tar.zst` and
     `dataset_build_samples_train.tar.zst`, `dataset_build_samples_val.tar.zst`, and
     `dataset_build_samples_test.tar.zst`.
-11. Confirm each `dataset_build_samples_<split>.tar.zst` contains exactly the `.npz` files
+14. Confirm each `dataset_build_samples_<split>.tar.zst` contains exactly the `.npz` files
     referenced by `data/processed/v1/manifests/<split>.jsonl`.
-12. Record any runtime, storage, archive, or Drive anomalies in the thesis execution notes.
-13. If continuing into Sprint 3 baseline modeling, use
-    `baseline_modeling_colab_resume_checklist.md` for the separate baseline archive/resume checks.
+15. Record any runtime, storage, archive, or Drive anomalies in the thesis execution notes.
+16. If continuing into Sprint 3 baseline modeling, use
+    `text_to_sign_production_colab_resume_checklist.md` for the separate baseline archive/resume
+    checks.
 
 ## Failure Notes
 

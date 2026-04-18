@@ -1,100 +1,116 @@
 # Dataset Build Execution
 
-Dataset Build keeps its public execution surface narrow:
+Current public stage: Dataset Build.
 
-- Colab notebook: `notebooks/colab/dataset_build_colab.ipynb`
+Dataset Build turns fixed How2Sign/BFH raw inputs into processed Dataset Build outputs:
+manifest-driven `.npz` samples, processed manifests, reports, and stable `.tar.zst` archives.
+
+## Public Surface
+
+- Main Colab notebook: `notebooks/colab/text_to_sign_production_colab.ipynb`
 - CLI script: `python scripts/dataset_build.py`
-- reusable workflow entrypoint:
+- Reusable workflow entrypoint:
   `text_to_sign_production.workflows.dataset_build.run_dataset_build`
 
-The operator-facing interfaces both call the reusable stage workflow.
+The notebook and CLI both call the reusable stage workflow.
 
-The active default filter policy is `configs/data/filter-v2.yaml`. The legacy strict policy
-`configs/data/filter-v1.yaml` remains available only when intentionally selected for
-reproducibility or comparison.
+## Local CLI
 
-## Colab Notebook
-
-The Colab notebook is orchestration-only. It mounts Google Drive, clones the repository, imports
-the Dataset Build workflow from `src/`, and calls it with the fixed Colab policy. The same notebook
-also contains Sprint 3 baseline workflow orchestration after Dataset Build completes; Dataset Build
-logic still stays in the Dataset Build workflow.
-
-The notebook does not expose public URL downloads, `gdown`, mounted extracted keypoint
-directories, alternate archive formats, storage-provider switches, or custom input/output roots.
-
-## CLI Script
-
-For local terminal execution against the canonical raw dataset layout, run:
+Run all splits against the canonical local raw layout:
 
 ```bash
 python scripts/dataset_build.py
 ```
 
-For a build without local archive packaging, run:
-
-```bash
-python scripts/dataset_build.py --no-package
-```
-
-Subset runs remain split-aware:
+Run selected splits:
 
 ```bash
 python scripts/dataset_build.py --splits train val
 ```
 
-The CLI is intentionally thin: it parses arguments, uses the active default filter config unless
-`--config` is provided, calls `run_dataset_build`, and prints concise status output.
+Run without local archive publication:
+
+```bash
+python scripts/dataset_build.py --no-package
+```
+
+The active default filter policy is `configs/data/filter-v2.yaml`: usable body plus at least one
+usable hand. `configs/data/filter-v1.yaml` remains only for intentional reproducibility or
+comparison runs.
+
+## Colab Notebook
+
+The single project-wide notebook is:
+
+`notebooks/colab/text_to_sign_production_colab.ipynb`
+
+The notebook is orchestration-only. It mounts Drive, acquires the repository, installs
+dependencies, and operates the stage workflow from `src/`.
+
+For Dataset Build outputs, the notebook provides separate cells to:
+
+- reuse extracted outputs already present in the worktree
+- extract archived outputs from the fixed Drive artifact root
+- run Dataset Build and publish archives when neither extracted nor archived outputs are available
+
+The notebook does not support public URL downloads, `gdown`, alternate archive formats, mounted
+extracted keypoint directories, storage-provider switches, or custom input/output roots.
 
 ## Fixed Colab Inputs
 
-The Colab workflow reads translations only from these fixed Google Drive paths:
+Translations are read only from:
 
 - `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/translations/how2sign_realigned_train.csv`
 - `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/translations/how2sign_realigned_val.csv`
 - `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/translations/how2sign_realigned_test.csv`
 
-It reads keypoints only from `.tar.zst` archives at:
+Keypoint archives are read only from:
 
 - `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/archives/train_2D_keypoints.tar.zst`
 - `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/archives/val_2D_keypoints.tar.zst`
 - `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/archives/test_2D_keypoints.tar.zst`
 
-Archives are copied into `/content/how2sign_downloads`, extracted there, staged into the canonical
-repo raw layout, and then temporary local extraction artifacts are cleaned.
+Archives are copied into `/content/how2sign_downloads`, extracted locally, staged into the
+canonical repo raw layout, and cleaned after staging.
 
-## Outputs
+## Extracted Outputs
 
-Local packaging writes Dataset Build archives under `data/archives/`. The supported Colab workflow
-packages locally first, then publishes the resulting archives only to:
+Dataset Build extracted outputs are the working directories under the repo:
+
+- `data/interim/raw_manifests/`
+- `data/interim/normalized_manifests/`
+- `data/interim/filtered_manifests/`
+- `data/interim/reports/`
+- `data/processed/v1/manifests/`
+- `data/processed/v1/reports/`
+- `data/processed/v1/samples/<split>/`
+
+These are local working artifacts and are not committed.
+
+## Archived Outputs
+
+Local archived outputs are written under:
+
+`data/archives/`
+
+Colab publishes Dataset Build archived outputs to:
 
 `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/`
 
-The archive set is:
+Archive names are stable:
 
 - `dataset_build_manifests_reports.tar.zst`
 - `dataset_build_samples_train.tar.zst`
 - `dataset_build_samples_val.tar.zst`
 - `dataset_build_samples_test.tar.zst`
 
-Equivalently, split sample archives use `dataset_build_samples_<split>.tar.zst`. Subset runs
-create or publish only the selected split archives plus the shared manifests/reports archive.
+Split archives use the pattern `dataset_build_samples_<split>.tar.zst`.
 
-Split sample archives are manifest-driven. Each `dataset_build_samples_<split>.tar.zst` contains
-exactly the `.npz` files referenced by `data/processed/v1/manifests/<split>.jsonl`; it is built
-from manifest sample paths rather than the entire `data/processed/v1/samples/<split>/` directory.
-
-## Developer Utilities
-
-The only scripts kept outside the primary execution interface are developer utilities:
-
-- `python scripts/validate_manifest.py --manifest ... --kind raw|normalized|processed`
-- `python scripts/view_sample.py --split train --sample-id ...`
-
-They are for inspection and debugging, not for running the Dataset Build stage.
+Each split sample archive is manifest-driven. It contains exactly the `.npz` files referenced by
+`data/processed/v1/manifests/<split>.jsonl`, not a blind copy of the full sample directory.
 
 ## Manual Limits
 
-Local CI does not live-validate actual Colab Drive mounting, large archive transfer speed, real
-Google Drive artifact publishing, or real How2Sign runtime behavior. Those remain manual
-operational checks documented under `tests/operational/`.
+Local CI does not live-validate real Google Drive mounting, large archive transfer speed, real
+Drive publishing, or real How2Sign runtime behavior. Those checks are documented under
+`tests/operational/`.

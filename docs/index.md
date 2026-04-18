@@ -1,49 +1,43 @@
 # text-to-sign-production
 
-`text-to-sign-production` is a graduation thesis repository focused on building a reproducible
-research foundation for future text-to-sign work. The current implemented stage is **Dataset
-Build**, a How2Sign/BFH data pipeline that produces training-ready manifests and `.npz` samples
-without making Baseline Modeling the main thesis-contribution stage. Sprint 3 now has a
-baseline-only public workflow surface for reproducible train/val runs, qualitative panel export,
-and runtime-side evidence packaging on processed Dataset Build outputs.
+`text-to-sign-production` is a graduation thesis repository for reproducible English
+text-to-sign-pose research.
+
+Current public stage: Dataset Build.
+
+Implemented internal downstream surface: Baseline Modeling.
+
+Not yet implemented: broader evaluation, contribution modeling, playback/demo.
 
 ## Current State
 
-- The repository is installable as a Python package.
-- Tests, linting, type checks, and docs builds are automated.
-- Heavy Colab runs are supported through one fixed notebook that covers Dataset Build and Sprint 3
-  baseline orchestration.
-- Local terminal runs are supported through one Dataset Build CLI script.
-- Sprint 3 baseline terminal runs are supported through one stage-oriented CLI script.
-- Dataset Build reproducibility is expressed through the workflow entrypoint, manifests, reports,
-  and packaged `.tar.zst` archives.
-- The active default filter policy is `configs/data/filter-v2.yaml` with usable body plus at least
-  one usable hand; the stricter `configs/data/filter-v1.yaml` policy is
-  legacy/reproducibility-oriented.
-- Processed dataset access is manifest-driven.
-- Runtime assumption, data-quality, and split-integrity reporting are built into the pipeline.
-- Artifact packaging and private/shared storage guidance are documented without exposing private
-  links.
-- Notebooks remain explicitly limited to thin runner behavior.
-- Sprint 3 baseline workflow operationalization is available; formal experiment-record authoring,
-  broader evaluation, and thesis-contribution modeling remain future work.
+- Dataset Build produces manifest-driven processed Dataset Build outputs from fixed How2Sign/BFH
+  inputs.
+- Baseline Modeling consumes processed manifests and `.npz` samples for baseline-only train/val
+  runs, qualitative panel export, and runtime evidence packaging.
+- The single project-wide Colab notebook is
+  `notebooks/colab/text_to_sign_production_colab.ipynb`.
+- The active Dataset Build filter policy is `configs/data/filter-v2.yaml`: usable body plus at
+  least one usable hand.
+- Processed schema version is `t2sp-processed-v1`.
+- Large generated artifacts stay outside GitHub and are restored through extracted outputs or
+  archived outputs.
+- Sprint 3 has a formal experiment-record documentation surface that cites runtime artifacts rather
+  than replacing them with a tracking server.
 
-For details, start with [Dataset Build execution](execution/dataset-build.md),
-[Baseline Modeling execution](execution/baseline-modeling.md), [filter policy](data/filter-policy.md),
-[data versioning](data/versioning.md), [processed schema](data/processed-schema.md), and
-[artifact storage](storage/artifacts.md). For the post-Dataset-Build thesis direction, read the
-[roadmap](roadmap.md) and [literature positioning](literature-positioning.md).
+## Start Here
 
-## Not Yet Implemented
+- Run the current public stage with [Dataset Build execution](execution/dataset-build.md).
+- Run the internal baseline surface with [Baseline Modeling execution](execution/baseline-modeling.md).
+- Use [Getting Started](getting-started.md) for install and first commands.
+- Use [Artifact Storage](storage/artifacts.md) for run roots, publish locations, and archive names.
+- Use [Experiments](experiments.md) for Dataset Build validation records and Sprint 3 baseline
+  experiment-record practice.
+- Use [Roadmap](roadmap.md) and [Literature Positioning](literature-positioning.md) for the thesis
+  direction after Dataset Build.
 
-The following are intentionally outside Dataset Build:
+## Boundaries
 
-- text tokenization
-- retrieval components
-- pose-token generation or training
-- production text-to-pose inference
-- broad baseline evaluation
-- formal experiment-record authoring
-- skeleton or avatar rendering
-
-This boundary is deliberate so the repository remains honest about its current maturity.
+The repository is intentionally honest about maturity. Dataset Build is public and implemented.
+Baseline Modeling is implemented as baseline evidence for later comparisons. Broader evaluation,
+contribution modeling, and playback/demo remain later phases.

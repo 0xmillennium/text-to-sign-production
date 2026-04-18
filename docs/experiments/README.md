@@ -1,12 +1,12 @@
 # Experiment Records
 
-Create one Markdown record per meaningful modeling run, modeling ablation, or intentional Dataset
-Build comparison.
+Create one Markdown record per meaningful Dataset Build validation, Sprint 3 baseline run,
+modeling ablation, or intentional comparison.
 
 ## Recording Guidance
 
-- Use the experiment template as a starting point.
-- Prefer one log per command or tightly related run group.
+- Use the closest template as a starting point.
+- Prefer one record per command or tightly related run group.
 - Record exact processed manifest or archive references, config identifiers, split scope, and
   commands.
 - Summarize outcomes clearly enough that another researcher can understand what happened.
@@ -15,7 +15,13 @@ Build comparison.
 
 ## Current Dataset Context
 
-Dataset Build is the current implemented stage. Baseline Modeling is the next major stage.
+Current public stage: Dataset Build.
+
+Implemented internal downstream surface: Baseline Modeling.
+
 Experiment records that consume Dataset Build output should name the processed schema version,
 filter config, and artifact set used. The active filter config is `configs/data/filter-v2.yaml`;
 `configs/data/filter-v1.yaml` is legacy and should appear only when a run intentionally uses it.
+
+Sprint 3 baseline records should use `sprint3-baseline-record-guide.md` and
+`sprint3-baseline-record-template.md`.

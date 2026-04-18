@@ -29,7 +29,8 @@ Each split sample archive is manifest-driven: `dataset_build_samples_<split>.tar
 exactly the `.npz` files referenced by `data/processed/v1/manifests/<split>.jsonl`, rather than
 copying the whole split sample directory.
 
-Operational Sprint 3 Baseline Modeling checks use the existing main notebook and the run root:
+Operational Sprint 3 Baseline Modeling checks use the main notebook
+`notebooks/colab/text_to_sign_production_colab.ipynb` and the run root:
 
 `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/`
 
@@ -39,7 +40,7 @@ The expected archive set under each run's `archives/` directory is:
 - `baseline_qualitative_outputs.tar.zst`
 - `baseline_record_package.tar.zst`
 
-Use `baseline_modeling_colab_resume_checklist.md` to validate mounted Drive, fresh publish,
+Use `text_to_sign_production_colab_resume_checklist.md` to validate mounted Drive, fresh publish,
 archive-present/extracted-absent extraction, extracted-present reuse, and publish/resume behavior.
 
 Normal CI runs:
