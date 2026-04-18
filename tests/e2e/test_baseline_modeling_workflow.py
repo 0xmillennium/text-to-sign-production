@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-import text_to_sign_production.data.utils as utils_mod
 import text_to_sign_production.workflows.baseline_modeling as baseline_workflow_mod
 from tests.support.modeling import (
-    write_baseline_modeling_config,
+    fake_create_archive,
+    patch_modeling_repo_root,
     write_fake_qualitative_outputs,
     write_fake_training_outputs,
-    write_processed_modeling_split,
+    write_tiny_baseline_modeling_workspace,
 )
 
 pytestmark = pytest.mark.e2e
@@ -22,21 +22,15 @@ def test_baseline_modeling_workflow_runs_on_tiny_processed_data_without_model_do
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
-    monkeypatch.setattr(
-        baseline_workflow_mod,
-        "create_tar_zst_archive",
-        _fake_create_archive,
-    )
-    write_processed_modeling_split(tmp_path, split="train", sample_ids=("train-sample",))
-    write_processed_modeling_split(tmp_path, split="val", sample_ids=("val-sample",))
-    config_path = write_baseline_modeling_config(tmp_path)
+    patch_modeling_repo_root(monkeypatch, tmp_path)
+    monkeypatch.setattr(baseline_workflow_mod, "create_tar_zst_archive", fake_create_archive)
+    workspace = write_tiny_baseline_modeling_workspace(tmp_path, run_name="tiny-e2e")
 
     result = baseline_workflow_mod.run_baseline_modeling(
         step="all",
-        config_path=config_path,
-        run_name="tiny-e2e",
-        artifact_runs_root=tmp_path / "runs",
+        config_path=workspace.config_path,
+        run_name=workspace.run_name,
+        artifact_runs_root=workspace.artifact_runs_root,
         panel_size=1,
         training_runner=_fake_training_runner,
         qualitative_runner=_fake_qualitative_runner,
@@ -72,15 +66,3 @@ def _fake_qualitative_runner(
     assert run_summary_path is not None
     assert panel_size == 1
     write_fake_qualitative_outputs(output_dir)
-
-
-def _fake_create_archive(
-    *,
-    archive_path: Path,
-    members: tuple[Path, ...],
-    cwd: Path,
-    label: str,
-) -> Path:
-    archive_path.parent.mkdir(parents=True, exist_ok=True)
-    archive_path.write_bytes(b"archive")
-    return archive_path

@@ -7,9 +7,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-import yaml
 
-import text_to_sign_production.data.utils as utils_mod
+from tests.support.modeling import (
+    baseline_config_payload,
+    patch_modeling_repo_root,
+    write_baseline_config_payload,
+)
 from text_to_sign_production.modeling.config import DEFAULT_BASELINE_CONFIG_PATH
 from text_to_sign_production.modeling.training.config import (
     BaselineTrainingConfigError,
@@ -22,45 +25,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _valid_config() -> dict[str, Any]:
-    return {
-        "data": {
-            "train_manifest": "data/processed/v1/manifests/train.jsonl",
-            "val_manifest": "data/processed/v1/manifests/val.jsonl",
-            "train_split": "train",
-            "val_split": "val",
-        },
-        "backbone": {
-            "name": "google/flan-t5-base",
-            "max_length": 16,
-            "local_files_only": True,
-            "freeze": True,
-        },
-        "model": {
-            "decoder_hidden_dim": 8,
-            "latent_dim": 6,
-        },
-        "training": {
-            "epochs": 1,
-            "batch_size": 2,
-            "shuffle_train": False,
-            "num_workers": 0,
-            "seed": 123,
-            "device": "cpu",
-        },
-        "optimizer": {
-            "name": "adamw",
-            "learning_rate": 0.001,
-            "weight_decay": 0.0,
-        },
-        "checkpoint": {
-            "output_dir": "outputs/modeling/baseline-test",
-        },
-    }
+    payload = baseline_config_payload(backbone_name="google/flan-t5-base")
+    payload["backbone"]["max_length"] = 16
+    payload["training"]["batch_size"] = 2
+    payload["training"]["seed"] = 123
+    return payload
 
 
 def _write_yaml(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    write_baseline_config_payload(path, payload)
 
 
 def _touch_manifest(root: Path, relative_path: str) -> None:
@@ -73,7 +46,7 @@ def test_load_baseline_training_config_resolves_repo_relative_paths(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
+    patch_modeling_repo_root(monkeypatch, tmp_path)
     config_path = tmp_path / "config.yaml"
     config_payload = _valid_config()
     _write_yaml(config_path, config_payload)
@@ -99,7 +72,7 @@ def test_load_baseline_training_config_rejects_missing_required_field(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
+    patch_modeling_repo_root(monkeypatch, tmp_path)
     config_payload = _valid_config()
     del config_payload["data"]["train_manifest"]
     config_path = tmp_path / "config.yaml"
@@ -113,7 +86,7 @@ def test_load_baseline_training_config_allows_null_seed(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
+    patch_modeling_repo_root(monkeypatch, tmp_path)
     config_payload = _valid_config()
     config_payload["training"]["seed"] = None
     config_path = tmp_path / "config.yaml"
@@ -128,7 +101,7 @@ def test_load_baseline_training_config_requires_seed_field(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path)
+    patch_modeling_repo_root(monkeypatch, tmp_path)
     config_payload = _valid_config()
     del config_payload["training"]["seed"]
     config_path = tmp_path / "config.yaml"
