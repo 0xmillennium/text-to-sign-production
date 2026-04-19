@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Sized
 from types import TracebackType
 from typing import Protocol, TypeVar, cast
 
@@ -57,11 +57,12 @@ def iter_with_progress(
 ) -> Iterator[T]:
     """Yield an iterable through the project-standard progress bar."""
 
+    resolved_total = _known_total(iterable) if total is None else total
     yield from cast(
         Iterable[T],
         _tqdm(
             iterable,
-            total=total,
+            total=resolved_total,
             desc=desc,
             unit=unit,
             file=sys.stdout,
@@ -115,3 +116,9 @@ def _write_chunk(writer: _ByteSink, chunk: bytes) -> None:
         writer(chunk)
         return
     writer.write(chunk)
+
+
+def _known_total(iterable: Iterable[object]) -> int | None:
+    if isinstance(iterable, Sized):
+        return len(iterable)
+    return None

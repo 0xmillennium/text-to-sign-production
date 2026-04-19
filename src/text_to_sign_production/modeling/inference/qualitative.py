@@ -24,6 +24,7 @@ from text_to_sign_production.modeling.data import (
     read_processed_modeling_manifest,
 )
 from text_to_sign_production.modeling.training.config import load_baseline_training_config
+from text_to_sign_production.ops.progress import iter_with_progress
 
 from .evidence import write_baseline_evidence_bundle
 from .paths import portable_path
@@ -210,7 +211,14 @@ def export_qualitative_panel(
     write_panel_definition(output_panel_definition_path, panel)
 
     artifact_records: list[dict[str, object]] = []
-    for index, record in enumerate(selected_records):
+    for index, record in enumerate(
+        iter_with_progress(
+            selected_records,
+            total=len(selected_records),
+            desc="[baseline qualitative] Export validation panel",
+            unit="sample",
+        )
+    ):
         pose_sample = load_processed_pose_sample(record)
         item = ProcessedPoseItem.from_manifest_and_sample(record, pose_sample)
         batch = collate_processed_pose_samples([item])

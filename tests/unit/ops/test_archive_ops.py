@@ -108,6 +108,20 @@ class _FakeCreateZstdSuccessProcess:
         return
 
 
+class _FakeProgressBar:
+    def __init__(self, updates: list[int]) -> None:
+        self._updates = updates
+
+    def __enter__(self) -> _FakeProgressBar:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return
+
+    def update(self, n: int = 1) -> None:
+        self._updates.append(n)
+
+
 def test_copy_file_with_progress_replaces_destination_after_success(tmp_path: Path) -> None:
     source = tmp_path / "source.bin"
     destination = tmp_path / "artifact.bin"
@@ -406,6 +420,129 @@ def test_create_tar_zst_archive_passes_absolute_files_from_path_for_relative_arc
     assert files_from_paths
     assert not files_from_paths[0].exists()
     assert (process_cwd / archive_path).exists()
+
+
+def test_create_tar_zst_archive_from_snapshot_uses_local_snapshot_and_then_publishes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    live_root = tmp_path / "drive" / "run"
+    write_text(live_root / "config" / "baseline.yaml", "config")
+    write_text(live_root / "checkpoints" / "last.pt", "checkpoint")
+    final_archive = live_root / "archives" / "baseline_training_outputs.tar.zst"
+    snapshot_parent = tmp_path / "local-snapshots"
+    events: list[str] = []
+    progress_calls: list[dict[str, object]] = []
+    progress_updates: list[int] = []
+    observed_snapshot_cwd: Path | None = None
+
+    def fake_progress_bar(
+        total: int | None = None,
+        desc: str = "",
+        unit: str = "items",
+    ) -> _FakeProgressBar:
+        progress_calls.append({"total": total, "desc": desc, "unit": unit})
+        return _FakeProgressBar(progress_updates)
+
+    def fake_create_tar_zst_archive(
+        *,
+        archive_path: Path,
+        members: Sequence[Path],
+        cwd: Path,
+        label: str,
+    ) -> Path:
+        nonlocal observed_snapshot_cwd
+        assert label == "Archive training"
+        assert cwd != live_root
+        assert cwd.is_relative_to(snapshot_parent.resolve())
+        assert tuple(members) == (Path("config"), Path("checkpoints"))
+        assert (cwd / "config" / "baseline.yaml").read_text(encoding="utf-8") == "config"
+        assert (cwd / "checkpoints" / "last.pt").read_text(encoding="utf-8") == "checkpoint"
+        observed_snapshot_cwd = cwd
+        events.append("local-create")
+        archive_path.write_bytes(b"finished local archive")
+        return archive_path
+
+    def fake_copy_file_with_progress(source: Path, destination: Path, *, label: str) -> Path:
+        assert events == ["local-create"]
+        assert source.read_bytes() == b"finished local archive"
+        assert destination == final_archive
+        assert label == "Archive training (publish archive)"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(source.read_bytes())
+        events.append("publish")
+        return destination
+
+    monkeypatch.setattr(archive_ops_mod, "ensure_tar_zst_create_prerequisites", lambda: None)
+    monkeypatch.setattr(archive_ops_mod, "progress_bar", fake_progress_bar)
+    monkeypatch.setattr(archive_ops_mod, "create_tar_zst_archive", fake_create_tar_zst_archive)
+    monkeypatch.setattr(archive_ops_mod, "copy_file_with_progress", fake_copy_file_with_progress)
+
+    result = archive_ops_mod.create_tar_zst_archive_from_snapshot(
+        archive_path=final_archive,
+        members=(live_root / "config", live_root / "checkpoints"),
+        cwd=live_root,
+        label="Archive training",
+        snapshot_parent=snapshot_parent,
+    )
+
+    assert result == final_archive
+    assert final_archive.read_bytes() == b"finished local archive"
+    assert events == ["local-create", "publish"]
+    assert observed_snapshot_cwd is not None
+    assert not observed_snapshot_cwd.exists()
+    assert progress_calls == [
+        {
+            "total": len("config") + len("checkpoint"),
+            "desc": "Archive training (snapshot copy)",
+            "unit": "B",
+        }
+    ]
+    assert sum(progress_updates) == len("config") + len("checkpoint")
+
+
+def test_create_tar_zst_archive_from_snapshot_cleans_snapshot_after_local_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    live_root = tmp_path / "drive" / "run"
+    write_text(live_root / "qualitative" / "records.jsonl", "{}\n")
+    final_archive = live_root / "archives" / "baseline_qualitative_outputs.tar.zst"
+    snapshot_parent = tmp_path / "local-snapshots"
+
+    def fake_create_tar_zst_archive(
+        *,
+        archive_path: Path,
+        members: Sequence[Path],
+        cwd: Path,
+        label: str,
+    ) -> Path:
+        del archive_path, members, cwd, label
+        raise RuntimeError("simulated local archive failure")
+
+    def unexpected_copy_file_with_progress(source: Path, destination: Path, *, label: str) -> Path:
+        del source, destination, label
+        raise AssertionError("archive should not be published after local creation failure")
+
+    monkeypatch.setattr(archive_ops_mod, "ensure_tar_zst_create_prerequisites", lambda: None)
+    monkeypatch.setattr(archive_ops_mod, "create_tar_zst_archive", fake_create_tar_zst_archive)
+    monkeypatch.setattr(
+        archive_ops_mod,
+        "copy_file_with_progress",
+        unexpected_copy_file_with_progress,
+    )
+
+    with pytest.raises(RuntimeError, match="simulated local archive failure"):
+        archive_ops_mod.create_tar_zst_archive_from_snapshot(
+            archive_path=final_archive,
+            members=(live_root / "qualitative",),
+            cwd=live_root,
+            label="Archive qualitative",
+            snapshot_parent=snapshot_parent,
+        )
+
+    assert not final_archive.exists()
+    assert list(snapshot_parent.iterdir()) == []
 
 
 def test_write_tar_member_list_removes_partial_file_after_write_failure(

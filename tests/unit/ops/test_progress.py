@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import io
+from collections.abc import Iterable
+from typing import Any
 
 import pytest
 
@@ -21,6 +23,23 @@ def test_iter_with_progress_yields_items_and_labels_progress(
     captured = capsys.readouterr()
     assert items == [1, 2, 3]
     assert "Progress items" in captured.out
+
+
+def test_iter_with_progress_infers_total_for_sized_iterables(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed_totals: list[int | None] = []
+
+    def fake_tqdm(iterable: Iterable[int], **kwargs: Any) -> Iterable[int]:
+        observed_totals.append(kwargs.get("total"))
+        return iterable
+
+    monkeypatch.setattr(progress_mod, "_tqdm", fake_tqdm)
+
+    items = list(progress_mod.iter_with_progress([1, 2, 3], desc="Progress items"))
+
+    assert items == [1, 2, 3]
+    assert observed_totals == [3]
 
 
 def test_progress_bar_supports_manual_updates(capsys: pytest.CaptureFixture[str]) -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+import time
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,6 +23,7 @@ from text_to_sign_production.modeling.data import (
     collate_processed_pose_samples,
 )
 from text_to_sign_production.modeling.models import BaselineTextToPoseModel
+from text_to_sign_production.ops.progress import iter_with_progress
 
 from .checkpointing import (
     RUN_SUMMARY_FILENAME,
@@ -168,13 +170,21 @@ def run_training_epoch(
     optimizer: Optimizer,
     *,
     device: torch.device,
+    non_blocking: bool = False,
+    progress_label: str = "",
+    progress_total: int | None = None,
 ) -> TrainingEpochResult:
     """Run one training epoch and aggregate masked training loss."""
 
     total_loss = 0.0
     total_valid_frames = 0
-    for batch in batches:
-        device_batch = move_batch_to_device(batch, device)
+    for batch in iter_with_progress(
+        batches,
+        total=progress_total,
+        desc=progress_label,
+        unit="batch",
+    ):
+        device_batch = move_batch_to_device(batch, device, non_blocking=non_blocking)
         valid_frame_count = count_valid_contributing_frames(device_batch)
         if valid_frame_count == 0:
             continue
@@ -219,6 +229,9 @@ def run_baseline_training(
         batch_size=config.training.batch_size,
         shuffle=config.training.shuffle_train,
         num_workers=config.training.num_workers,
+        pin_memory=config.training.pin_memory,
+        persistent_workers=config.training.persistent_workers,
+        prefetch_factor=config.training.prefetch_factor,
         seed=config.training.seed,
     )
     val_loader = _build_dataloader(
@@ -226,6 +239,9 @@ def run_baseline_training(
         batch_size=config.training.batch_size,
         shuffle=False,
         num_workers=config.training.num_workers,
+        pin_memory=config.training.pin_memory,
+        persistent_workers=config.training.persistent_workers,
+        prefetch_factor=config.training.prefetch_factor,
         seed=None,
     )
 
@@ -242,8 +258,25 @@ def run_baseline_training(
     final_validation_result: ValidationEpochResult | None = None
 
     for epoch in range(1, config.training.epochs + 1):
-        train_result = run_training_epoch(model, train_loader, optimizer, device=device)
-        validation_result = run_validation_epoch(model, val_loader, device=device)
+        epoch_start_time = time.perf_counter()
+        print(f"[baseline train] epoch {epoch}/{config.training.epochs} start")
+        train_result = run_training_epoch(
+            model,
+            train_loader,
+            optimizer,
+            device=device,
+            non_blocking=config.training.non_blocking_transfers,
+            progress_label=f"[baseline train] epoch {epoch}/{config.training.epochs}",
+            progress_total=len(train_loader),
+        )
+        validation_result = run_validation_epoch(
+            model,
+            val_loader,
+            device=device,
+            non_blocking=config.training.non_blocking_transfers,
+            progress_label=f"[baseline val] epoch {epoch}/{config.training.epochs}",
+            progress_total=len(val_loader),
+        )
         final_train_result = train_result
         final_validation_result = validation_result
         history.append(
@@ -271,10 +304,11 @@ def run_baseline_training(
             seed=config.training.seed,
             metrics=metrics,
         )
-        if should_replace_best_checkpoint(
+        best_checkpoint_updated = should_replace_best_checkpoint(
             candidate_validation_loss=validation_result.loss,
             best_validation_loss=best_validation_loss,
-        ):
+        )
+        if best_checkpoint_updated:
             best_validation_loss = validation_result.loss
             best_epoch = epoch
             best_checkpoint_path = checkpoint_dir / "best.pt"
@@ -289,6 +323,15 @@ def run_baseline_training(
                 seed=config.training.seed,
                 metrics=metrics,
             )
+        elapsed_seconds = time.perf_counter() - epoch_start_time
+        print(
+            f"[baseline train] epoch {epoch}/{config.training.epochs} summary: "
+            f"train_loss={train_result.loss:.6g} "
+            f"validation_loss={validation_result.loss:.6g} "
+            f"validation_metric={validation_result.metric:.6g} "
+            f"elapsed_seconds={elapsed_seconds:.1f} "
+            f"best_checkpoint_updated={'yes' if best_checkpoint_updated else 'no'}"
+        )
 
     if final_train_result is None or final_validation_result is None:
         raise RuntimeError("Baseline training did not run any epochs.")
@@ -334,6 +377,9 @@ def _build_dataloader(
     batch_size: int,
     shuffle: bool,
     num_workers: int,
+    pin_memory: bool,
+    persistent_workers: bool,
+    prefetch_factor: int | None,
     seed: int | None,
 ) -> DataLoader[ProcessedPoseBatch]:
     generator = None
@@ -341,11 +387,15 @@ def _build_dataloader(
         generator = torch.Generator()
         generator.manual_seed(seed)
 
-    return DataLoader(
-        cast(Any, dataset),
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=num_workers,
-        collate_fn=collate_processed_pose_samples,
-        generator=generator,
-    )
+    dataloader_kwargs: dict[str, Any] = {
+        "batch_size": batch_size,
+        "shuffle": shuffle,
+        "num_workers": num_workers,
+        "pin_memory": pin_memory,
+        "persistent_workers": persistent_workers,
+        "collate_fn": collate_processed_pose_samples,
+        "generator": generator,
+    }
+    if prefetch_factor is not None:
+        dataloader_kwargs["prefetch_factor"] = prefetch_factor
+    return DataLoader(cast(Any, dataset), **dataloader_kwargs)

@@ -21,7 +21,7 @@ from text_to_sign_production.modeling.data import read_processed_modeling_manife
 from text_to_sign_production.modeling.inference.qualitative import DEFAULT_QUALITATIVE_PANEL_SIZE
 from text_to_sign_production.modeling.training.config import load_baseline_training_config
 from text_to_sign_production.ops.archive_ops import (
-    create_tar_zst_archive,
+    create_tar_zst_archive_from_snapshot,
     extract_tar_zst_with_progress,
 )
 
@@ -687,7 +687,7 @@ def _create_baseline_archive(
         artifact_description=artifact_description,
     )
     try:
-        return create_tar_zst_archive(
+        return create_tar_zst_archive_from_snapshot(
             archive_path=archive_path,
             members=members,
             cwd=cwd,
@@ -827,11 +827,13 @@ def _validate_extracted_config_compatible(
 
 
 def _write_record_package(layout: BaselineRunLayout) -> None:
+    print("[baseline record] Assemble runtime record package")
     _require_package_inputs(layout)
     ensure_directory(layout.record_dir)
     shutil.copy2(layout.evidence_bundle_path, layout.record_evidence_bundle_path)
     shutil.copy2(layout.metrics_run_summary_path, layout.record_run_summary_path)
     write_json(layout.package_manifest_path, _record_package_payload(layout))
+    print(f"[baseline record] Package manifest written: {layout.package_manifest_path}")
 
 
 def _require_package_inputs(layout: BaselineRunLayout) -> None:

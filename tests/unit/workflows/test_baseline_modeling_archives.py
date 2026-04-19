@@ -72,7 +72,7 @@ def test_archive_helper_file_not_found_is_reworded_for_baseline_context(
     layout.qualitative_dir.mkdir(parents=True)
     monkeypatch.setattr(
         baseline_workflow_mod,
-        "create_tar_zst_archive",
+        "create_tar_zst_archive_from_snapshot",
         raise_dataset_build_archive_error,
     )
 

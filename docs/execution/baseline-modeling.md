@@ -34,6 +34,10 @@ The default Baseline Modeling config is:
 
 `src/text_to_sign_production/modeling/config/baseline.yaml`
 
+The default config stays conservative for local, CI, and Colab runs. Runtime-oriented settings such
+as DataLoader workers, pinned memory, and non-blocking CUDA transfers must stay explicit in the
+config so operator-side tuning does not silently change the baseline's training semantics.
+
 The default text backbone is `google/flan-t5-base`. The workflow remains modular and
 backbone-agnostic through config and model interfaces.
 
@@ -101,7 +105,14 @@ The deterministic archive names are:
 - `archives/baseline_record_package.tar.zst`
 
 Archive extraction merges step outputs into the run root without deleting sibling directories such
-as `archives/`.
+as `archives/`. Archive creation for Baseline Modeling does not tar the live run root directly:
+the workflow copies required extracted outputs into a local temporary snapshot, creates the
+`.tar.zst` archive locally, and publishes the finished archive to `archives/`.
+
+Training, validation, qualitative export, archive extraction, snapshot copy, and archive publish
+steps emit visible progress. When a meaningful total is knowable, the progress output uses that
+total, such as DataLoader batch counts, qualitative sample counts, archive byte sizes, or snapshot
+copy byte counts.
 
 ## Runtime Artifacts
 

@@ -8,18 +8,19 @@ import subprocess
 import tarfile
 import tempfile
 import threading
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path, PurePosixPath
 from typing import IO, BinaryIO, NoReturn
 
 from ..data.utils import ensure_directory
-from .progress import stream_file_with_progress
+from .progress import progress_bar, stream_file_with_progress
 
 _TAR_BLOCK_SIZE = 512
 _TAR_RECORD_BLOCKS = 20
 _TAR_RECORD_SIZE = _TAR_BLOCK_SIZE * _TAR_RECORD_BLOCKS
 _TAR_END_BLOCK_BYTES = 2 * _TAR_BLOCK_SIZE
 _MAX_SIMPLE_TAR_NAME_BYTES = 100
+_COPY_CHUNK_SIZE = 8 * 1024 * 1024
 
 
 def tar_supports_zstd() -> bool:
@@ -277,6 +278,52 @@ def create_tar_zst_archive(
     return archive_path
 
 
+def create_tar_zst_archive_from_snapshot(
+    *,
+    archive_path: Path,
+    members: Sequence[Path],
+    cwd: Path,
+    label: str,
+    snapshot_parent: Path | None = None,
+) -> Path:
+    """Create a `.tar.zst` from a stable local snapshot, then publish the finished archive."""
+
+    if not archive_path.name.endswith(".tar.zst"):
+        raise ValueError(f"Expected a .tar.zst archive, got: {archive_path.name}")
+
+    ensure_tar_zst_create_prerequisites()
+    member_names = [str(_relative_member_path(member, cwd)) for member in members]
+    _assert_required_members(cwd, members)
+    local_snapshot_parent = _resolve_snapshot_parent(snapshot_parent)
+    ensure_directory(local_snapshot_parent)
+
+    with tempfile.TemporaryDirectory(
+        prefix=f".{archive_path.name}.snapshot-",
+        dir=local_snapshot_parent,
+    ) as temp_root:
+        temp_root_path = Path(temp_root)
+        snapshot_cwd = temp_root_path / "snapshot"
+        snapshot_cwd.mkdir()
+        _copy_members_to_snapshot(
+            cwd=cwd,
+            member_names=member_names,
+            snapshot_cwd=snapshot_cwd,
+            label=f"{label} (snapshot copy)",
+        )
+        local_archive_path = temp_root_path / archive_path.name
+        create_tar_zst_archive(
+            archive_path=local_archive_path,
+            members=tuple(Path(member_name) for member_name in member_names),
+            cwd=snapshot_cwd,
+            label=label,
+        )
+        return copy_file_with_progress(
+            local_archive_path,
+            archive_path,
+            label=f"{label} (publish archive)",
+        )
+
+
 def copy_archive_to_drive(source: Path, destination: Path, *, label: str) -> Path:
     """Copy a packaged archive to Drive with progress output."""
 
@@ -313,6 +360,70 @@ def _write_tar_member_list(root: Path, archive_name: str, member_names: Sequence
         if member_list_path is not None:
             member_list_path.unlink(missing_ok=True)
         raise
+
+
+def _resolve_snapshot_parent(snapshot_parent: Path | None) -> Path:
+    if snapshot_parent is not None:
+        return snapshot_parent.expanduser().resolve()
+    return Path(tempfile.gettempdir()).resolve()
+
+
+def _copy_members_to_snapshot(
+    *,
+    cwd: Path,
+    member_names: Sequence[str],
+    snapshot_cwd: Path,
+    label: str,
+) -> None:
+    total_bytes = _snapshot_members_total_bytes(cwd, member_names)
+    with progress_bar(total=total_bytes, desc=label, unit="B") as bar:
+        for member_name in member_names:
+            _copy_snapshot_member(
+                cwd / member_name,
+                snapshot_cwd / member_name,
+                progress_update=bar.update,
+            )
+
+
+def _copy_snapshot_member(
+    source: Path,
+    destination: Path,
+    *,
+    progress_update: Callable[[int], object],
+) -> None:
+    source_stat = source.lstat()
+    if stat.S_ISDIR(source_stat.st_mode):
+        destination.mkdir(parents=True, exist_ok=True)
+        for child in sorted(source.iterdir(), key=lambda path: path.name):
+            _copy_snapshot_member(
+                child,
+                destination / child.name,
+                progress_update=progress_update,
+            )
+        shutil.copystat(source, destination, follow_symlinks=False)
+        return
+    if stat.S_ISREG(source_stat.st_mode):
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with source.open("rb") as source_handle, destination.open("wb") as destination_handle:
+            while chunk := source_handle.read(_COPY_CHUNK_SIZE):
+                destination_handle.write(chunk)
+                progress_update(len(chunk))
+        shutil.copystat(source, destination, follow_symlinks=False)
+        return
+    raise ValueError(f"Unsupported snapshot archive member type: {source}")
+
+
+def _snapshot_members_total_bytes(cwd: Path, member_names: Sequence[str]) -> int:
+    return sum(_snapshot_member_total_bytes(cwd / member_name) for member_name in member_names)
+
+
+def _snapshot_member_total_bytes(path: Path) -> int:
+    path_stat = path.lstat()
+    if stat.S_ISDIR(path_stat.st_mode):
+        return sum(_snapshot_member_total_bytes(child) for child in path.iterdir())
+    if stat.S_ISREG(path_stat.st_mode):
+        return path_stat.st_size
+    raise ValueError(f"Unsupported snapshot archive member type: {path}")
 
 
 def _assert_required_members(cwd: Path, members: Iterable[Path]) -> None:
@@ -372,6 +483,8 @@ def _validated_tar_member_path(member: tarfile.TarInfo, destination: Path) -> Pa
 
 
 def _tar_stream_total_bytes(cwd: Path, member_names: Sequence[str]) -> int | None:
+    """Return a known tar stream size, or None only when tar encoding can change it."""
+
     total_bytes = 0
     for member_name in member_names:
         member_total = _tar_member_stream_bytes(cwd / member_name, member_name)

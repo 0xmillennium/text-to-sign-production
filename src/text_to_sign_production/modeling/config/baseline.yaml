@@ -19,6 +19,10 @@ training:
   batch_size: 2
   shuffle_train: true
   num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  prefetch_factor: null
+  non_blocking_transfers: false
   seed: 13
   device: auto
 

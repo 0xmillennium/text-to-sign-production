@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import random
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pytest
 
 torch: Any = pytest.importorskip("torch")
 
+import text_to_sign_production.modeling.training.train as train_module  # noqa: E402
 from tests.support.modeling_torch import (  # noqa: E402
     build_dummy_baseline_model,
     pose_surface,
@@ -144,6 +145,25 @@ def test_move_batch_to_device_preserves_metadata_and_moves_tensors() -> None:
     assert moved.left_hand.device == torch.device("cpu")
     assert moved.right_hand.device == torch.device("cpu")
     assert moved.padding_mask.device == torch.device("cpu")
+
+
+def test_build_dataloader_applies_runtime_tuning_fields() -> None:
+    loader = train_module._build_dataloader(
+        cast(Any, [object()]),
+        batch_size=1,
+        shuffle=False,
+        num_workers=2,
+        pin_memory=True,
+        persistent_workers=True,
+        prefetch_factor=2,
+        seed=5,
+    )
+
+    assert loader.batch_size == 1
+    assert loader.num_workers == 2
+    assert loader.pin_memory is True
+    assert loader.persistent_workers is True
+    assert loader.prefetch_factor == 2
 
 
 def test_set_reproducibility_seed_resets_local_generators() -> None:
