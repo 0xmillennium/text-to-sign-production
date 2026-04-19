@@ -37,7 +37,7 @@ def test_non_prepare_step_skips_processed_validation_when_config_already_matches
 
     monkeypatch.setattr(
         baseline_workflow_mod,
-        "create_tar_zst_archive_from_snapshot",
+        "_create_baseline_archive",
         fake_create_archive,
     )
 

@@ -5,8 +5,7 @@ from __future__ import annotations
 import json
 import re
 import shutil
-import tempfile
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,16 +13,13 @@ from typing import Any, Literal, Protocol, cast
 
 import yaml
 
+import text_to_sign_production.workflows._baseline_archive_ops as baseline_archive_ops
 from text_to_sign_production.data.constants import COLAB_DRIVE_PROJECT_ROOT, REPO_ROOT
 from text_to_sign_production.data.utils import ensure_directory, utc_timestamp, write_json
 from text_to_sign_production.modeling.config import DEFAULT_BASELINE_CONFIG_PATH
 from text_to_sign_production.modeling.data import read_processed_modeling_manifest
 from text_to_sign_production.modeling.inference.qualitative import DEFAULT_QUALITATIVE_PANEL_SIZE
 from text_to_sign_production.modeling.training.config import load_baseline_training_config
-from text_to_sign_production.ops.archive_ops import (
-    create_tar_zst_archive_from_snapshot,
-    extract_tar_zst_with_progress,
-)
 
 BaselineModelingStep = Literal["prepare", "train", "export-panel", "package", "all"]
 BaselineStepName = Literal["prepare", "train", "export-panel", "package"]
@@ -423,18 +419,14 @@ def ensure_baseline_training_outputs(
     """Ensure baseline training outputs exist under the run layout."""
 
     decision = resolve_training_resume_decision(layout)
-    if decision.action == "reuse_extracted":
-        _sync_training_metrics(layout)
-        return _step_result_from_decision(decision)
-    if decision.action == "extract_archive":
-        _extract_archive_into_run_root(
-            decision.archive_path,
-            run_root=layout.run_root,
-            label="[baseline train] Extract archived outputs",
-        )
-        _require_decision_outputs(decision)
-        _sync_training_metrics(layout)
-        return _step_result_from_decision(decision)
+    restored_result = _restore_step_from_resume(
+        decision,
+        run_root=layout.run_root,
+        extract_label="[baseline train] Extract archived outputs",
+        after_restore=lambda: _sync_training_metrics(layout),
+    )
+    if restored_result is not None:
+        return restored_result
 
     runner = training_runner if training_runner is not None else _load_training_runner()
     runner(layout.config_path, checkpoint_output_dir=layout.checkpoints_dir)
@@ -453,16 +445,13 @@ def ensure_baseline_qualitative_outputs(
     """Ensure baseline qualitative panel outputs exist under the run layout."""
 
     decision = resolve_qualitative_resume_decision(layout)
-    if decision.action == "reuse_extracted":
-        return _step_result_from_decision(decision)
-    if decision.action == "extract_archive":
-        _extract_archive_into_run_root(
-            decision.archive_path,
-            run_root=layout.run_root,
-            label="[baseline qualitative] Extract archived outputs",
-        )
-        _require_decision_outputs(decision)
-        return _step_result_from_decision(decision)
+    restored_result = _restore_step_from_resume(
+        decision,
+        run_root=layout.run_root,
+        extract_label="[baseline qualitative] Extract archived outputs",
+    )
+    if restored_result is not None:
+        return restored_result
 
     runner = qualitative_runner if qualitative_runner is not None else _load_qualitative_runner()
     runner(
@@ -484,16 +473,13 @@ def ensure_baseline_record_package(
     """Ensure runtime-side package/evidence outputs exist under the run layout."""
 
     decision = resolve_record_resume_decision(layout)
-    if decision.action == "reuse_extracted":
-        return _step_result_from_decision(decision)
-    if decision.action == "extract_archive":
-        _extract_archive_into_run_root(
-            decision.archive_path,
-            run_root=layout.run_root,
-            label="[baseline record] Extract archived package",
-        )
-        _require_decision_outputs(decision)
-        return _step_result_from_decision(decision)
+    restored_result = _restore_step_from_resume(
+        decision,
+        run_root=layout.run_root,
+        extract_label="[baseline record] Extract archived package",
+    )
+    if restored_result is not None:
+        return restored_result
 
     _write_record_package(layout)
     _require_decision_outputs(decision)
@@ -533,6 +519,27 @@ def _resolve_resume_decision(
         archive_path=archive_path,
         required_paths=required_paths,
     )
+
+
+def _restore_step_from_resume(
+    decision: _ResumeDecision,
+    *,
+    run_root: Path,
+    extract_label: str,
+    after_restore: Callable[[], None] | None = None,
+) -> BaselineModelingStepResult | None:
+    if decision.action == "run_step":
+        return None
+    if decision.action == "extract_archive":
+        _extract_archive_into_run_root(
+            decision.archive_path,
+            run_root=run_root,
+            label=extract_label,
+        )
+        _require_decision_outputs(decision)
+    if after_restore is not None:
+        after_restore()
+    return _step_result_from_decision(decision)
 
 
 def _require_decision_outputs(decision: _ResumeDecision) -> None:
@@ -681,149 +688,22 @@ def _create_baseline_archive(
     label: str,
     artifact_description: str,
 ) -> Path:
-    _require_baseline_archive_members(
+    return baseline_archive_ops.create_baseline_archive(
+        archive_path=archive_path,
         members=members,
         cwd=cwd,
+        label=label,
         artifact_description=artifact_description,
     )
-    try:
-        return create_tar_zst_archive_from_snapshot(
-            archive_path=archive_path,
-            members=members,
-            cwd=cwd,
-            label=label,
-        )
-    except FileNotFoundError as exc:
-        raise FileNotFoundError(
-            _baseline_archive_missing_members_message(
-                members=members,
-                cwd=cwd,
-                artifact_description=artifact_description,
-            )
-        ) from exc
-
-
-def _require_baseline_archive_members(
-    *,
-    members: tuple[Path, ...],
-    cwd: Path,
-    artifact_description: str,
-) -> None:
-    missing_members = _missing_baseline_archive_members(members=members, cwd=cwd)
-    if missing_members:
-        formatted = "\n".join(f"- {member}" for member in missing_members)
-        raise FileNotFoundError(
-            f"Cannot archive {artifact_description}; missing required baseline-modeling "
-            f"run artifacts:\n{formatted}"
-        )
-
-
-def _baseline_archive_missing_members_message(
-    *,
-    members: tuple[Path, ...],
-    cwd: Path,
-    artifact_description: str,
-) -> str:
-    missing_members = _missing_baseline_archive_members(members=members, cwd=cwd)
-    if missing_members:
-        formatted = "\n".join(f"- {member}" for member in missing_members)
-        return (
-            f"Cannot archive {artifact_description}; missing required baseline-modeling "
-            f"run artifacts:\n{formatted}"
-        )
-    formatted = "\n".join(f"- {member}" for member in members)
-    return (
-        f"Cannot archive {artifact_description}; baseline-modeling archive member "
-        f"validation failed while reading run artifacts under {cwd}. Expected members:\n"
-        f"{formatted}"
-    )
-
-
-def _missing_baseline_archive_members(
-    *,
-    members: tuple[Path, ...],
-    cwd: Path,
-) -> tuple[Path, ...]:
-    return tuple(
-        member for member in members if not _baseline_archive_member_path(member, cwd).exists()
-    )
-
-
-def _baseline_archive_member_path(member: Path, cwd: Path) -> Path:
-    return member if member.is_absolute() else cwd / member
 
 
 def _extract_archive_into_run_root(archive_path: Path, *, run_root: Path, label: str) -> None:
-    ensure_directory(run_root)
-    with tempfile.TemporaryDirectory(
-        prefix=f".{archive_path.name}.extract-",
-        dir=run_root.parent,
-    ) as temp_root:
-        extraction_destination = Path(temp_root) / "extracted"
-        extract_tar_zst_with_progress(archive_path, extraction_destination, label=label)
-        if not extraction_destination.is_dir():
-            raise RuntimeError(f"Archive extraction did not create outputs: {archive_path}")
-        extracted_members = sorted(extraction_destination.iterdir(), key=lambda path: path.name)
-        if not extracted_members:
-            raise RuntimeError(f"Archive did not contain any outputs: {archive_path}")
-        _validate_extracted_config_compatible(
-            extracted_config_dir=extraction_destination / "config",
-            current_config_dir=run_root / "config",
-        )
-        for source in extracted_members:
-            _move_extracted_member_into_run_root(source, run_root=run_root)
-
-
-def _move_extracted_member_into_run_root(source: Path, *, run_root: Path) -> None:
-    destination = run_root / source.name
-    if source.name == "config" and destination.exists():
-        return
-    if source.name == "archives" and destination.exists():
-        if not destination.is_dir():
-            raise FileExistsError(
-                f"Baseline archives path exists and is not a directory: {destination}"
-            )
-        return
-    if destination.exists():
-        if destination.is_dir():
-            shutil.rmtree(destination)
-        else:
-            destination.unlink()
-    shutil.move(str(source), str(destination))
-
-
-def _validate_extracted_config_compatible(
-    *,
-    extracted_config_dir: Path,
-    current_config_dir: Path,
-) -> None:
-    if not extracted_config_dir.exists():
-        return
-    if not extracted_config_dir.is_dir():
-        raise RuntimeError(
-            f"Archived baseline config member is not a directory: {extracted_config_dir}"
-        )
-    if not current_config_dir.exists():
-        return
-    if not current_config_dir.is_dir():
-        raise FileExistsError(
-            f"Baseline config path exists and is not a directory: {current_config_dir}"
-        )
-
-    current_source_config = current_config_dir / SOURCE_BASELINE_CONFIG_NAME
-    archived_source_config = extracted_config_dir / SOURCE_BASELINE_CONFIG_NAME
-    if not current_source_config.is_file() or not archived_source_config.is_file():
-        raise ValueError(
-            "Cannot extract archived baseline config over an existing config directory "
-            f"because {SOURCE_BASELINE_CONFIG_NAME} is missing. Use a new run_name or "
-            f"repair the run directory: {current_config_dir}"
-        )
-    if current_source_config.read_bytes() != archived_source_config.read_bytes():
-        raise ValueError(
-            "Archived baseline source config differs from the current run config. "
-            "Use a new run_name for a different config or remove the existing run "
-            f"directory: {current_config_dir}"
-        )
+    baseline_archive_ops.extract_baseline_archive_into_run_root(
+        archive_path,
+        run_root=run_root,
+        label=label,
+        source_config_name=SOURCE_BASELINE_CONFIG_NAME,
+    )
 
 
 def _write_record_package(layout: BaselineRunLayout) -> None:

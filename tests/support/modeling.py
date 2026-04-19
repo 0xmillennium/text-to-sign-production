@@ -354,10 +354,11 @@ def fake_create_archive(
     cwd: Path,
     label: str,
     snapshot_parent: Path | None = None,
+    artifact_description: str | None = None,
 ) -> Path:
     """Boundary fake for archive creation in CI-safe workflow tests."""
 
-    del members, cwd, label, snapshot_parent
+    del members, cwd, label, snapshot_parent, artifact_description
     archive_path.parent.mkdir(parents=True, exist_ok=True)
     archive_path.write_bytes(b"archive")
     return archive_path

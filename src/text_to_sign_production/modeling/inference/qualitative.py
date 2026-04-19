@@ -37,6 +37,12 @@ QUALITATIVE_EXPORT_SCHEMA_VERSION = "t2sp-qualitative-export-v1"
 DEFAULT_QUALITATIVE_PANEL_SIZE = 8
 QUALITATIVE_PANEL_SPLIT = "val"
 RUN_SUMMARY_FILENAME = "run_summary.json"
+PANEL_DEFINITION_FILENAME = "panel_definition.json"
+QUALITATIVE_RECORDS_FILENAME = "records.jsonl"
+PANEL_SUMMARY_FILENAME = "panel_summary.json"
+EVIDENCE_BUNDLE_FILENAME = "baseline_evidence_bundle.json"
+REFERENCE_ARTIFACTS_DIRNAME = "references"
+PREDICTION_ARTIFACTS_DIRNAME = "predictions"
 
 
 class QualitativeExportError(ValueError):
@@ -75,6 +81,15 @@ class QualitativeExportResult:
     checkpoint_path: Path
     sample_count: int
     sample_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _QualitativeArtifactPaths:
+    output_dir: Path
+    panel_definition_path: Path
+    records_path: Path
+    panel_summary_path: Path
+    evidence_bundle_path: Path
 
 
 def generate_validation_panel_definition(
@@ -192,24 +207,73 @@ def export_qualitative_panel(
         config.data.val_manifest,
         split=QUALITATIVE_PANEL_SPLIT,
     )
-    panel = (
-        load_panel_definition(panel_definition_path)
-        if panel_definition_path is not None
-        else generate_validation_panel_definition(validation_records, panel_size=panel_size)
+    panel = _resolve_export_panel_definition(
+        panel_definition_path=panel_definition_path,
+        validation_records=validation_records,
+        panel_size=panel_size,
     )
     selected_records = select_panel_records(panel, validation_records)
     predictor = load_baseline_predictor(config, checkpoint_path=checkpoint_path)
 
+    artifact_paths = _qualitative_artifact_paths(output_dir)
+    artifact_paths.output_dir.mkdir(parents=True, exist_ok=True)
+    write_panel_definition(artifact_paths.panel_definition_path, panel)
+    artifact_records = _export_qualitative_sample_artifacts(
+        selected_records=selected_records,
+        output_dir=artifact_paths.output_dir,
+        predictor=predictor,
+        predict_baseline_batch=predict_baseline_batch,
+    )
+    _write_qualitative_export_manifests(
+        artifact_paths=artifact_paths,
+        panel=panel,
+        config_path=config.source_path,
+        run_summary_path=resolved_run_summary_path,
+        predictor=predictor,
+        artifact_records=artifact_records,
+    )
+
+    return QualitativeExportResult(
+        output_dir=artifact_paths.output_dir,
+        panel_definition_path=artifact_paths.panel_definition_path,
+        records_path=artifact_paths.records_path,
+        panel_summary_path=artifact_paths.panel_summary_path,
+        evidence_bundle_path=artifact_paths.evidence_bundle_path,
+        checkpoint_path=predictor.checkpoint_path,
+        sample_count=len(panel.sample_ids),
+        sample_ids=panel.sample_ids,
+    )
+
+
+def _qualitative_artifact_paths(output_dir: Path | str) -> _QualitativeArtifactPaths:
     resolved_output_dir = Path(output_dir).expanduser().resolve()
-    resolved_output_dir.mkdir(parents=True, exist_ok=True)
+    return _QualitativeArtifactPaths(
+        output_dir=resolved_output_dir,
+        panel_definition_path=resolved_output_dir / PANEL_DEFINITION_FILENAME,
+        records_path=resolved_output_dir / QUALITATIVE_RECORDS_FILENAME,
+        panel_summary_path=resolved_output_dir / PANEL_SUMMARY_FILENAME,
+        evidence_bundle_path=resolved_output_dir / EVIDENCE_BUNDLE_FILENAME,
+    )
 
-    output_panel_definition_path = resolved_output_dir / "panel_definition.json"
-    records_path = resolved_output_dir / "records.jsonl"
-    panel_summary_path = resolved_output_dir / "panel_summary.json"
-    evidence_bundle_path = resolved_output_dir / "baseline_evidence_bundle.json"
 
-    write_panel_definition(output_panel_definition_path, panel)
+def _resolve_export_panel_definition(
+    *,
+    panel_definition_path: Path | str | None,
+    validation_records: Sequence[ProcessedModelingManifestRecord],
+    panel_size: int,
+) -> QualitativePanelDefinition:
+    if panel_definition_path is not None:
+        return load_panel_definition(panel_definition_path)
+    return generate_validation_panel_definition(validation_records, panel_size=panel_size)
 
+
+def _export_qualitative_sample_artifacts(
+    *,
+    selected_records: Sequence[ProcessedModelingManifestRecord],
+    output_dir: Path,
+    predictor: Any,
+    predict_baseline_batch: Any,
+) -> list[dict[str, object]]:
     artifact_records: list[dict[str, object]] = []
     for index, record in enumerate(
         iter_with_progress(
@@ -229,45 +293,45 @@ def export_qualitative_panel(
         )
         artifact_records.append(
             write_qualitative_sample_artifacts(
-                resolved_output_dir,
+                output_dir,
                 index=index,
                 item=item,
                 prediction=prediction,
             )
         )
+    return artifact_records
 
-    write_jsonl(records_path, artifact_records)
+
+def _write_qualitative_export_manifests(
+    *,
+    artifact_paths: _QualitativeArtifactPaths,
+    panel: QualitativePanelDefinition,
+    config_path: Path,
+    run_summary_path: Path,
+    predictor: Any,
+    artifact_records: list[dict[str, object]],
+) -> None:
+    write_jsonl(artifact_paths.records_path, artifact_records)
     panel_summary = _panel_summary_payload(
         panel=panel,
-        records_path=records_path,
-        panel_definition_path=output_panel_definition_path,
+        records_path=artifact_paths.records_path,
+        panel_definition_path=artifact_paths.panel_definition_path,
         checkpoint_path=predictor.checkpoint_path,
         artifact_records=artifact_records,
     )
-    write_json(panel_summary_path, panel_summary)
+    write_json(artifact_paths.panel_summary_path, panel_summary)
 
     write_baseline_evidence_bundle(
-        evidence_bundle_path,
-        config_path=config.source_path,
-        run_summary_path=resolved_run_summary_path,
+        artifact_paths.evidence_bundle_path,
+        config_path=config_path,
+        run_summary_path=run_summary_path,
         checkpoint_path=predictor.checkpoint_path,
         checkpoint_payload=predictor.checkpoint_payload,
-        panel_definition_path=output_panel_definition_path,
-        panel_summary_path=panel_summary_path,
-        records_path=records_path,
+        panel_definition_path=artifact_paths.panel_definition_path,
+        panel_summary_path=artifact_paths.panel_summary_path,
+        records_path=artifact_paths.records_path,
         sample_ids=panel.sample_ids,
         target_channels=SPRINT3_TARGET_CHANNELS,
-    )
-
-    return QualitativeExportResult(
-        output_dir=resolved_output_dir,
-        panel_definition_path=output_panel_definition_path,
-        records_path=records_path,
-        panel_summary_path=panel_summary_path,
-        evidence_bundle_path=evidence_bundle_path,
-        checkpoint_path=predictor.checkpoint_path,
-        sample_count=len(panel.sample_ids),
-        sample_ids=panel.sample_ids,
     )
 
 
@@ -284,8 +348,8 @@ def write_qualitative_sample_artifacts(
         raise QualitativeExportError("artifact index must not be negative.")
 
     filename = f"{index:04d}__{_sanitize_sample_id(item.sample_id)}.npz"
-    reference_path = output_dir / "references" / filename
-    prediction_path = output_dir / "predictions" / filename
+    reference_path = output_dir / REFERENCE_ARTIFACTS_DIRNAME / filename
+    prediction_path = output_dir / PREDICTION_ARTIFACTS_DIRNAME / filename
     reference_path.parent.mkdir(parents=True, exist_ok=True)
     prediction_path.parent.mkdir(parents=True, exist_ok=True)
 
