@@ -25,7 +25,7 @@ def test_baseline_modeling_all_chains_training_qualitative_and_record(
     patch_modeling_repo_root(monkeypatch, tmp_path)
     monkeypatch.setattr(
         baseline_workflow_mod,
-        "create_tar_zst_archive_from_snapshot",
+        "_create_baseline_archive",
         fake_create_archive,
     )
     workspace = write_tiny_baseline_modeling_workspace(tmp_path, run_name="integration-run")

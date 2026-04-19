@@ -139,20 +139,7 @@ def load_baseline_training_config(
             f"optimizer.name must be one of: {expected}; got {optimizer_name!r}."
         )
 
-    num_workers = _required_non_negative_int(training_section, "training.num_workers")
-    persistent_workers = _required_bool(training_section, "training.persistent_workers")
-    prefetch_factor = _required_nullable_positive_int(
-        training_section,
-        "training.prefetch_factor",
-    )
-    if persistent_workers and num_workers == 0:
-        raise BaselineTrainingConfigError(
-            "training.persistent_workers requires training.num_workers to be positive."
-        )
-    if prefetch_factor is not None and num_workers == 0:
-        raise BaselineTrainingConfigError(
-            "training.prefetch_factor requires training.num_workers to be positive."
-        )
+    num_workers, persistent_workers, prefetch_factor = _validated_worker_config(training_section)
 
     return BaselineTrainingConfig(
         source_path=config_path.resolve(),
@@ -255,6 +242,24 @@ def _required_value(config: dict[str, Any], field_path: str) -> Any:
     if key not in config:
         raise BaselineTrainingConfigError(f"Config field {field_path} is required.")
     return config[key]
+
+
+def _validated_worker_config(config: dict[str, Any]) -> tuple[int, bool, int | None]:
+    num_workers = _required_non_negative_int(config, "training.num_workers")
+    persistent_workers = _required_bool(config, "training.persistent_workers")
+    prefetch_factor = _required_nullable_positive_int(
+        config,
+        "training.prefetch_factor",
+    )
+    if persistent_workers and num_workers == 0:
+        raise BaselineTrainingConfigError(
+            "training.persistent_workers requires training.num_workers to be positive."
+        )
+    if prefetch_factor is not None and num_workers == 0:
+        raise BaselineTrainingConfigError(
+            "training.prefetch_factor requires training.num_workers to be positive."
+        )
+    return num_workers, persistent_workers, prefetch_factor
 
 
 def _required_str(config: dict[str, Any], field_path: str) -> str:

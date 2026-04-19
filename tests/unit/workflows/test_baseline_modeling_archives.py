@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+import text_to_sign_production.workflows._baseline_archive_ops as baseline_archive_ops_mod
 import text_to_sign_production.workflows.baseline_modeling as baseline_workflow_mod
 from tests.support.modeling import (
     fake_extract_archive_with,
@@ -71,7 +72,7 @@ def test_archive_helper_file_not_found_is_reworded_for_baseline_context(
     )
     layout.qualitative_dir.mkdir(parents=True)
     monkeypatch.setattr(
-        baseline_workflow_mod,
+        baseline_archive_ops_mod,
         "create_tar_zst_archive_from_snapshot",
         raise_dataset_build_archive_error,
     )
@@ -101,7 +102,7 @@ def test_extract_archive_into_run_root_preserves_existing_archives_directory(
         touch_file(destination / "checkpoints" / "run_summary.json")
 
     monkeypatch.setattr(
-        baseline_workflow_mod,
+        baseline_archive_ops_mod,
         "extract_tar_zst_with_progress",
         fake_extract_archive_with(build_extracted_tree),
     )
@@ -150,7 +151,7 @@ def test_extract_archive_preserves_matching_existing_config(
         touch_file(destination / "checkpoints" / "run_summary.json")
 
     monkeypatch.setattr(
-        baseline_workflow_mod,
+        baseline_archive_ops_mod,
         "extract_tar_zst_with_progress",
         fake_extract_archive_with(build_extracted_tree),
     )
@@ -192,7 +193,7 @@ def test_extract_archive_rejects_different_existing_config_before_moving_members
         touch_file(destination / "checkpoints" / "run_summary.json")
 
     monkeypatch.setattr(
-        baseline_workflow_mod,
+        baseline_archive_ops_mod,
         "extract_tar_zst_with_progress",
         fake_extract_archive_with(build_extracted_tree),
     )

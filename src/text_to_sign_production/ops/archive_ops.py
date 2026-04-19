@@ -189,12 +189,10 @@ def create_tar_zst_archive(
 ) -> Path:
     """Create a `.tar.zst` archive while reporting streamed tar progress."""
 
-    if not archive_path.name.endswith(".tar.zst"):
-        raise ValueError(f"Expected a .tar.zst archive, got: {archive_path.name}")
+    _validate_tar_zst_archive_name(archive_path)
 
     ensure_tar_zst_create_prerequisites()
-    member_names = [str(_relative_member_path(member, cwd)) for member in members]
-    _assert_required_members(cwd, members)
+    member_names = _prepared_archive_member_names(members=members, cwd=cwd)
     tar_stream_total_bytes = _tar_stream_total_bytes(cwd, member_names)
     progress_label = f"{label} (tar stream)"
     ensure_directory(archive_path.parent)
@@ -288,12 +286,10 @@ def create_tar_zst_archive_from_snapshot(
 ) -> Path:
     """Create a `.tar.zst` from a stable local snapshot, then publish the finished archive."""
 
-    if not archive_path.name.endswith(".tar.zst"):
-        raise ValueError(f"Expected a .tar.zst archive, got: {archive_path.name}")
+    _validate_tar_zst_archive_name(archive_path)
 
     ensure_tar_zst_create_prerequisites()
-    member_names = [str(_relative_member_path(member, cwd)) for member in members]
-    _assert_required_members(cwd, members)
+    member_names = _prepared_archive_member_names(members=members, cwd=cwd)
     local_snapshot_parent = _resolve_snapshot_parent(snapshot_parent)
     ensure_directory(local_snapshot_parent)
 
@@ -328,6 +324,17 @@ def copy_archive_to_drive(source: Path, destination: Path, *, label: str) -> Pat
     """Copy a packaged archive to Drive with progress output."""
 
     return copy_file_with_progress(source, destination, label=label)
+
+
+def _validate_tar_zst_archive_name(archive_path: Path) -> None:
+    if not archive_path.name.endswith(".tar.zst"):
+        raise ValueError(f"Expected a .tar.zst archive, got: {archive_path.name}")
+
+
+def _prepared_archive_member_names(*, members: Sequence[Path], cwd: Path) -> tuple[str, ...]:
+    member_names = tuple(str(_relative_member_path(member, cwd)) for member in members)
+    _assert_required_members(cwd, members)
+    return member_names
 
 
 def _reserve_temp_archive_path(archive_path: Path) -> Path:

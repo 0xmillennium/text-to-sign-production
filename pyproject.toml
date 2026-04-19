@@ -50,6 +50,11 @@ modeling = [
   "transformers>=5.0.0rc3,<6",
 ]
 
+colab = [
+  "scipy>=1.16,<2",
+  "scikit-learn>=1.6,<2",
+  ]
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 
