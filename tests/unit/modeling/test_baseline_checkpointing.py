@@ -141,6 +141,7 @@ def test_best_checkpoint_selection_prefers_lower_validation_loss_and_keeps_ties(
 def test_run_baseline_training_writes_runtime_provenance_summary(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     patch_modeling_repo_root(monkeypatch, tmp_path)
     workspace = write_tiny_baseline_modeling_workspace(tmp_path)
@@ -152,6 +153,7 @@ def test_run_baseline_training_writes_runtime_provenance_summary(
     )
 
     result = train_module.run_baseline_training(config_path)
+    captured = capsys.readouterr()
 
     summary = json.loads(result.summary_path.read_text(encoding="utf-8"))
     assert result.last_checkpoint_path.is_file()
@@ -167,3 +169,6 @@ def test_run_baseline_training_writes_runtime_provenance_summary(
     assert isinstance(summary["final_train_loss"], float)
     assert isinstance(summary["final_validation_loss"], float)
     assert isinstance(summary["final_validation_metric"], float)
+    assert "[baseline train] epoch 1/1 start" in captured.out
+    assert "[baseline train] epoch 1/1 summary:" in captured.out
+    assert "best_checkpoint_updated=yes" in captured.out

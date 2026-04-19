@@ -9,6 +9,7 @@ import torch
 from torch import nn
 
 from text_to_sign_production.modeling.data import ProcessedPoseBatch
+from text_to_sign_production.ops.progress import iter_with_progress
 
 from .losses import masked_pose_mse_loss
 from .masking import build_effective_frame_mask
@@ -33,19 +34,24 @@ class ValidationEpochResult:
     valid_frame_count: int
 
 
-def move_batch_to_device(batch: ProcessedPoseBatch, device: torch.device) -> ProcessedPoseBatch:
+def move_batch_to_device(
+    batch: ProcessedPoseBatch,
+    device: torch.device,
+    *,
+    non_blocking: bool = False,
+) -> ProcessedPoseBatch:
     """Move tensor fields in a processed-pose batch while preserving metadata fields."""
 
     return ProcessedPoseBatch(
         texts=batch.texts,
         sample_ids=batch.sample_ids,
         splits=batch.splits,
-        lengths=batch.lengths.to(device=device),
-        body=batch.body.to(device=device),
-        left_hand=batch.left_hand.to(device=device),
-        right_hand=batch.right_hand.to(device=device),
-        padding_mask=batch.padding_mask.to(device=device),
-        frame_valid_mask=batch.frame_valid_mask.to(device=device),
+        lengths=batch.lengths.to(device=device, non_blocking=non_blocking),
+        body=batch.body.to(device=device, non_blocking=non_blocking),
+        left_hand=batch.left_hand.to(device=device, non_blocking=non_blocking),
+        right_hand=batch.right_hand.to(device=device, non_blocking=non_blocking),
+        padding_mask=batch.padding_mask.to(device=device, non_blocking=non_blocking),
+        frame_valid_mask=batch.frame_valid_mask.to(device=device, non_blocking=non_blocking),
         fps=batch.fps,
         num_frames=batch.num_frames,
     )
@@ -101,6 +107,9 @@ def run_validation_epoch(
     batches: Iterable[ProcessedPoseBatch],
     *,
     device: torch.device,
+    non_blocking: bool = False,
+    progress_label: str = "",
+    progress_total: int | None = None,
 ) -> ValidationEpochResult:
     """Aggregate validation loss and metric over an epoch."""
 
@@ -108,8 +117,13 @@ def run_validation_epoch(
     total_metric = 0.0
     total_valid_frames = 0
 
-    for batch in batches:
-        device_batch = move_batch_to_device(batch, device)
+    for batch in iter_with_progress(
+        batches,
+        total=progress_total,
+        desc=progress_label,
+        unit="batch",
+    ):
+        device_batch = move_batch_to_device(batch, device, non_blocking=non_blocking)
         valid_frame_count = count_valid_contributing_frames(device_batch)
         if valid_frame_count == 0:
             continue

@@ -112,6 +112,14 @@ Archives are stored under each run root's `archives/` directory:
 - `archives/baseline_qualitative_outputs.tar.zst`
 - `archives/baseline_record_package.tar.zst`
 
+Baseline Modeling archive creation uses a local snapshot policy for Colab reliability. Required
+extracted outputs are copied into a temporary local snapshot, the `.tar.zst` archive is created
+from that snapshot, and only the completed archive is published back to the run root's `archives/`
+directory. This avoids reading a live Drive-mounted output tree while writing the archive.
+
+Archive extraction, snapshot copy, and archive publish steps report byte progress with known totals
+whenever the archive or file sizes are available.
+
 Resume behavior is stable:
 
 1. Reuse extracted outputs when required files already exist.

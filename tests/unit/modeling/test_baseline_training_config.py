@@ -65,6 +65,10 @@ def test_load_baseline_training_config_resolves_repo_relative_paths(
     )
     assert config.backbone.name == "google/flan-t5-base"
     assert config.training.seed == 123
+    assert config.training.pin_memory is False
+    assert config.training.persistent_workers is False
+    assert config.training.prefetch_factor is None
+    assert config.training.non_blocking_transfers is False
     assert config.checkpoint.output_dir == (tmp_path / "outputs/modeling/baseline-test").resolve()
 
 
@@ -111,6 +115,76 @@ def test_load_baseline_training_config_requires_seed_field(
         load_baseline_training_config(config_path, validate_paths=False)
 
 
+def test_load_baseline_training_config_rejects_persistent_workers_without_workers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    patch_modeling_repo_root(monkeypatch, tmp_path)
+    config_payload = _valid_config()
+    config_payload["training"]["persistent_workers"] = True
+    config_path = tmp_path / "config.yaml"
+    _write_yaml(config_path, config_payload)
+
+    with pytest.raises(BaselineTrainingConfigError, match="persistent_workers"):
+        load_baseline_training_config(config_path, validate_paths=False)
+
+
+def test_load_baseline_training_config_rejects_prefetch_factor_without_workers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    patch_modeling_repo_root(monkeypatch, tmp_path)
+    config_payload = _valid_config()
+    config_payload["training"]["prefetch_factor"] = 2
+    config_path = tmp_path / "config.yaml"
+    _write_yaml(config_path, config_payload)
+
+    with pytest.raises(BaselineTrainingConfigError, match="prefetch_factor"):
+        load_baseline_training_config(config_path, validate_paths=False)
+
+
+def test_load_baseline_training_config_rejects_invalid_prefetch_factor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    patch_modeling_repo_root(monkeypatch, tmp_path)
+    config_payload = _valid_config()
+    config_payload["training"]["num_workers"] = 2
+    config_payload["training"]["prefetch_factor"] = 0
+    config_path = tmp_path / "config.yaml"
+    _write_yaml(config_path, config_payload)
+
+    with pytest.raises(BaselineTrainingConfigError, match="prefetch_factor"):
+        load_baseline_training_config(config_path, validate_paths=False)
+
+
+def test_load_baseline_training_config_accepts_worker_tuning_fields(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    patch_modeling_repo_root(monkeypatch, tmp_path)
+    config_payload = _valid_config()
+    config_payload["training"].update(
+        {
+            "num_workers": 2,
+            "pin_memory": True,
+            "persistent_workers": True,
+            "prefetch_factor": 2,
+            "non_blocking_transfers": True,
+        }
+    )
+    config_path = tmp_path / "config.yaml"
+    _write_yaml(config_path, config_payload)
+
+    config = load_baseline_training_config(config_path, validate_paths=False)
+
+    assert config.training.num_workers == 2
+    assert config.training.pin_memory is True
+    assert config.training.persistent_workers is True
+    assert config.training.prefetch_factor == 2
+    assert config.training.non_blocking_transfers is True
+
+
 def test_load_baseline_training_config_rejects_malformed_yaml(tmp_path: Path) -> None:
     config_path = tmp_path / "config.yaml"
     config_path.write_text("data: [broken\n", encoding="utf-8")
@@ -137,6 +211,11 @@ def test_default_baseline_config_parses_without_path_validation() -> None:
     assert config.data.train_split == "train"
     assert config.data.val_split == "val"
     assert config.optimizer.name == "adamw"
+    assert config.backbone.freeze is True
+    assert config.training.pin_memory is False
+    assert config.training.persistent_workers is False
+    assert config.training.prefetch_factor is None
+    assert config.training.non_blocking_transfers is False
 
 
 def test_package_data_includes_default_baseline_yaml() -> None:

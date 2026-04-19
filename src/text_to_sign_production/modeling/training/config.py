@@ -54,6 +54,10 @@ class BaselineLoopConfig:
     batch_size: int
     shuffle_train: bool
     num_workers: int
+    pin_memory: bool
+    persistent_workers: bool
+    prefetch_factor: int | None
+    non_blocking_transfers: bool
     seed: int | None
     device: str
 
@@ -135,6 +139,21 @@ def load_baseline_training_config(
             f"optimizer.name must be one of: {expected}; got {optimizer_name!r}."
         )
 
+    num_workers = _required_non_negative_int(training_section, "training.num_workers")
+    persistent_workers = _required_bool(training_section, "training.persistent_workers")
+    prefetch_factor = _required_nullable_positive_int(
+        training_section,
+        "training.prefetch_factor",
+    )
+    if persistent_workers and num_workers == 0:
+        raise BaselineTrainingConfigError(
+            "training.persistent_workers requires training.num_workers to be positive."
+        )
+    if prefetch_factor is not None and num_workers == 0:
+        raise BaselineTrainingConfigError(
+            "training.prefetch_factor requires training.num_workers to be positive."
+        )
+
     return BaselineTrainingConfig(
         source_path=config_path.resolve(),
         raw_config=raw_config,
@@ -161,7 +180,14 @@ def load_baseline_training_config(
             epochs=_required_positive_int(training_section, "training.epochs"),
             batch_size=_required_positive_int(training_section, "training.batch_size"),
             shuffle_train=_required_bool(training_section, "training.shuffle_train"),
-            num_workers=_required_non_negative_int(training_section, "training.num_workers"),
+            num_workers=num_workers,
+            pin_memory=_required_bool(training_section, "training.pin_memory"),
+            persistent_workers=persistent_workers,
+            prefetch_factor=prefetch_factor,
+            non_blocking_transfers=_required_bool(
+                training_section,
+                "training.non_blocking_transfers",
+            ),
             seed=_required_nullable_non_negative_int(training_section, "training.seed"),
             device=_required_str(training_section, "training.device"),
         ),
@@ -199,6 +225,10 @@ def baseline_config_to_dict(config: BaselineTrainingConfig) -> dict[str, Any]:
             "batch_size": config.training.batch_size,
             "shuffle_train": config.training.shuffle_train,
             "num_workers": config.training.num_workers,
+            "pin_memory": config.training.pin_memory,
+            "persistent_workers": config.training.persistent_workers,
+            "prefetch_factor": config.training.prefetch_factor,
+            "non_blocking_transfers": config.training.non_blocking_transfers,
             "seed": config.training.seed,
             "device": config.training.device,
         },
@@ -269,6 +299,17 @@ def _required_nullable_non_negative_int(config: dict[str, Any], field_path: str)
         raise BaselineTrainingConfigError(f"{field_path} must be an integer or null.")
     if value < 0:
         raise BaselineTrainingConfigError(f"{field_path} must not be negative.")
+    return value
+
+
+def _required_nullable_positive_int(config: dict[str, Any], field_path: str) -> int | None:
+    value = _required_value(config, field_path)
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise BaselineTrainingConfigError(f"{field_path} must be an integer or null.")
+    if value <= 0:
+        raise BaselineTrainingConfigError(f"{field_path} must be positive when set.")
     return value
 
 

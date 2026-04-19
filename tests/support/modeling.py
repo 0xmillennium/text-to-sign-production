@@ -90,6 +90,10 @@ def baseline_config_payload(
             "batch_size": 1,
             "shuffle_train": False,
             "num_workers": 0,
+            "pin_memory": False,
+            "persistent_workers": False,
+            "prefetch_factor": None,
+            "non_blocking_transfers": False,
             "seed": 5,
             "device": "cpu",
         },
@@ -227,6 +231,10 @@ def baseline_training_config(
             batch_size=1,
             shuffle_train=False,
             num_workers=0,
+            pin_memory=False,
+            persistent_workers=False,
+            prefetch_factor=None,
+            non_blocking_transfers=False,
             seed=5,
             device="cpu",
         ),
@@ -345,10 +353,11 @@ def fake_create_archive(
     members: tuple[Path, ...],
     cwd: Path,
     label: str,
+    snapshot_parent: Path | None = None,
 ) -> Path:
     """Boundary fake for archive creation in CI-safe workflow tests."""
 
-    del members, cwd, label
+    del members, cwd, label, snapshot_parent
     archive_path.parent.mkdir(parents=True, exist_ok=True)
     archive_path.write_bytes(b"archive")
     return archive_path
@@ -360,10 +369,11 @@ def raise_dataset_build_archive_error(
     members: tuple[Path, ...],
     cwd: Path,
     label: str,
+    snapshot_parent: Path | None = None,
 ) -> Path:
     """Archive fake that preserves the historical Dataset Build wording regression."""
 
-    del archive_path, members, cwd, label
+    del archive_path, members, cwd, label, snapshot_parent
     raise FileNotFoundError("Missing required Dataset Build outputs:\n- stale")
 
 

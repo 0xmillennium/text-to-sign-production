@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,7 @@ import pytest
 torch: Any = pytest.importorskip("torch")
 
 import text_to_sign_production.modeling.inference.predict as predict_module  # noqa: E402
+import text_to_sign_production.modeling.inference.qualitative as qualitative_module  # noqa: E402
 from tests.support.modeling import (  # noqa: E402
     patch_modeling_repo_root,
     write_tiny_baseline_modeling_workspace,
@@ -163,6 +165,19 @@ def test_export_qualitative_panel_writes_panel_artifacts_with_dummy_model(
         "build_baseline_model",
         lambda _config: build_dummy_baseline_model(),
     )
+    progress_calls: list[dict[str, object]] = []
+
+    def fake_iter_with_progress(
+        iterable: Iterable[Any],
+        *,
+        total: int | None,
+        desc: str,
+        unit: str,
+    ) -> Iterator[Any]:
+        progress_calls.append({"total": total, "desc": desc, "unit": unit})
+        return iter(iterable)
+
+    monkeypatch.setattr(qualitative_module, "iter_with_progress", fake_iter_with_progress)
 
     result = export_qualitative_panel(
         config_path,
@@ -198,3 +213,10 @@ def test_export_qualitative_panel_writes_panel_artifacts_with_dummy_model(
     assert evidence["qualitative_panel"]["panel_summary_path"] == "exports/panel_summary.json"
     assert evidence["qualitative_panel"]["records_path"] == "exports/records.jsonl"
     assert evidence["qualitative_panel"]["sample_count"] == 1
+    assert progress_calls == [
+        {
+            "total": 1,
+            "desc": "[baseline qualitative] Export validation panel",
+            "unit": "sample",
+        }
+    ]
