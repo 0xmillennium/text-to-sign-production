@@ -64,5 +64,5 @@ or audit arrays with `frames` entries.
 ## Related Docs
 
 - [Data leaf template](../../template.md)
-- [Dataset Build execution](../../../execution/dataset-build.md)
-- [Baseline Modeling execution](../../../execution/baseline-modeling.md)
+- [Dataset Build execution](../../../execution.md)
+- [Baseline Modeling execution](../../../execution.md)

@@ -67,4 +67,4 @@ Panel definitions must use validation split `val`, unique sample IDs, and schema
 ## Related Docs
 
 - [Data leaf template](../../template.md)
-- [Baseline Modeling execution](../../../execution/baseline-modeling.md)
+- [Baseline Modeling execution](../../../execution.md)

@@ -76,8 +76,8 @@ Git.
 
 - `docs/decisions/`: ADRs for long-lived architecture and workflow decisions
 - `docs/experiments/`: validation records, Baseline Modeling record guidance, and templates
-- `docs/execution/`: operator-facing stage execution docs
-- `docs/storage/`: artifact naming, run roots, publish locations, and archive/resume policy
+- `docs/execution.md`: operator-facing notebook execution guide
+- `docs/data/`: artifact dictionary, report surfaces, and archive references
 - `notes/LLM_PROJECT_HANDOFF.md`: project-wide handoff
 - `notes/SPRINT3_BRIEFING.md`: Baseline Modeling handoff companion
 
