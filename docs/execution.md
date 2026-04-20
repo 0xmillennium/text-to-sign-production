@@ -21,8 +21,7 @@ Current public stage: Dataset Build.
 
 Implemented internal downstream surface: Baseline Modeling.
 
-Broader evaluation, contribution modeling, and playback/demo are not part of the supported workflow
-yet.
+Not yet implemented: broader evaluation, contribution modeling, playback/demo.
 
 ## Before You Start
 
