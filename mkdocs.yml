@@ -12,13 +12,34 @@ nav:
       - Dataset Build: execution/dataset-build.md
       - Baseline Modeling: execution/baseline-modeling.md
   - Data:
-      - Raw Layout: data/raw-layout.md
-      - Raw Schema: data/raw-schema.md
-      - Translation TSV Schema: data/csv-schema.md
-      - OpenPose Schema: data/openpose-schema.md
-      - Processed Schema: data/processed-schema.md
-      - Filter Policy: data/filter-policy.md
-      - Data Versioning: data/versioning.md
+      - Overview: data/index.md
+      - Template: data/template.md
+      - Raw:
+          - How2Sign Translations: data/raw/how2sign-translations.md
+          - How2Sign Keypoint Archives: data/raw/how2sign-keypoint-archives.md
+      - Interim:
+          - Raw Manifests: data/interim/raw-manifests.md
+          - Normalized Manifests: data/interim/normalized-manifests.md
+          - Filtered Manifests: data/interim/filtered-manifests.md
+          - Reports: data/interim/reports.md
+      - Processed v1:
+          - Manifests: data/processed/v1/manifests.md
+          - Samples: data/processed/v1/samples.md
+          - Reports: data/processed/v1/reports.md
+      - Dataset Build Artifacts:
+          - Manifests And Reports Archive: data/artifacts/dataset-build/manifests-reports-archive.md
+          - Sample Archives: data/artifacts/dataset-build/sample-archives.md
+      - Baseline Modeling Artifacts:
+          - Configs: data/artifacts/baseline-modeling/configs.md
+          - Checkpoints: data/artifacts/baseline-modeling/checkpoints.md
+          - Run Summaries: data/artifacts/baseline-modeling/run-summaries.md
+          - Qualitative Metadata: data/artifacts/baseline-modeling/qualitative-metadata.md
+          - Qualitative Sample Artifacts: data/artifacts/baseline-modeling/qualitative-sample-artifacts.md
+          - Evidence Bundles: data/artifacts/baseline-modeling/evidence-bundles.md
+          - Package Manifest: data/artifacts/baseline-modeling/package-manifest.md
+          - Training Archive: data/artifacts/baseline-modeling/training-archive.md
+          - Qualitative Archive: data/artifacts/baseline-modeling/qualitative-archive.md
+          - Record Archive: data/artifacts/baseline-modeling/record-archive.md
   - Storage:
       - Artifact Strategy: storage/artifacts.md
   - Testing Architecture: testing.md
