@@ -59,4 +59,4 @@ sample-level parsing failures remain explicit for filtering.
 ## Related Docs
 
 - [Data leaf template](../template.md)
-- [Dataset Build execution](../../execution/dataset-build.md)
+- [Dataset Build execution](../../execution.md)

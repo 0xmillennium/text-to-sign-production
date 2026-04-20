@@ -60,4 +60,4 @@ assembly uses a checkpoint payload.
 ## Related Docs
 
 - [Data leaf template](../../template.md)
-- [Baseline Modeling execution](../../../execution/baseline-modeling.md)
+- [Baseline Modeling execution](../../../execution.md)

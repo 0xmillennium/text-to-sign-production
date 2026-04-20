@@ -8,9 +8,7 @@ nav:
   - Getting Started: getting-started.md
   - Development Setup: development-setup.md
   - Repository Structure: repository-structure.md
-  - Execution:
-      - Dataset Build: execution/dataset-build.md
-      - Baseline Modeling: execution/baseline-modeling.md
+  - Execution: execution.md
   - Data:
       - Overview: data/index.md
       - Template: data/template.md
@@ -40,8 +38,6 @@ nav:
           - Training Archive: data/artifacts/baseline-modeling/training-archive.md
           - Qualitative Archive: data/artifacts/baseline-modeling/qualitative-archive.md
           - Record Archive: data/artifacts/baseline-modeling/record-archive.md
-  - Storage:
-      - Artifact Strategy: storage/artifacts.md
   - Testing Architecture: testing.md
   - Reports:
       - Data Quality: reports/data-quality-report.md

@@ -54,4 +54,4 @@ The archive must contain the package manifest, copied evidence bundle, and copie
 ## Related Docs
 
 - [Data leaf template](../../template.md)
-- [Baseline Modeling execution](../../../execution/baseline-modeling.md)
+- [Baseline Modeling execution](../../../execution.md)

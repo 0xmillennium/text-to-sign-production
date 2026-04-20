@@ -63,5 +63,5 @@ Manifest `sample_path` values must resolve to processed v1 sample `.npz` files f
 ## Related Docs
 
 - [Data leaf template](../../template.md)
-- [Dataset Build execution](../../../execution/dataset-build.md)
-- [Baseline Modeling execution](../../../execution/baseline-modeling.md)
+- [Dataset Build execution](../../../execution.md)
+- [Baseline Modeling execution](../../../execution.md)
