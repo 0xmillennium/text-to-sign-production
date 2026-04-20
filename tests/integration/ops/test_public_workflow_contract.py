@@ -280,8 +280,7 @@ def test_public_docs_reference_current_notebook_only() -> None:
         "docs/index.md",
         "docs/getting-started.md",
         "docs/repository-structure.md",
-        "docs/execution/dataset-build.md",
-        "docs/execution/baseline-modeling.md",
+        "docs/execution.md",
     )
     for relative_path in docs_expected_to_reference_notebook:
         assert CURRENT_NOTEBOOK_REFERENCE in _read_repo_file(relative_path), relative_path

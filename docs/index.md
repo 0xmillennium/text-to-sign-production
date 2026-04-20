@@ -27,10 +27,8 @@ Not yet implemented: broader evaluation, contribution modeling, playback/demo.
 
 ## Start Here
 
-- Run the current public stage with [Dataset Build execution](execution/dataset-build.md).
-- Run the internal baseline surface with [Baseline Modeling execution](execution/baseline-modeling.md).
+- Run the supported notebook with [Execution](execution.md).
 - Use [Getting Started](getting-started.md) for install and first commands.
-- Use [Artifact Storage](storage/artifacts.md) for run roots, publish locations, and archive names.
 - Use [Experiments](experiments.md) for Dataset Build validation records and Baseline Modeling
   experiment-record practice.
 - Use [Roadmap](roadmap.md) and [Literature Positioning](literature-positioning.md) for the thesis
