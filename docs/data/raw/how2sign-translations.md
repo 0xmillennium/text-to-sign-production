@@ -58,4 +58,4 @@ translation rows to keypoint clip directories by `SENTENCE_NAME`.
 ## Related Docs
 
 - [Data leaf template](../template.md)
-- [Dataset Build execution](../../execution.md)
+- [Dataset Build execution](../../execution/dataset-build.md)

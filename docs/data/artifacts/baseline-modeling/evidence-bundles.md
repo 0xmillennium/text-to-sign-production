@@ -62,4 +62,4 @@ panel summary, records path, sample IDs, and target channels.
 ## Related Docs
 
 - [Data leaf template](../../template.md)
-- [Baseline Modeling execution](../../../execution.md)
+- [Baseline Modeling execution](../../../execution/baseline-modeling.md)
