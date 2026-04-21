@@ -5,7 +5,7 @@ reproducibility decisions that shaped this repository over time.
 
 ADRs are historical decision records, not the active operator guide. For current behavior, use
 [Execution](../execution.md), [Data](../data/index.md), [Experiments](../experiments/index.md),
-and [Testing](../testing.md).
+and [Testing](../testing/index.md).
 
 Use the [ADR Template](template.md) when creating or updating a decision record.
 

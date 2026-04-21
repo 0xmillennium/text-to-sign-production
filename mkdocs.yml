@@ -38,7 +38,11 @@ nav:
           - Training Archive: data/artifacts/baseline-modeling/training-archive.md
           - Qualitative Archive: data/artifacts/baseline-modeling/qualitative-archive.md
           - Record Archive: data/artifacts/baseline-modeling/record-archive.md
-  - Testing Architecture: testing.md
+  - Testing:
+      - Overview: testing/index.md
+      - Layers: testing/layers.md
+      - Infrastructure: testing/infrastructure.md
+      - Contracts: testing/contracts.md
   - Decisions:
       - Overview: decisions/index.md
       - Template: decisions/template.md
