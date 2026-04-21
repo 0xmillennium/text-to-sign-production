@@ -3,6 +3,10 @@
 - Status: Accepted
 - Date: 2026-04-04
 
+Historical status note: this ADR records a Sprint 1 phase boundary and is not current
+implementation guidance. Use the current execution, data, experiment, and testing docs for
+present-day behavior.
+
 ## Context
 
 The thesis roadmap includes substantial machine learning and animation work, but Sprint 1 is

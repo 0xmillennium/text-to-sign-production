@@ -3,6 +3,9 @@
 - Status: Accepted
 - Date: 2026-04-17
 
+Historical status note: this ADR preserves the post-Dataset-Build roadmap as it was frozen at the
+time. It remains useful for thesis sequencing context, but it is not the current operator guide.
+
 ## Context
 
 Dataset Build is now the implemented project stage. Packaging hardening is complete, Filter V2 is
@@ -34,8 +37,6 @@ Freeze the post-Dataset-Build research roadmap as Sprint 3 through Sprint 8:
 The project will not treat Sprint 3 as the main research-contribution sprint. The main planned
 contribution path is Sprint 5 followed by Sprint 6. Diffusion and retrieval/stitching remain possible
 later alternatives or future extensions, but they are not the chosen primary roadmap path now.
-
-## Rationale
 
 Sprint 3 is baseline-only because the repository needs a reproducible reference model before more
 ambitious claims are meaningful. A weak baseline is still useful if its data, commands,
@@ -74,29 +75,18 @@ before taking on high-complexity alternatives.
 
 ## Alternatives Considered
 
-### Pursue the Main Thesis Contribution Directly in Sprint 3
-
-Rejected. This would blur baseline evidence with contribution evidence and leave no stable reference
-point for later comparison.
-
-### Jump Straight to Diffusion or Other High-Complexity Modeling
-
-Rejected. Diffusion may be valuable later, but starting there would add complexity before the
-project has baseline behavior, evaluation assumptions, and error analysis under control.
-
-### Promote Retrieval/Stitching to the Main Roadmap Path Immediately
-
-Rejected. Retrieval and stitching can preserve realistic observed motion, but making them the main
-path now would redirect the thesis away from the frozen discrete representation and structure-aware
-contribution sequence.
-
-### Keep the Roadmap Vague
-
-Rejected. A vague future-work list would make it too easy to reorder evaluation, merge contribution
-sprints, or promote an alternative model family without recording the tradeoff.
-
-### Freeze Explicit Sprint Goals
-
-Chosen. This preserves the baseline-first and evaluation-first order, identifies the two main
-contribution sprints, and leaves diffusion and retrieval/stitching available as later alternatives
-without making them the current primary path.
+- Pursue the main thesis contribution directly in Sprint 3. Rejected because this would blur
+  baseline evidence with contribution evidence and leave no stable reference point for later
+  comparison.
+- Jump straight to diffusion or other high-complexity modeling. Rejected because that would add
+  complexity before the project has baseline behavior, evaluation assumptions, and error analysis
+  under control.
+- Promote retrieval/stitching to the main roadmap path immediately. Rejected because it would
+  redirect the thesis away from the frozen discrete representation and structure-aware contribution
+  sequence.
+- Keep the roadmap vague. Rejected because a vague future-work list would make it too easy to
+  reorder evaluation, merge contribution sprints, or promote an alternative model family without
+  recording the tradeoff.
+- Freeze explicit sprint goals. Chosen because it preserves the baseline-first and evaluation-first
+  order, identifies the two main contribution sprints, and leaves diffusion and retrieval/stitching
+  available as later alternatives without making them the current primary path.
