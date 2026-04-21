@@ -1,225 +1,128 @@
 # LLM Project Handoff
 
-This file is the project-wide briefing artifact for new chats and future implementation sessions.
-It should be used with `notes/SPRINT3_BRIEFING.md` for Sprint 3 context.
-
 ## Project Identity
 
 - Repository: `text-to-sign-production`
 - Project type: graduation thesis / research engineering repository
 - Domain: English text-to-sign-pose production
 - Long-term direction: `English text -> pose tokens -> keypoints -> skeleton/avatar`
-- Project language: English
-
-Current public stage: Dataset Build.
-
-Implemented internal downstream surface: Baseline Modeling.
-
-Not yet implemented: broader evaluation, contribution modeling, playback/demo.
 
 ## Current Status
 
-- Sprint 1 is complete: repository foundation, packaging, tests, docs, CI, ADR support, and
-  experiment-record support.
-- Sprint 2 is complete: Dataset Build from fixed How2Sign/BFH inputs to processed v1 artifacts.
-- Sprint 3 is complete through Phase 7C as a baseline-only surface.
+- Sprint 1 is complete.
+- Sprint 2 is complete.
+- Sprint 3 is complete as a bounded baseline milestone.
 - Dataset Build remains the public implemented stage.
-- Baseline Modeling is implemented as internal downstream baseline evidence, not as the main thesis
-  contribution.
+- Baseline Modeling exists as internal downstream baseline evidence, not as the main thesis contribution.
 - DVC is not part of the active workflow.
+- Broader evaluation, contribution modeling, and playback/demo remain unimplemented.
+
+## Canonical Docs Map
+
+- `docs/execution.md`: operator-facing guide for the supported Colab notebook workflow.
+- `docs/repository-map.md`: repository structure map and docs-surface locator.
+- `docs/data/index.md`: canonical artifact and data dictionary.
+- `docs/testing/index.md`: canonical testing surface and layer reference.
+- `docs/decisions/index.md`: ADR index for governing and historical repository decisions.
+- `docs/experiments/index.md`: canonical experiment-record index.
+- `docs/research/roadmap.md`: authoritative roadmap for planned post-baseline work.
+- `docs/research/literature-positioning.md`: literature-informed rationale for the current research direction.
 
 ## Completed Dataset Build Surface
 
-Dataset Build provides:
+- Fixed How2Sign/BFH raw input layout.
+- Raw, normalized, filtered, and processed manifests.
+- Processed schema `t2sp-processed-v1`.
+- Compressed processed `.npz` samples.
+- Active filter policy `configs/data/filter-v2.yaml`.
+- Reports for assumptions, filtering, data quality, and split integrity.
+- Published Dataset Build archives:
+  `dataset_build_manifests_reports.tar.zst`,
+  `dataset_build_samples_train.tar.zst`,
+  `dataset_build_samples_val.tar.zst`,
+  `dataset_build_samples_test.tar.zst`.
+- Available through the project-wide Colab notebook; lower-level scripts and workflow helpers remain secondary implementation surfaces.
 
-- fixed How2Sign/BFH raw input layout
-- raw, normalized, filtered, and processed manifests
-- processed schema `t2sp-processed-v1`
-- compressed `.npz` processed samples
-- active filter policy `configs/data/filter-v2.yaml`
-- reports for assumptions, quality, filtering, and split integrity
-- manifest-driven split archives
-- CLI: `python scripts/dataset_build.py`
-- workflow entrypoint:
-  `text_to_sign_production.workflows.dataset_build.run_dataset_build`
-- Colab operation through `notebooks/colab/text_to_sign_production_colab.ipynb`
+## Completed Baseline Modeling Surface
 
-Dataset Build archive names:
+Sprint 3 is complete as a bounded baseline milestone. This surface is implemented baseline evidence,
+not the main thesis contribution.
 
-- `dataset_build_manifests_reports.tar.zst`
-- `dataset_build_samples_train.tar.zst`
-- `dataset_build_samples_val.tar.zst`
-- `dataset_build_samples_test.tar.zst`
+- Modeling data contracts built on processed Dataset Build manifests and processed `.npz` samples.
+- Baseline model surface.
+- Masked loss and metric utilities.
+- Train/validation runtime.
+- Checkpointing plus `run_summary.json`.
+- Qualitative panel export.
+- Runtime evidence bundle via `baseline_evidence_bundle.json`.
+- Runtime record/package outputs, including `baseline_modeling_package.json`.
+- Deterministic published archives:
+  `baseline_training_outputs.tar.zst`,
+  `baseline_qualitative_outputs.tar.zst`,
+  `baseline_record_package.tar.zst`.
+- Archive/resume behavior follows `reuse -> extract -> run/publish` for training, qualitative, and record/package outputs.
 
-## Completed Sprint 3 Baseline Surface
+## Supported Workflow
 
-Sprint 3 Baseline Modeling provides:
+- The single supported operator workflow is the project-wide Colab notebook:
+  `notebooks/colab/text_to_sign_production_colab.ipynb`.
+- `docs/execution.md` is the operator-facing execution guide.
+- Notebook sections cover setup, Dataset Build, Baseline Modeling, qualitative export, record/package assembly, and final artifact inspection.
 
-- processed manifest and processed `.npz` modeling data contracts
-- baseline model surface
-- mask-aware loss and metric utilities
-- train/validation runtime
-- checkpointing and `run_summary.json`
-- qualitative panel export
-- `baseline_evidence_bundle.json`
-- stage-oriented CLI
-- Colab archive/resume workflow support
-- runtime-side record/package outputs
-- formal experiment-record guide/schema and template docs
-- ADR-0014 and ADR-0015 documenting workflow and artifact strategy
+## Artifact Storage And Run Roots
 
-Baseline Modeling CLI:
-
-```bash
-python scripts/baseline_modeling.py [prepare|train|export-panel|package|all]
-```
-
-Baseline Modeling workflow entrypoint:
-
-`text_to_sign_production.workflows.baseline_modeling.run_baseline_modeling`
-
-Default local run root:
-
-`outputs/modeling/baseline-modeling/runs/<run_name>/`
-
-Default Colab run root:
-
-`/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/`
-
-Run root structure:
-
-- `config/`
-- `checkpoints/`
-- `metrics/`
-- `qualitative/`
-- `record/`
-- `archives/`
-
-Baseline archive names:
-
-- `archives/baseline_training_outputs.tar.zst`
-- `archives/baseline_qualitative_outputs.tar.zst`
-- `archives/baseline_record_package.tar.zst`
-
-Resume priority:
-
-1. Reuse extracted outputs.
-2. Extract archived outputs.
-3. Run and publish outputs.
-
-## Main Notebook
-
-The single project-wide Colab notebook is:
-
-`notebooks/colab/text_to_sign_production_colab.ipynb`
-
-Notebook rules:
-
-- one code cell equals one operational job
-- every code cell has a preceding markdown cell explaining purpose, inputs, outputs, and skip
-  conditions
-- environment setup and repo acquisition are separate
-- runtime settings and Drive integration are separate
-- archive extraction and actual execution are separate
-- from Dataset Build outputs onward, major steps have separate reuse, extract, and run/publish cells
-
-Notebook section layout:
-
-- Section 0: runtime and session setup
-- Section 1: Drive mount
-- Section 2: repo acquisition and install
-- Section 3: Dataset Build outputs
-- Section 4: Baseline Modeling training outputs
-- Section 5: qualitative panel outputs
-- Section 6: record/package outputs
-- Section 7: final artifact inspection
-
-## Storage Policy
-
-Large artifacts stay outside GitHub:
-
-- raw How2Sign data
-- processed `.npz` samples
-- generated manifests and reports
-- Dataset Build archives
-- baseline checkpoints
-- qualitative outputs
-- runtime record/package outputs
-- baseline archives
-
-Fixed Colab roots:
-
-- Raw inputs: `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/`
-- Dataset Build artifacts:
-  `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/`
-- Baseline run roots:
-  `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/`
+- Large generated artifacts stay outside Git.
+- Fixed Colab raw input root:
+  `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/`.
+- Fixed Dataset Build artifact root:
+  `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/`.
+- Fixed Colab Baseline Modeling run root:
+  `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/`.
+- Local developer-facing Baseline Modeling default run root:
+  `outputs/modeling/baseline-modeling/runs/<run_name>/`.
 
 ## Experiment Records
 
-Sprint 3 formal baseline records are Markdown docs under `docs/experiments/`. They cite runtime
-artifacts rather than replacing them.
+- `docs/experiments/index.md` is the canonical index for durable Markdown experiment records.
+- `docs/experiments/template.md` is the canonical template for new experiment records.
+- The current Baseline Modeling record is:
+  `docs/experiments/2026-04-baseline-modeling-experiment-record-colab-run-190420261845.md`.
+- Runtime evidence and package artifacts remain the execution evidence surface.
+- The Markdown experiment record is the durable comparison and interpretation surface that cites those runtime artifacts rather than replacing them.
 
-Use:
+## Key Governing ADRs
 
-- `docs/experiments/baseline-modeling-record-guide.md`
-- `docs/experiments/baseline-modeling-record-template.md`
+- ADR-0002: notebooks remain thin drivers and do not own core project logic.
+- ADR-0012: DVC is removed from the active workflow.
+- ADR-0015: Baseline Modeling uses stable run roots, deterministic archives, and defined archive/resume evidence behavior.
+- ADR-0016: the single supported operator workflow is the Colab notebook, with `docs/execution.md` as the execution guide.
+- ADR-0017: structured documentation surfaces use `index.md`, `template.md`, and real leaf records.
 
-A formal baseline record should cite:
+## Next Planned Work
 
-- Dataset Build manifests or archives
-- baseline config files
-- `run_summary.json`
-- `last.pt` and `best.pt`
-- qualitative panel outputs
-- `baseline_evidence_bundle.json`
-- `baseline_modeling_package.json`
-- deterministic archives under `archives/`
+- Sprint 3 is complete as the bounded baseline milestone.
+- Sprint 4: broader evaluation and error analysis.
+- Sprint 5: first thesis contribution, focused on discrete or data-driven pose representation.
+- Sprint 6: second thesis contribution, focused on structure-aware or multi-channel improvement.
+- Sprint 7: inference, playback, and minimal demo.
+- Sprint 8: thesis packaging and final integration.
 
-The runtime record package is baseline evidence. The formal Markdown record is the comparison
-surface for later sprints.
+## Testing Snapshot
 
-## Key ADRs
+- Active test layers are `unit`, `integration`, `e2e`, and `operational`.
+- Automated CI-safe coverage centers on unit, integration, and e2e layers.
+- Operational checks remain the manual or external-runtime validation surface for real Colab, Drive, large-archive, and resume/publish behavior.
+- High-level contract coverage includes domain and workflow logic, notebook/docs wording, workflow inventory, and thin wrapper behavior.
+- `docs/testing/index.md` is the canonical reference for testing layers, infrastructure, and contracts.
 
-- ADR-0002: notebooks as thin drivers
-- ADR-0012: remove DVC from the active workflow
-- ADR-0013: define the post-Dataset-Build research roadmap
-- ADR-0014: adopt Sprint 3 stage-oriented baseline workflow and notebook extension
-- ADR-0015: define Sprint 3 runtime artifact, archive/resume, and evidence strategy
+## Documentation Maintenance Policy
 
-## Roadmap
-
-- Sprint 3: Baseline Modeling, complete as baseline-only evidence
-- Sprint 4: broader evaluation and error analysis
-- Sprint 5: thesis contribution I, discrete/data-driven pose representation
-- Sprint 6: thesis contribution II, structure-aware / multi-channel improvement
-- Sprint 7: inference/playback/minimal demo
-- Sprint 8: thesis packaging/final integration
-
-Do not implement Sprint 4 or later work while closing Sprint 3 documentation.
-
-## Testing Strategy
-
-Test layers:
-
-- `tests/unit/`
-- `tests/integration/`
-- `tests/e2e/`
-- `tests/operational/`
-
-Operational checks are manual and cover real Colab, Drive, large archives, publish/resume, and real
-How2Sign behavior.
-
-Phase 7C validation used the `t2sp-py311` conda environment because the active shell may be `base`.
-
-## Documentation Update Practice
-
-When changing execution behavior, update execution docs, storage docs, notebook surfaces, public
-workflow references, ADRs when needed, experiment-record docs when evidence surfaces change, and
-handoff/briefing notes last.
-
-When wording current maturity, use:
-
-- Current public stage: Dataset Build
-- Implemented internal downstream surface: Baseline Modeling
-- Not yet implemented: broader evaluation, contribution modeling, playback/demo
+- Execution behavior changes belong in `docs/execution.md`.
+- Artifact shape, data shape, or path changes belong in `docs/data/`.
+- Testing behavior or test-surface changes belong in `docs/testing/`.
+- Decision or governance changes belong in `docs/decisions/`.
+- Experiment-record surface changes belong in `docs/experiments/`.
+- Research-plan changes belong in `docs/research/roadmap.md`.
+- Research-positioning changes belong in `docs/research/literature-positioning.md`.
+- Repository-structure or docs-map changes belong in `docs/repository-map.md`.
+- Update this handoff only after the owning canonical docs surfaces are updated.
