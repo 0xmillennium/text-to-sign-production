@@ -113,6 +113,6 @@ export, and record/package outputs.
 ## Next Steps
 
 - Read [Development Setup](development-setup.md) before contributing.
-- Read [Repository Structure](repository-structure.md) before changing boundaries.
+- Read [Repository Map](repository-map.md) before changing boundaries.
 - Read [Execution](execution.md) before running the supported Colab notebook.
 - Read [Experiments](experiments/index.md) before writing Baseline Modeling records.

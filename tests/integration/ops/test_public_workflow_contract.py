@@ -280,7 +280,6 @@ def test_public_docs_reference_current_notebook_only() -> None:
         "README.md",
         "docs/index.md",
         "docs/getting-started.md",
-        "docs/repository-structure.md",
         "docs/execution.md",
     )
     for relative_path in docs_expected_to_reference_notebook:
@@ -291,7 +290,6 @@ def test_public_docs_preserve_current_status_wording() -> None:
     docs_expected_to_state_public_status = (
         "README.md",
         "docs/index.md",
-        "docs/repository-structure.md",
         "docs/experiments/index.md",
     )
 
@@ -299,6 +297,18 @@ def test_public_docs_preserve_current_status_wording() -> None:
         source = _read_repo_file(relative_path)
         for expected_line in PUBLIC_STATUS_LINES:
             assert expected_line in source, relative_path
+
+
+def test_public_docs_reference_repository_map_surface() -> None:
+    readme_source = _read_repo_file("README.md")
+    getting_started_source = _read_repo_file("docs/getting-started.md")
+    mkdocs_source = _read_repo_file("mkdocs.yml")
+
+    assert "Repository Map" in readme_source
+    assert "docs/repository-map.md" in readme_source
+    assert "Repository Map" in getting_started_source
+    assert "repository-map.md" in getting_started_source
+    assert "Repository Map: repository-map.md" in mkdocs_source
 
 
 def test_readme_public_surface_structure_is_stable() -> None:
