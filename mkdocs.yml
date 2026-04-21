@@ -7,7 +7,7 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Development Setup: development-setup.md
-  - Repository Structure: repository-structure.md
+  - Repository Map: repository-map.md
   - Execution: execution.md
   - Data:
       - Overview: data/index.md
