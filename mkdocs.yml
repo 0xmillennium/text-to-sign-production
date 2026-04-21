@@ -39,23 +39,26 @@ nav:
           - Qualitative Archive: data/artifacts/baseline-modeling/qualitative-archive.md
           - Record Archive: data/artifacts/baseline-modeling/record-archive.md
   - Testing Architecture: testing.md
-  - Decisions Overview: decisions.md
-  - ADR Template: decisions/template.md
-  - ADR 0001: decisions/adr-0001-repo-centered-workflow.md
-  - ADR 0002: decisions/adr-0002-notebooks-as-thin-drivers.md
-  - ADR 0003: decisions/adr-0003-dvc-inclusion.md
-  - ADR 0004: decisions/adr-0004-english-as-project-language.md
-  - ADR 0005: decisions/adr-0005-sprint-1-excludes-ml-implementation.md
-  - ADR 0006: decisions/adr-0006-sprint-2-data-first.md
-  - ADR 0007: decisions/adr-0007-preserve-official-how2sign-splits.md
-  - ADR 0008: decisions/adr-0008-manifest-driven-processed-dataset.md
-  - ADR 0009: decisions/adr-0009-npz-processed-sample-format.md
-  - ADR 0010: decisions/adr-0010-face-optional-in-v1.md
-  - ADR 0011: decisions/adr-0011-adopt-filter-v2-one-hand-policy-for-dataset-build.md
-  - ADR 0012: decisions/adr-0012-remove-dvc-active-workflow.md
-  - ADR 0013: decisions/adr-0013-define-post-dataset-build-research-roadmap.md
-  - ADR 0014: decisions/adr-0014-adopt-sprint-3-stage-oriented-baseline-workflow-and-notebook-extension.md
-  - ADR 0015: decisions/adr-0015-define-sprint-3-runtime-artifact-archive-resume-and-evidence-strategy.md
+  - Decisions:
+      - Overview: decisions/index.md
+      - Template: decisions/template.md
+      - ADR 0001: decisions/adr-0001-repo-centered-workflow.md
+      - ADR 0002: decisions/adr-0002-notebooks-as-thin-drivers.md
+      - ADR 0003: decisions/adr-0003-dvc-inclusion.md
+      - ADR 0004: decisions/adr-0004-english-as-project-language.md
+      - ADR 0005: decisions/adr-0005-sprint-1-excludes-ml-implementation.md
+      - ADR 0006: decisions/adr-0006-sprint-2-data-first.md
+      - ADR 0007: decisions/adr-0007-preserve-official-how2sign-splits.md
+      - ADR 0008: decisions/adr-0008-manifest-driven-processed-dataset.md
+      - ADR 0009: decisions/adr-0009-npz-processed-sample-format.md
+      - ADR 0010: decisions/adr-0010-face-optional-in-v1.md
+      - ADR 0011: decisions/adr-0011-adopt-filter-v2-one-hand-policy-for-dataset-build.md
+      - ADR 0012: decisions/adr-0012-remove-dvc-active-workflow.md
+      - ADR 0013: decisions/adr-0013-define-post-dataset-build-research-roadmap.md
+      - ADR 0014: decisions/adr-0014-adopt-sprint-3-stage-oriented-baseline-workflow-and-notebook-extension.md
+      - ADR 0015: decisions/adr-0015-define-runtime-artifact-archive-resume-and-evidence-strategy.md
+      - ADR 0016: decisions/adr-0016-adopt-notebook-only-supported-workflow-and-single-execution-guide.md
+      - ADR 0017: decisions/adr-0017-standardize-structured-documentation-surfaces-with-index-and-template.md
   - Experiments:
       - Overview: experiments/index.md
       - Template: experiments/template.md

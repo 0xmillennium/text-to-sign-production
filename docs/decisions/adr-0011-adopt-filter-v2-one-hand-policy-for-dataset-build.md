@@ -21,8 +21,6 @@ usable `body` data and at least one usable hand: `left_hand | right_hand`.
 The legacy strict policy remains available at `configs/data/filter-v1.yaml` for reproducibility and
 comparison. It keeps the all-hands-required behavior instead of being silently reinterpreted.
 
-## Rationale
-
 The one-hand rule better matches usable samples where body and one hand carry valid signing signal.
 It also makes the policy explicit in configuration instead of hiding it inside a flat required
 channel tuple.

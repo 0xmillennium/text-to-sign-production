@@ -1,6 +1,6 @@
 # ADR-0003: DVC Inclusion
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-04-04
 
 Historical status note: this ADR records the Sprint 1 decision to include DVC as a reproducibility
@@ -23,3 +23,7 @@ grow from an established reproducibility foundation.
 - The repository becomes ready for future staged pipelines without faking present capability.
 - Contributors can document future DVC stage boundaries early.
 - Sprint 1 still avoids implementing any real data pipeline or model workflow.
+
+## Superseded By
+
+- [ADR-0012: Remove DVC from the Active Workflow](adr-0012-remove-dvc-active-workflow.md)

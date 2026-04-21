@@ -1,7 +1,11 @@
 # ADR-0014: Adopt Sprint 3 Stage-Oriented Baseline Workflow And Notebook Extension
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-04-18
+
+Historical status note: this ADR captures the earlier workflow framing that presented public CLI
+and reusable workflow entrypoints alongside the project notebook during Sprint 3. The repository
+now uses a notebook-only supported workflow, so this ADR remains a historical record only.
 
 ## Context
 
@@ -45,16 +49,13 @@ Public wording remains:
 
 ## Alternatives Considered
 
-### Create A Separate Sprint 3 Notebook
+- Create a separate Sprint 3 notebook. Rejected because the project standard was one main Colab
+  notebook, not one notebook per stage.
+- Keep the Dataset-Build-specific notebook name. Rejected because the notebook now covered Dataset
+  Build and baseline orchestration, so the old name would mislead operators and documentation.
+- Expose only lower-level training scripts. Rejected because that would fragment the public
+  workflow and make archive/resume behavior harder to document consistently.
 
-Rejected. The project standard is one main Colab notebook, not one notebook per stage.
+## Superseded By
 
-### Keep The Dataset-Build-Specific Notebook Name
-
-Rejected. The notebook now covers Dataset Build and baseline orchestration, so the old name would
-mislead operators and documentation.
-
-### Expose Only Lower-Level Training Scripts
-
-Rejected. That would fragment the public workflow and make archive/resume behavior harder to
-document consistently.
+- [ADR-0016: Adopt Notebook-Only Supported Workflow And Single Execution Guide](adr-0016-adopt-notebook-only-supported-workflow-and-single-execution-guide.md)

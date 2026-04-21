@@ -210,7 +210,7 @@ runs.
 - [Execution](docs/execution.md)
 - [Data Overview](docs/data/index.md)
 - [Testing](docs/testing.md)
-- [Decisions](docs/decisions.md)
+- [Decisions](docs/decisions/index.md)
 - [Experiments](docs/experiments/index.md)
 - [Roadmap](docs/roadmap.md)
 - [Literature Positioning](docs/literature-positioning.md)
