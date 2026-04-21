@@ -209,7 +209,7 @@ runs.
 - [Repository Structure](docs/repository-structure.md)
 - [Execution](docs/execution.md)
 - [Data Overview](docs/data/index.md)
-- [Testing](docs/testing.md)
+- [Testing](docs/testing/index.md)
 - [Decisions](docs/decisions/index.md)
 - [Experiments](docs/experiments/index.md)
 - [Roadmap](docs/roadmap.md)
@@ -224,6 +224,6 @@ planned contribution stages.
 ## Contribution And Development Pointer
 
 Start with [docs/development-setup.md](docs/development-setup.md), then read
-[docs/repository-structure.md](docs/repository-structure.md) and [docs/testing.md](docs/testing.md).
+[docs/repository-structure.md](docs/repository-structure.md) and [docs/testing/index.md](docs/testing/index.md).
 Record long-lived architecture decisions under `docs/decisions/` and empirical baseline records
 under `docs/experiments/`.

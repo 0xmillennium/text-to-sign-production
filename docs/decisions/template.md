@@ -67,7 +67,7 @@ Current behavior belongs in surfaces such as:
 - `docs/execution.md`
 - `docs/data`
 - `docs/experiments`
-- `docs/testing.md`
+- `docs/testing/index.md`
 
 ## Update Rule
 
