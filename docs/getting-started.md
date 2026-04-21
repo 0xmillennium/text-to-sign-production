@@ -1,118 +1,42 @@
 # Getting Started
 
-## Prerequisites
+## Who This Is For
 
-- Python 3.11 or newer
-- `git`
-- `zstd` and `tar` for local archive creation or extraction
+This page is for readers who are new to the repository and need the right first path.
 
-## Install Paths
+It is also the handoff point for contributors who need local setup guidance without mixing that
+work with the supported execution workflow.
 
-Base package only:
+## Supported First Path
 
-```bash
-python -m pip install --upgrade pip
-python -m pip install -e .
-```
+The supported first path is the notebook-first workflow in [Execution](execution.md).
 
-Developer tooling:
+Start there if you want to understand how the project is run today. The supported notebook is
+`notebooks/colab/text_to_sign_production_colab.ipynb`.
 
-```bash
-python -m pip install -e ".[dev]"
-```
+## Before You Run Anything
 
-Documentation tooling:
+- Read [Execution](execution.md) before starting the notebook workflow.
+- Use [Repository Map](repository-map.md) if you need the repo layout or surface ownership first.
+- Use [Data](data/index.md) if you need artifact or data-surface meaning while reading the workflow.
 
-```bash
-python -m pip install -e ".[docs]"
-```
+## If You Want To Contribute
 
-Baseline Modeling tooling:
+Use [Development Setup](development-setup.md) for local environment setup, install tooling, quality
+commands, quality gates, and branch/commit discipline.
 
-```bash
-python -m pip install -e ".[modeling]"
-```
+Then use the canonical contributor reference surfaces that match your task:
 
-Full contributor path:
+- [Testing](testing/index.md) for test structure and validation guidance.
+- [Decisions](decisions/index.md) for ADRs and documentation conventions.
+- [Experiments](experiments/index.md) for experiment and validation records.
 
-```bash
-python -m pip install -e ".[dev,docs,modeling]"
-```
+## Where To Go Next
 
-The Makefile exposes the same setup paths:
-
-```bash
-make install-dev
-make install-docs
-make install-modeling
-make install
-```
-
-`make install` installs `dev` and `docs`. Run `make install-modeling` as well before baseline
-training or qualitative export.
-
-## Smoke Check
-
-```bash
-python -c "from text_to_sign_production import smoke_check; print(smoke_check())"
-```
-
-Expected output:
-
-```text
-t2sp-smoke-ok
-```
-
-## Dataset Build Quick Start
-
-Current public stage: Dataset Build.
-
-For local Dataset Build runs, use the stage CLI against the canonical raw layout under
-`data/raw/how2sign/`:
-
-```bash
-python scripts/dataset_build.py
-```
-
-This writes extracted outputs under `data/interim/` and `data/processed/v1/`, then publishes
-archived outputs under `data/archives/`.
-
-To skip local archive publication:
-
-```bash
-python scripts/dataset_build.py --no-package
-```
-
-## Baseline Modeling Quick Start
-
-Implemented internal downstream surface: Baseline Modeling.
-
-Baseline Modeling requires processed Dataset Build outputs and the `modeling` extra:
-
-```bash
-python scripts/baseline_modeling.py all --run-name baseline-default
-```
-
-Local run roots default to:
-
-`outputs/modeling/baseline-modeling/runs/<run_name>/`
-
-The workflow uses archive-aware resume for training outputs, qualitative outputs, and
-record/package outputs.
-
-## Colab Heavy-Run Path
-
-Use the single project-wide notebook:
-
-`notebooks/colab/text_to_sign_production_colab.ipynb`
-
-The notebook uses fixed Google Drive paths, supports reuse of extracted outputs, extraction from
-archived outputs, and run/publish cells for Dataset Build, baseline training, qualitative panel
-export, and record/package outputs.
-
-## Next Steps
-
-- Read [Development Setup](development-setup.md) before contributing.
-- Read [Repository Map](repository-map.md) before changing boundaries.
-- Read [Execution](execution.md) before running the supported Colab notebook.
-- Read [Experiments](experiments/index.md) before writing Baseline Modeling records.
+- [Execution](execution.md): supported notebook-first workflow.
+- [Development Setup](development-setup.md): contributor setup and local checks.
+- [Repository Map](repository-map.md): repository structure and ownership.
+- [Data](data/index.md): artifact and data reference.
+- [Testing](testing/index.md): testing strategy and validation surfaces.
+- [Decisions](decisions/index.md): architectural and process decisions.
+- [Experiments](experiments/index.md): experiment and evidence records.

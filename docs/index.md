@@ -3,39 +3,37 @@
 `text-to-sign-production` is a graduation thesis repository for reproducible English
 text-to-sign-pose research.
 
+## Current State
+
 Current public stage: Dataset Build.
 
 Implemented internal downstream surface: Baseline Modeling.
 
 Not yet implemented: broader evaluation, contribution modeling, playback/demo.
 
-## Current State
-
-- Dataset Build produces manifest-driven processed Dataset Build outputs from fixed How2Sign/BFH
-  inputs.
-- Baseline Modeling consumes processed manifests and `.npz` samples for baseline-only train/val
-  runs, qualitative panel export, and runtime evidence packaging.
-- The single project-wide Colab notebook is
-  `notebooks/colab/text_to_sign_production_colab.ipynb`.
-- The active Dataset Build filter policy is `configs/data/filter-v2.yaml`: usable body plus at
-  least one usable hand.
-- Processed schema version is `t2sp-processed-v1`.
-- Large generated artifacts stay outside GitHub and are restored through extracted outputs or
-  archived outputs.
-- Baseline Modeling has a formal experiment-record documentation surface that cites runtime
-  artifacts rather than replacing them with a tracking server.
+The supported notebook-first workflow is `notebooks/colab/text_to_sign_production_colab.ipynb`,
+documented in [Execution](execution.md).
 
 ## Start Here
 
-- Run the supported notebook with [Execution](execution.md).
-- Use [Getting Started](getting-started.md) for install and first commands.
-- Use [Experiments](experiments/index.md) for Dataset Build validation records and Baseline Modeling
-  experiment-record practice.
-- Use [Roadmap](roadmap.md) and [Literature Positioning](literature-positioning.md) for the thesis
-  direction after Dataset Build.
+- New here: start with [Getting Started](getting-started.md).
+- Running the supported workflow: use [Execution](execution.md).
+- Contributing locally: use [Development Setup](development-setup.md).
+- Finding repo structure and boundaries: use [Repository Map](repository-map.md).
+
+## Documentation Map
+
+- [Getting Started](getting-started.md): first-entry routing for new readers.
+- [Development Setup](development-setup.md): contributor environment setup and local quality checks.
+- [Repository Map](repository-map.md): repo layout and documentation ownership.
+- [Execution](execution.md): supported notebook-first workflow guide.
+- [Data](data/index.md): canonical artifact and data reference.
+- [Testing](testing/index.md): test strategy, layers, and validation references.
+- [Decisions](decisions/index.md): ADRs for long-lived project decisions.
+- [Experiments](experiments/index.md): experiment and validation records.
 
 ## Boundaries
 
-The repository is intentionally honest about maturity. Dataset Build is public and implemented.
-Baseline Modeling is implemented as baseline evidence for later comparisons. Broader evaluation,
-contribution modeling, and playback/demo remain later phases.
+This is a pre-alpha research repository. Dataset Build is the public implemented stage, Baseline
+Modeling is present as baseline evidence work, and broader evaluation, contribution modeling, and
+playback/demo remain later phases.

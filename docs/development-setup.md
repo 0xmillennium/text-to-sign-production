@@ -1,5 +1,11 @@
 # Development Setup
 
+## Purpose
+
+This page explains how to set up a local development environment to contribute to the repository.
+
+It is contributor-focused. The supported runtime workflow lives in [Execution](execution.md).
+
 ## Install Tooling
 
 Use the smallest install path that matches the work.
@@ -26,9 +32,11 @@ python -m pip install -e ".[modeling]"
 python -m pip install -e ".[dev,docs,modeling]"
 ```
 
-Dataset Build does not require the `modeling` extra. Baseline training and qualitative export do.
+Use the `modeling` extra only when your contribution work needs the optional modeling stack.
 
 ## Local Quality Commands
+
+Run the smallest useful command set for the change you are making.
 
 ```bash
 make lint
@@ -46,12 +54,12 @@ python -m pytest -m e2e
 - `ruff` handles linting and formatting checks.
 - `mypy` provides static type verification for `src` and `tests`.
 - `pytest` validates unit, integration, and local e2e tests.
-- `mkdocs build --strict` validates documentation and navigation.
+- `mkdocs build --strict` validates documentation content and navigation.
 - `pre-commit` enforces file hygiene, branch protection, secret scanning, and commit message rules.
 - `pip-audit` checks installed dependencies for known vulnerabilities during CI-style runs.
 
-Operational Colab, Drive, large-archive, and real How2Sign checks are documented under
-`tests/operational/` and are excluded from normal pytest runs.
+Manual Colab, Drive, large-archive, and real How2Sign checks live under `tests/operational/` and
+are excluded from normal pytest runs.
 
 ## Branch And Commit Discipline
 
