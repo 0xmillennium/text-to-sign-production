@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
@@ -291,7 +292,7 @@ def test_public_docs_preserve_current_status_wording() -> None:
         "README.md",
         "docs/index.md",
         "docs/repository-structure.md",
-        "docs/experiments.md",
+        "docs/experiments/index.md",
     )
 
     for relative_path in docs_expected_to_state_public_status:
@@ -333,7 +334,7 @@ def test_readme_public_surface_structure_is_stable() -> None:
         assert snippet in source
 
 
-def test_public_docs_use_baseline_modeling_record_names() -> None:
+def test_public_docs_use_canonical_experiments_surface() -> None:
     old_record_names = (
         "sprint3-baseline-record-guide.md",
         "sprint3-baseline-record-template.md",
@@ -349,28 +350,41 @@ def test_public_docs_use_baseline_modeling_record_names() -> None:
         for old_record_name in old_record_names:
             assert old_record_name not in source, path
 
-    old_guide = PROJECT_ROOT / "docs/experiments/sprint3-baseline-record-guide.md"
-    old_template = PROJECT_ROOT / "docs/experiments/sprint3-baseline-record-template.md"
-    new_guide = PROJECT_ROOT / "docs/experiments/baseline-modeling-record-guide.md"
-    new_template = PROJECT_ROOT / "docs/experiments/baseline-modeling-record-template.md"
-    assert not old_guide.exists()
-    assert not old_template.exists()
-    assert new_guide.is_file()
-    assert new_template.is_file()
+    experiments_root = PROJECT_ROOT / "docs" / "experiments"
+    obsolete_paths = (
+        PROJECT_ROOT / "docs" / "experiments.md",
+        experiments_root / "README.md",
+        experiments_root / ("baseline-modeling-record" + "-guide.md"),
+        experiments_root / ("baseline-modeling-record" + "-template.md"),
+        experiments_root / ("sprint3-baseline-record" + "-guide.md"),
+        experiments_root / ("sprint3-baseline-record" + "-template.md"),
+    )
+    for obsolete_path in obsolete_paths:
+        assert not obsolete_path.exists()
+
+    experiments_dir = PROJECT_ROOT / "docs/experiments"
+    record_pattern = re.compile(r"\d{4}-\d{2}-[a-z0-9-]+-experiment-record-[a-z0-9-]+\.md")
+    experiment_files = sorted(path.name for path in experiments_dir.glob("*.md"))
+    assert "index.md" in experiment_files
+    assert "template.md" in experiment_files
+    assert all(
+        name in {"index.md", "template.md"} or record_pattern.fullmatch(name)
+        for name in experiment_files
+    )
+    record_files = [name for name in experiment_files if name not in {"index.md", "template.md"}]
+    assert record_files
 
     mkdocs_source = _read_repo_file("mkdocs.yml")
-    experiments_source = _read_repo_file("docs/experiments.md")
-    for source in (mkdocs_source, experiments_source):
-        has_record_guide_label = (
-            "Baseline Modeling Record Guide" in source or "Baseline Modeling record guide" in source
-        )
-        assert has_record_guide_label
-        assert (
-            "Baseline Modeling Record Template" in source
-            or "Baseline Modeling record template" in source
-        )
-        assert "experiments/baseline-modeling-record-guide.md" in source
-        assert "experiments/baseline-modeling-record-template.md" in source
+    experiments_index_source = _read_repo_file("docs/experiments/index.md")
+    assert "experiments/index.md" in mkdocs_source
+    assert "experiments/template.md" in mkdocs_source
 
-    assert "# Baseline Modeling Record Guide" in new_guide.read_text(encoding="utf-8")
-    assert "# Baseline Modeling Record Template" in new_template.read_text(encoding="utf-8")
+    assert "template.md" in experiments_index_source
+    for record_file in record_files:
+        assert f"experiments/{record_file}" in mkdocs_source
+        assert record_file in experiments_index_source
+
+    new_index = PROJECT_ROOT / "docs/experiments/index.md"
+    new_template = PROJECT_ROOT / "docs/experiments/template.md"
+    assert "# Experiment Records" in new_index.read_text(encoding="utf-8")
+    assert "# Experiment Record Template" in new_template.read_text(encoding="utf-8")

@@ -56,12 +56,11 @@ nav:
   - ADR 0013: decisions/adr-0013-define-post-dataset-build-research-roadmap.md
   - ADR 0014: decisions/adr-0014-adopt-sprint-3-stage-oriented-baseline-workflow-and-notebook-extension.md
   - ADR 0015: decisions/adr-0015-define-sprint-3-runtime-artifact-archive-resume-and-evidence-strategy.md
-  - Experiments Overview: experiments.md
-  - Dataset Build Filter V2 Full Validation: experiments/2026-04-dataset-build-filter-v2-full-validation.md
-  - Baseline Modeling Record Guide: experiments/baseline-modeling-record-guide.md
-  - Baseline Modeling Record Template: experiments/baseline-modeling-record-template.md
-  - Experiment Log Guide: experiments/README.md
-  - Experiment Template: experiments/template.md
+  - Experiments:
+      - Overview: experiments/index.md
+      - Template: experiments/template.md
+      - Dataset Build Filter V2 Full Validation: experiments/2026-04-dataset-build-experiment-record-filter-v2-full-validation.md
+      - Baseline Modeling Colab Run 190420261845: experiments/2026-04-baseline-modeling-experiment-record-colab-run-190420261845.md
   - Roadmap: roadmap.md
   - Literature Positioning: literature-positioning.md
 
