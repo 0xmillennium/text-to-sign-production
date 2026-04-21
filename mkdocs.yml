@@ -6,9 +6,9 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Execution: execution.md
   - Development Setup: development-setup.md
   - Repository Map: repository-map.md
-  - Execution: execution.md
   - Data:
       - Overview: data/index.md
       - Template: data/template.md
@@ -68,8 +68,10 @@ nav:
       - Template: experiments/template.md
       - Dataset Build Filter V2 Full Validation: experiments/2026-04-dataset-build-experiment-record-filter-v2-full-validation.md
       - Baseline Modeling Colab Run 190420261845: experiments/2026-04-baseline-modeling-experiment-record-colab-run-190420261845.md
-  - Roadmap: roadmap.md
-  - Literature Positioning: literature-positioning.md
+  - Research Context:
+      - Overview: research/index.md
+      - Roadmap: research/roadmap.md
+      - Literature Positioning: research/literature-positioning.md
 
 markdown_extensions:
   - admonition
