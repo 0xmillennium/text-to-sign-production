@@ -75,7 +75,7 @@ Git.
 ## Documentation And Records
 
 - `docs/decisions/`: ADRs for long-lived architecture and workflow decisions
-- `docs/experiments/`: validation records, Baseline Modeling record guidance, and templates
+- `docs/experiments/`: experiment record inventory, canonical template, and real experiment records
 - `docs/execution.md`: operator-facing notebook execution guide
 - `docs/data/`: artifact dictionary, report surfaces, and archive references
 - `notes/LLM_PROJECT_HANDOFF.md`: project-wide handoff

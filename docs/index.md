@@ -29,7 +29,7 @@ Not yet implemented: broader evaluation, contribution modeling, playback/demo.
 
 - Run the supported notebook with [Execution](execution.md).
 - Use [Getting Started](getting-started.md) for install and first commands.
-- Use [Experiments](experiments.md) for Dataset Build validation records and Baseline Modeling
+- Use [Experiments](experiments/index.md) for Dataset Build validation records and Baseline Modeling
   experiment-record practice.
 - Use [Roadmap](roadmap.md) and [Literature Positioning](literature-positioning.md) for the thesis
   direction after Dataset Build.

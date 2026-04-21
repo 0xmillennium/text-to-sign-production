@@ -211,7 +211,7 @@ runs.
 - [Data Overview](docs/data/index.md)
 - [Testing](docs/testing.md)
 - [Decisions](docs/decisions.md)
-- [Experiments](docs/experiments.md)
+- [Experiments](docs/experiments/index.md)
 - [Roadmap](docs/roadmap.md)
 - [Literature Positioning](docs/literature-positioning.md)
 
