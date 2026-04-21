@@ -1,16 +1,17 @@
 # Roadmap
 
-This page is the authoritative roadmap after Dataset Build. Sprint 1 and Sprint 2 are historical
-context; Sprint 3 through Sprint 8 define the current planned thesis path.
+This page is the authoritative roadmap after Dataset Build. Sprint 1 and Sprint 2 are completed
+historical context, Sprint 3 is the current implemented baseline milestone, and Sprint 4 through
+Sprint 8 define the remaining planned thesis path.
 
 ## Strategy
 
-Sprint 3 establishes the reproducible baseline. Sprint 4 establishes evaluation and error analysis
-before strong thesis-contribution claims are made. Sprint 5 and Sprint 6 are the main planned
-thesis-contribution path: Sprint 5 focuses on discrete/data-driven pose representation, and Sprint 6
-focuses on structure-aware / multi-channel improvement. Diffusion and retrieval/stitching remain
-meaningful later alternatives or future extensions, but they are not the primary chosen roadmap path
-at this stage.
+Sprint 3 now anchors the implemented baseline evidence. Sprint 4 establishes evaluation and error
+analysis before strong thesis-contribution claims are made. Sprint 5 and Sprint 6 remain the main
+planned thesis-contribution path: Sprint 5 focuses on discrete/data-driven pose representation, and
+Sprint 6 focuses on structure-aware / multi-channel improvement. Diffusion and retrieval/stitching
+remain meaningful later alternatives or future extensions, but they are not the primary chosen
+roadmap path at this stage.
 
 ## Historical Context
 
@@ -29,32 +30,30 @@ Sprint 1 delivers repository infrastructure only:
 
 ### Sprint 2
 
-Sprint 2 delivers the current implemented Dataset Build pipeline:
+Sprint 2 established the current Dataset Build foundation:
 
 - raw How2Sign layout inspection and documentation
 - raw manifest generation and validation
 - OpenPose 2D normalization into versioned `.npz` samples
 - active `filter-v2.yaml` policy with usable body plus at least one usable hand
-- manifest-driven processed dataset export
+- manifest-driven processed dataset export and packaging foundation
 - data-quality, split-integrity, and assumption reporting
-- Dataset Build execution through the reusable workflow, CLI, and Colab runner
-- Colab-oriented heavy execution support through the Dataset Build workflow
-- manifest-driven output packaging and private/shared artifact storage guidance
 - full `train / val / test` validation recorded after Filter V2 and packaging hardening
 
 ## Sprint 3 - Baseline Modeling
 
 ### Purpose
 
-Establish the first reproducible English text-to-pose baseline on the processed Dataset Build
-manifests. This sprint is baseline-only and is not the main thesis-contribution sprint.
+Sprint 3 establishes the current implemented baseline milestone: a reproducible English
+text-to-pose baseline on the processed Dataset Build manifests. This sprint is baseline-only and is
+not the main thesis-contribution sprint.
 
 ### In Scope
 
 - manifest-driven training and validation data loading from processed Dataset Build outputs
 - a simple, reproducible text-to-continuous-pose baseline
-- baseline configuration, provenance, command logging, and initial generated outputs
-- experiment records that make the baseline reproducible and comparable
+- baseline execution evidence, qualitative export, and record/package outputs
+- formal experiment recording that makes the baseline reproducible and comparable
 
 ### Out of Scope
 
@@ -67,9 +66,10 @@ manifests. This sprint is baseline-only and is not the main thesis-contribution 
 
 ### Acceptance Criteria
 
-- A baseline run can be reproduced from recorded configuration, command, and processed manifest
+- A baseline run is reproducible from recorded configuration, command, and processed manifest
   references.
-- Initial baseline outputs and metrics are recorded in an experiment log.
+- Baseline execution evidence, qualitative exports, and record/package outputs are available as
+  current repo surfaces and are tied to a formal experiment record.
 - The baseline uses processed manifests rather than direct raw-file access.
 - The baseline is clearly labeled as baseline evidence, not the main thesis contribution.
 

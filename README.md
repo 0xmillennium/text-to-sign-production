@@ -212,14 +212,14 @@ runs.
 - [Testing](docs/testing/index.md)
 - [Decisions](docs/decisions/index.md)
 - [Experiments](docs/experiments/index.md)
-- [Roadmap](docs/roadmap.md)
-- [Literature Positioning](docs/literature-positioning.md)
+- [Research Context](docs/research/index.md)
 
 ## Roadmap Pointer
 
-The thesis roadmap is documented in [docs/roadmap.md](docs/roadmap.md). Sprint 3 establishes the
-baseline. Sprint 4 adds broader evaluation and error analysis. Sprint 5 and Sprint 6 are the main
-planned contribution stages.
+The thesis roadmap and literature rationale are documented under
+[docs/research/index.md](docs/research/index.md). Sprint 3 establishes the baseline. Sprint 4 adds
+broader evaluation and error analysis. Sprint 5 and Sprint 6 are the main planned contribution
+stages.
 
 ## Contribution And Development Pointer
 
