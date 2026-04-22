@@ -17,11 +17,34 @@ NOTEBOOK_NAME = "text_to_sign_production_colab.ipynb"
 NOTEBOOK_PATH = PROJECT_ROOT / "notebooks" / "colab" / NOTEBOOK_NAME
 CURRENT_NOTEBOOK_REFERENCE = f"notebooks/colab/{NOTEBOOK_NAME}"
 OLD_NOTEBOOK_NAME = "dataset_build_colab.ipynb"
-PUBLIC_STATUS_LINES = (
+NOTEBOOK_PUBLIC_STATUS_LINES = (
     "Current public stage: Dataset Build",
     "Implemented internal downstream surface: Baseline Modeling",
     "Not yet implemented: broader evaluation, contribution modeling, playback/demo",
 )
+DOC_STATUS_SNIPPETS = {
+    "README.md": (
+        "## Current Status",
+        "- Dataset Build is completed.",
+        "- Baseline Modeling is completed as the implemented baseline milestone.",
+        "- The Contribution Audit is completed.",
+        "`C1 = Dynamic VQ Pose Tokens`",
+        "`C2 = Channel-Aware Loss Reweighting`",
+    ),
+    "docs/index.md": (
+        "## Current Repository State",
+        "- Dataset Build is completed.",
+        "- Baseline Modeling is completed as the implemented baseline milestone.",
+        "- The Contribution Audit is completed.",
+        "`C1 = Dynamic VQ Pose Tokens`",
+        "`C2 = Channel-Aware Loss Reweighting`",
+    ),
+    "docs/experiments/index.md": (
+        "Current public stage: Dataset Build.",
+        "Implemented internal downstream surface: Baseline Modeling.",
+        "Not yet implemented: broader evaluation, contribution modeling, playback/demo.",
+    ),
+}
 
 
 def _load_notebook() -> dict[str, Any]:
@@ -101,7 +124,7 @@ def test_colab_notebook_contains_stage_oriented_supported_workflow() -> None:
         assert heading in markdown_source
 
     required_snippets = (
-        *PUBLIC_STATUS_LINES,
+        *NOTEBOOK_PUBLIC_STATUS_LINES,
         'PIPELINE_SPLITS = ["train", "val", "test"]',
         'BASELINE_RUN_NAME = "baseline-default"',
         "BASELINE_PANEL_SIZE = 8",
@@ -278,25 +301,22 @@ def test_public_docs_reference_current_notebook_only() -> None:
 
     docs_expected_to_reference_notebook = (
         "README.md",
-        "docs/index.md",
         "docs/getting-started.md",
         "docs/execution.md",
     )
     for relative_path in docs_expected_to_reference_notebook:
         assert CURRENT_NOTEBOOK_REFERENCE in _read_repo_file(relative_path), relative_path
 
+    docs_expected_to_route_to_execution = ("docs/index.md",)
+    for relative_path in docs_expected_to_route_to_execution:
+        assert "[Execution](execution.md)" in _read_repo_file(relative_path), relative_path
+
 
 def test_public_docs_preserve_current_status_wording() -> None:
-    docs_expected_to_state_public_status = (
-        "README.md",
-        "docs/index.md",
-        "docs/experiments/index.md",
-    )
-
-    for relative_path in docs_expected_to_state_public_status:
+    for relative_path, expected_snippets in DOC_STATUS_SNIPPETS.items():
         source = _read_repo_file(relative_path)
-        for expected_line in PUBLIC_STATUS_LINES:
-            assert expected_line in source, relative_path
+        for expected_snippet in expected_snippets:
+            assert expected_snippet in source, relative_path
 
 
 def test_public_docs_reference_repository_map_surface() -> None:
@@ -315,30 +335,29 @@ def test_readme_public_surface_structure_is_stable() -> None:
     source = _read_repo_file("README.md")
 
     required_headings = (
-        "## What This Repository Is",
-        "## Current Public Workflow Surfaces",
-        "## Current Maturity And Boundaries",
-        "## Installation Matrix",
-        "## Quick Starts",
-        "### Dataset Build",
-        "### Baseline Modeling",
-        "### Colab Heavy-Run Path",
-        "## Docs Map",
+        "## Concise Project Summary",
+        "## Current Status",
+        "## Implemented Surfaces",
+        "## Selected Current Research Direction",
+        "## Supported Workflow",
+        "## Artifact / Publication / Reproducibility",
+        "## Scope Boundaries",
+        "## Documentation Map",
+        "## Getting Started",
     )
     for heading in required_headings:
         assert heading in source
 
     required_snippets = (
-        *PUBLIC_STATUS_LINES,
-        "Dataset Build CLI: `python scripts/dataset_build.py`",
-        "Baseline Modeling CLI: `python scripts/baseline_modeling.py "
-        "[prepare|train|export-panel|package|all]`",
-        "`python -m pip install -e .`",
-        '`python -m pip install -e ".[dev]"`',
-        '`python -m pip install -e ".[docs]"`',
-        '`python -m pip install -e ".[modeling]"`',
-        '`python -m pip install -e ".[dev,docs,modeling]"`',
+        "- Dataset Build is completed.",
+        "- Baseline Modeling is completed as the implemented baseline milestone.",
+        "- The Contribution Audit is completed.",
+        "`C1 = Dynamic VQ Pose Tokens`",
+        "`C2 = Channel-Aware Loss Reweighting`",
+        "The single supported operational workflow is the project-wide Colab notebook:",
         CURRENT_NOTEBOOK_REFERENCE,
+        "[Docs Home](docs/index.md)",
+        "[Execution](docs/execution.md)",
     )
     for snippet in required_snippets:
         assert snippet in source

@@ -9,7 +9,17 @@ nav:
   - Execution: execution.md
   - Development Setup: development-setup.md
   - Repository Map: repository-map.md
-  - Data:
+  - Testing:
+      - Overview: testing/index.md
+      - Layers: testing/layers.md
+      - Infrastructure: testing/infrastructure.md
+      - Contracts: testing/contracts.md
+  - Experiment Records:
+      - Overview: experiments/index.md
+      - Template: experiments/template.md
+      - Dataset Build Filter V2 Full Validation: experiments/2026-04-dataset-build-experiment-record-filter-v2-full-validation.md
+      - Baseline Modeling Colab Run 190420261845: experiments/2026-04-baseline-modeling-experiment-record-colab-run-190420261845.md
+  - Data Artifact Dictionary:
       - Overview: data/index.md
       - Template: data/template.md
       - Raw:
@@ -38,11 +48,43 @@ nav:
           - Training Archive: data/artifacts/baseline-modeling/training-archive.md
           - Qualitative Archive: data/artifacts/baseline-modeling/qualitative-archive.md
           - Record Archive: data/artifacts/baseline-modeling/record-archive.md
-  - Testing:
-      - Overview: testing/index.md
-      - Layers: testing/layers.md
-      - Infrastructure: testing/infrastructure.md
-      - Contracts: testing/contracts.md
+  - Research:
+      - Overview: research/index.md
+      - Roadmap: research/roadmap.md
+      - Literature Positioning: research/literature-positioning.md
+      - Bibliography: research/bibliography.md
+      - Contribution Audit:
+          - Overview: research/contribution-audit/index.md
+          - Audit Result: research/contribution-audit/audit-result.md
+          - Candidate Universe:
+              - Overview: research/contribution-audit/candidate-universe/index.md
+              - Template: research/contribution-audit/candidate-universe/template.md
+              - Discrete / Data-Driven Representation: research/contribution-audit/candidate-universe/discrete-data-driven-representation.md
+              - Structure-Aware / Multi-Channel Improvement: research/contribution-audit/candidate-universe/structure-aware-multi-channel-improvement.md
+              - Retrieval / Stitching: research/contribution-audit/candidate-universe/retrieval-stitching.md
+              - Diffusion-Based Generation: research/contribution-audit/candidate-universe/diffusion-based-generation.md
+              - Controlled Wildcard Slot: research/contribution-audit/candidate-universe/controlled-wildcard-slot.md
+          - Candidate Cards:
+              - Overview: research/contribution-audit/candidate-cards/index.md
+              - Template: research/contribution-audit/candidate-cards/template.md
+              - Dynamic VQ Pose Tokens: research/contribution-audit/candidate-cards/dynamic-vq-pose-tokens.md
+              - Motion Primitives Representation: research/contribution-audit/candidate-cards/motion-primitives-representation.md
+              - Channel-Aware Loss Reweighting: research/contribution-audit/candidate-cards/channel-aware-loss-reweighting.md
+              - Articulator-Partitioned Latent Structure: research/contribution-audit/candidate-cards/articulator-partitioned-latent-structure.md
+          - Scorecards:
+              - Overview: research/contribution-audit/scorecards/index.md
+              - Template: research/contribution-audit/scorecards/template.md
+              - Dynamic VQ Pose Tokens: research/contribution-audit/scorecards/dynamic-vq-pose-tokens.md
+              - Channel-Aware Loss Reweighting: research/contribution-audit/scorecards/channel-aware-loss-reweighting.md
+              - Articulator-Partitioned Latent Structure: research/contribution-audit/scorecards/articulator-partitioned-latent-structure.md
+              - Motion Primitives Representation: research/contribution-audit/scorecards/motion-primitives-representation.md
+          - Selection Decisions:
+              - Overview: research/contribution-audit/selection-decisions/index.md
+              - Template: research/contribution-audit/selection-decisions/template.md
+              - Dynamic VQ Pose Tokens: research/contribution-audit/selection-decisions/dynamic-vq-pose-tokens.md
+              - Channel-Aware Loss Reweighting: research/contribution-audit/selection-decisions/channel-aware-loss-reweighting.md
+              - Articulator-Partitioned Latent Structure: research/contribution-audit/selection-decisions/articulator-partitioned-latent-structure.md
+              - Motion Primitives Representation: research/contribution-audit/selection-decisions/motion-primitives-representation.md
   - Decisions:
       - Overview: decisions/index.md
       - Template: decisions/template.md
@@ -63,15 +105,6 @@ nav:
       - ADR 0015: decisions/adr-0015-define-runtime-artifact-archive-resume-and-evidence-strategy.md
       - ADR 0016: decisions/adr-0016-adopt-notebook-only-supported-workflow-and-single-execution-guide.md
       - ADR 0017: decisions/adr-0017-standardize-structured-documentation-surfaces-with-index-and-template.md
-  - Experiments:
-      - Overview: experiments/index.md
-      - Template: experiments/template.md
-      - Dataset Build Filter V2 Full Validation: experiments/2026-04-dataset-build-experiment-record-filter-v2-full-validation.md
-      - Baseline Modeling Colab Run 190420261845: experiments/2026-04-baseline-modeling-experiment-record-colab-run-190420261845.md
-  - Research Context:
-      - Overview: research/index.md
-      - Roadmap: research/roadmap.md
-      - Literature Positioning: research/literature-positioning.md
 
 markdown_extensions:
   - admonition

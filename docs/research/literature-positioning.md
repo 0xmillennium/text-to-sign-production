@@ -1,160 +1,184 @@
 # Literature Positioning
 
-This page explains how selected literature shaped the post-Dataset-Build roadmap. It is a
-decision-support page, not a general related-work chapter.
+This page explains how the verified literature cited in [Bibliography](bibliography.md) shapes the
+post-Dataset-Build roadmap and how the completed current contribution audit should be interpreted
+at a research-framing level. It is a literature-synthesis and rationale surface, not the detailed
+audit ledger itself.
 
 ## Problem Framing
 
 The project targets English text-to-sign-pose generation on top of the processed Dataset Build
 manifests. The output is not ordinary text: it is a time-varying pose sequence with body and hand
-channels, optional face information, variable sequence length, signer motion, timing, and linguistic
-content all coupled together.
+channels, optional face information, variable sequence length, signer motion, timing, and
+linguistic content all coupled together.
 
-This is difficult because sign languages are visual, spatial, multi-channel languages. A model can
-look numerically close to a reference pose while still being under-articulated, poorly timed, or hard
-to interpret. That makes the roadmap order important: first create a reproducible baseline, then
-stabilize evaluation, then make contribution claims around representation and structure.
+This is difficult because the locally verified papers consistently describe sign languages as
+visual, spatial, and multi-channel, and they repeatedly note that generated pose sequences can
+remain under-articulated or unnatural even when they are numerically close to reference motion.
+That is why the repository first established a reproducible baseline, then routed
+contribution-path selection through the contribution-audit surface, and only after that fixed the
+current thesis-facing contribution pair.
+
+## Local-Source Boundary
+
+This page uses only the verified paper corpus cited in [Bibliography](bibliography.md) as
+literature support.
+Broader symbolic or intermediate-pipeline literature may be relevant to the field, but it falls
+outside the current verified paper set for this page and is therefore not used here as evidence.
+
+## Relation To The Contribution Audit
+
+The detailed contribution-path evaluation, scorecards, veto review, and final candidate-level
+decisions are recorded through the [Contribution Audit](contribution-audit/index.md). This page
+complements that audit rather than replacing it.
+
+At the current framing level, the completed audit outcome is:
+
+- `C1 = Dynamic VQ Pose Tokens`
+- `C2 = Channel-Aware Loss Reweighting`
+- fallback = `Articulator-Partitioned Latent Structure`
+- deferred = `Motion Primitives Representation`
+
+The locally verified literature supports the family-level rationale behind this framing. The
+current audit then interprets the selected pair as complementary rather than redundant: the
+selected `C1` primarily changes representation, while the selected `C2` is treated as a lighter
+structure-aware optimization path. That complementarity remains an audit-level interpretation
+rather than a direct paper claim.
 
 ## Method-Family Overview
 
-The literature points to several viable families:
+Within the locally verified corpus, the literature supports six relevant framing areas:
 
-1. symbolic / intermediate pipelines: text to gloss, notation, or another symbolic form before
-   animation
-2. direct text to continuous pose generation
-3. structure-aware / skeleton-aware / channel-aware generation
-4. discrete / data-driven pose representation
-5. retrieval / stitching-based approaches
-6. diffusion-based approaches
-7. evaluation literature for pose-based sign-language production
+1. direct text-to-continuous pose generation
+2. discrete / data-driven pose representation
+3. structure-aware / multi-channel generation
+4. retrieval / stitching-based approaches
+5. diffusion-based approaches
+6. evaluation signals visible in the local corpus
 
-These families influence the roadmap differently. Some define near-term work; others remain useful
-alternatives or future extensions.
-
-## Symbolic / Intermediate Pipelines
-
-- Representative works: [HamNoSys - Representing Sign Language Data in Language Resources and
-  Language Processing Contexts](https://www.sign-lang.uni-hamburg.de/lrec/pub/04001.html),
-  [Changing the Representation: Examining Language Representation for Neural Sign Language
-  Production](https://aclanthology.org/2022.sltat-1.18/), and [Text2Sign: Towards Sign Language
-  Production Using Neural Machine Translation and Generative Adversarial
-  Networks](https://link.springer.com/article/10.1007/s11263-019-01281-2).
-- What this family gets right: intermediate symbolic forms can encode linguistic structure, reduce
-  some ambiguity, and make generation more inspectable than a single opaque text-to-pose mapping.
-- Why it does or does not define our primary roadmap choice: it does not define the primary path
-  because this repository's current auditable asset is a processed text-plus-pose dataset, not a
-  complete gloss or notation corpus for the target English-to-pose setup.
-- How it influenced our roadmap, if relevant: it motivates explicit representation work in Sprint 5
-  and supports keeping generated pose sequences inspectable, but it does not replace the baseline or
-  evaluation-first ordering.
+These areas do not all play the same role. Some define baseline or historical framing, some define
+the selected current contribution path, and some remain serious audited alternatives that were not
+selected in the current outcome.
 
 ## Direct Text To Continuous Pose Generation
 
-- Representative works: [Progressive Transformers for End-to-End Sign Language
-  Production](https://www.ecva.net/papers/eccv_2020/papers_ECCV/html/1430_ECCV_2020_paper.php)
-  and [Continuous 3D Multi-Channel Sign Language Production via Progressive Transformers and
-  Mixture Density Networks](https://link.springer.com/article/10.1007/s11263-021-01457-9).
-- What this family gets right: it provides a clear baseline path from text to pose without requiring
-  a manually supplied symbolic bottleneck.
-- Why it does or does not define our primary roadmap choice: direct continuous regression is a valid
-  Sprint 3 baseline direction, but it is not the strongest final thesis-contribution target because
-  continuous regression can smooth motion, struggle with variable timing, and under-articulate
-  high-frequency hand detail.
-- How it influenced our roadmap, if relevant: it directly motivates Sprint 3 as a baseline-only
-  sprint and gives later representation and structure-aware work a measurable comparison point.
-
-## Structure-Aware / Skeleton-Aware / Channel-Aware Generation
-
-- Representative works: [Continuous 3D Multi-Channel Sign Language Production via Progressive
-  Transformers and Mixture Density Networks](https://link.springer.com/article/10.1007/s11263-021-01457-9).
-- What this family gets right: it treats sign production as multi-channel motion rather than a
-  single undifferentiated vector, aligning with the importance of body, hands, and non-manual
-  features.
-- Why it does or does not define our primary roadmap choice: it defines the second main contribution
-  direction, not the first one, because structure-aware improvements should be evaluated after a
-  baseline and a representation-focused contribution exist.
-- How it influenced our roadmap, if relevant: it motivates Sprint 6, where body/hand/channel-aware
-  modeling and ablations can test whether structure improves over the baseline and Sprint 5
-  representation work.
+- Representative source: [1](bibliography.md#ref-01).
+- What the local corpus supports: this line of work provides a clear baseline path from spoken
+  language text to continuous multi-channel pose generation without requiring a manually supplied
+  symbolic bottleneck.
+- How it informs the current audit: the current audit treats direct continuous generation as the
+  necessary implemented baseline rather than as the preferred thesis contribution route. That
+  interpretation is consistent with local papers that keep visible the difficulties of
+  under-articulation, regression-to-the-mean behavior, and transition quality in continuous sign
+  production.
 
 ## Discrete / Data-Driven Pose Representation
 
-- Representative works: [Mixed SIGNals: Sign Language Production via a Mixture of Motion
-  Primitives](https://openaccess.thecvf.com/content/ICCV2021/html/Saunders_Mixed_SIGNals_Sign_Language_Production_via_a_Mixture_of_Motion_ICCV_2021_paper.html)
-  and [A Data-Driven Representation for Sign Language
-  Production](https://openresearch.surrey.ac.uk/esploro/outputs/conferenceProceeding/A-Data-Driven-Representation-for-Sign-Language/99874166102346).
-- What this family gets right: it tries to avoid treating every frame as an unconstrained continuous
-  regression target by learning reusable motion units, pose tokens, or data-driven primitives.
-- Why it does or does not define our primary roadmap choice: it is the strongest candidate for the
-  first main thesis contribution because it targets a core weakness of direct continuous pose
-  regression while remaining grounded in the processed pose dataset.
-- How it influenced our roadmap, if relevant: it defines Sprint 5 as the first main contribution
-  sprint focused on discrete/data-driven pose representation.
+- Representative sources: [2](bibliography.md#ref-02), [3](bibliography.md#ref-03),
+  [4](bibliography.md#ref-04).
+- What the local corpus supports: discrete or data-driven intermediate representations are a real
+  sign language production direction. The local papers support dynamic vector quantization,
+  reusable motion units, and motion-primitives-style structure as serious alternatives to direct
+  continuous regression.
+- How the current audit interprets this family: the current audit treats discrete/data-driven
+  representation as the strongest current route for the `C1` role. Within that family, the current
+  audit interprets `Dynamic VQ Pose Tokens` as the selected `C1` path because the local literature
+  supports a gloss-free dynamic-discrete route directly, while `Motion Primitives Representation`
+  remains more conditional in this repository due to its strongest direct source using gloss
+  supervision. Relative additivity, adaptation burden, and repository fit remain audit-level
+  conclusions rather than direct paper findings.
+
+## Structure-Aware / Multi-Channel Generation
+
+- Representative sources: [1](bibliography.md#ref-01), [5](bibliography.md#ref-05),
+  [6](bibliography.md#ref-06).
+- What the local corpus supports: sign production should not be treated as a single undifferentiated
+  motion target. The local papers directly support multi-channel or articulator-aware modeling as a
+  serious direction, and DARSLP directly supports a combined gloss-free method that includes both
+  articulator-based disentanglement and channel-aware weighted regularization.
+- How the current audit interprets this family: the current audit treats structure-aware /
+  multi-channel improvement as the strongest current route for the `C2` role. Within that family,
+  the current audit interprets `Channel-Aware Loss Reweighting` as the selected `C2` path because
+  it is the lighter repository fit in the current audit record, while keeping visible that the
+  exact standalone loss-only form is only partly supported by the local literature. The current
+  audit retains `Articulator-Partitioned Latent Structure` as the principal fallback because local
+  literature directly supports the richer combined mechanism, even though the current repository
+  path treats it as operationally heavier.
+
+## Why The Selected Pair Remains Defensible
+
+The selected current pair is treated by the current audit as a coherent combined path.
+
+- `Dynamic VQ Pose Tokens` primarily changes representation by introducing a discrete/data-driven
+  pose-token mechanism.
+- `Channel-Aware Loss Reweighting` is treated by the current audit as a lighter optimization-level
+  structure-aware intervention that emphasizes channel-sensitive learning pressure.
+
+The locally verified literature supports the relevance of both families. The further claim that the
+selected pair is the best current combined route for this repository remains an audit-level
+synthesis built on the literature plus the project's additivity, workflow, and implementation
+constraints.
 
 ## Retrieval / Stitching-Based Approaches
 
-- Representative works: [Text2Sign](https://link.springer.com/article/10.1007/s11263-019-01281-2),
-  [Sign Stitching: A Novel Approach to Sign Language
-  Production](https://bmvc2024.org/proceedings/721/), and the retrieval-oriented result context in
-  [SLRTP2025 Sign Language Production Challenge: Methodology, Results and Future
-  Work](https://cvpr.thecvf.com/virtual/2025/35711).
-- What this family gets right: retrieval and stitching can preserve realistic motion from observed
-  examples and can reduce the regression-to-the-mean behavior of pure continuous generation.
-- Why it does or does not define our primary roadmap choice: it is not the chosen primary path for
-  Sprint 3 through Sprint 6 because it shifts the main contribution toward retrieval policy,
-  segmentation, and transition engineering rather than the planned representation and
-  structure-aware modeling path.
-- How it influenced our roadmap, if relevant: it remains a meaningful later alternative or future
-  extension, and it reinforces the need to inspect generated motion quality in Sprint 7.
+- Representative sources: [7](bibliography.md#ref-07), [4](bibliography.md#ref-04).
+- What the local corpus supports: retrieval, example-backed construction, and explicit stitching are
+  serious alternatives that address continuity and prosody more explicitly than simple unit
+  concatenation.
+- How the current audit interprets this family: retrieval/stitching remained a serious audited
+  counter-alternative family, but the current contribution audit did not select it as part of the
+  final `C1/C2` pair.
 
 ## Diffusion-Based Approaches
 
-- Representative works: [G2P-DDM: Generating Sign Pose Sequence from Gloss Sequence with Discrete
-  Diffusion Model](https://slpdiffusier.github.io/g2p-ddm/) and [SignDiff: Diffusion Model for
-  American Sign Language Production](https://signdiff.github.io/).
-- What this family gets right: diffusion methods are promising for complex, multimodal sequence
-  generation and can model distributional variation better than simple deterministic regression.
-- Why it does or does not define our primary roadmap choice: diffusion is not the chosen primary
-  roadmap path at this stage because it is a high-complexity generative direction that should not
-  precede a reproducible baseline, stable evaluation, and the planned representation/structure
-  contributions.
-- How it influenced our roadmap, if relevant: it remains a later optional extension or alternative
-  after Sprint 5 and Sprint 6 clarify the value of discrete/data-driven and structure-aware changes.
+- Representative source: [8](bibliography.md#ref-08).
+- What the local corpus supports: diffusion-based sign production is a real and technically credible
+  family-level alternative capable of generating sign sequences directly from spoken text or speech
+  audio.
+- How the current audit interprets this family: diffusion remained a serious audited
+  counter-alternative family, but the current contribution audit did not select it as part of the
+  final `C1/C2` pair. Relative repository fit and implementation burden remain audit-level
+  judgments rather than direct paper findings.
 
-## Evaluation Literature For Pose-Based Sign-Language Production
+## Evaluation Signals In The Local Corpus
 
-- Representative works: back-translation evaluation in Progressive Transformers, [Meaningful
-  Pose-Based Sign Language Evaluation](https://aclanthology.org/2025.wmt-1.4/), and [SLRTP2025 Sign
-  Language Production Challenge](https://cvpr.thecvf.com/virtual/2025/35711).
-- What this family gets right: it recognizes that pose distance, back translation, qualitative
-  inspection, human judgment, and standardized challenge settings each expose different parts of
-  production quality.
-- Why it does or does not define our primary roadmap choice: evaluation is not a model-family
-  contribution, but it must define the order of work. Without a stable evaluation stack, later model
-  improvements would be easy to overclaim.
-- How it influenced our roadmap, if relevant: it defines Sprint 4 as evaluation-first, immediately
-  after the Sprint 3 baseline and before the Sprint 5 and Sprint 6 contribution sprints.
+- The verified corpus shows repeated use of back-translation evaluation, including in
+  [1](bibliography.md#ref-01), [3](bibliography.md#ref-03), [4](bibliography.md#ref-04), and
+  [7](bibliography.md#ref-07).
+- The verified corpus also includes user evaluation as part of how sign quality is interpreted,
+  most explicitly in [1](bibliography.md#ref-01), [3](bibliography.md#ref-03), and
+  [7](bibliography.md#ref-07).
+- Benchmark comparison and reported competitive or state-of-the-art results are also visible in the
+  verified corpus, including MCST-Transformer [5](bibliography.md#ref-05), DARSLP
+  [6](bibliography.md#ref-06), MS2SL [8](bibliography.md#ref-08), and the discrete/data-driven
+  representation papers [2](bibliography.md#ref-02), [4](bibliography.md#ref-04).
+- The current audit therefore treats later implementation evidence as needing more than a single
+  metric, but that evaluation framing is derived from the local corpus rather than from absent 2025
+  evaluation sources.
 
-## Our Research-Direction Choice
+## Current Research-Direction Framing
 
-The roadmap follows this literature-informed interpretation:
+The current literature-informed framing, restricted to the local verified corpus, is now:
 
-- Baseline first: direct continuous text-to-pose generation is a valid and necessary Sprint 3
-  baseline, but Sprint 3 is not the main thesis-contribution sprint.
-- Evaluation first: pose-based sign-language production evaluation remains a weak and developing
-  area, so Sprint 4 stabilizes evaluation and error analysis before strong contribution claims.
-- First main contribution: discrete/data-driven pose representation is the Sprint 5 contribution
-  direction because it targets the limitations of direct continuous regression while using the
-  processed pose data directly.
-- Second main contribution: structure-aware / multi-channel improvement is the Sprint 6 contribution
-  direction because body, hands, and optional face channels should be modeled and ablated explicitly.
-- Later alternatives: diffusion and retrieval/stitching remain meaningful research directions, but
-  they are not the primary chosen roadmap path for Sprint 3 through Sprint 6.
+- the baseline remains necessary but is not the main thesis contribution
+- the selected current contribution pair is `Dynamic VQ Pose Tokens` as `C1` and
+  `Channel-Aware Loss Reweighting` as `C2`
+- locally verified literature supports both the discrete/data-driven `C1` family and the
+  structure-aware / multi-channel `C2` family
+- the current audit interprets the selected pair as complementary because it combines a
+  representation-level contribution with a lighter structure-aware contribution
+- `Articulator-Partitioned Latent Structure` remains the main fallback if the selected `C2` route
+  later proves unsatisfactory
+- `Motion Primitives Representation` remains deferred rather than rejected
+- retrieval/stitching and diffusion remain serious alternative families in the broader local-source
+  landscape even though they are not part of the current selected pair
 
 ## Limits / Notes
 
-- This page is a positioning and rationale page, not a full related-work chapter.
-- It documents how representative literature influenced roadmap decisions; it does not make
-  experimental claims about models that have not yet been implemented in this repository.
-- The cited works are selective anchors for decision-making, not an exhaustive survey of
-  sign-language production.
+- This page is a literature-synthesis and rationale page, not the detailed audit ledger.
+- Detailed scorecards, veto reasoning, candidate-level decisions, and the authoritative current
+  outcome remain in the [Contribution Audit](contribution-audit/index.md).
+- Only the verified paper corpus cited in [Bibliography](bibliography.md) is used as evidence on
+  this page.
+- Relative repository fit, additivity, operational simplicity, and pair coherence remain current
+  audit interpretations rather than direct paper claims.
