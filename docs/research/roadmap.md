@@ -1,17 +1,35 @@
 # Roadmap
 
-This page is the authoritative roadmap after Dataset Build. Sprint 1 and Sprint 2 are completed
-historical context, Sprint 3 is the current implemented baseline milestone, and Sprint 4 through
-Sprint 8 define the remaining planned thesis path.
+This page is the authoritative roadmap after Dataset Build. Sprint 1 through Sprint 4 are
+completed historical foundation: Sprint 1 established repository infrastructure, Sprint 2
+established the Dataset Build foundation, Sprint 3 produced the implemented baseline milestone, and
+Sprint 4 completed the Contribution Audit. Sprint 5 through Sprint 8 now define the remaining
+implementation, evaluation, demo, comparison, and thesis-integration path under the accepted
+current audit outcome.
 
 ## Strategy
 
-Sprint 3 now anchors the implemented baseline evidence. Sprint 4 establishes evaluation and error
-analysis before strong thesis-contribution claims are made. Sprint 5 and Sprint 6 remain the main
-planned thesis-contribution path: Sprint 5 focuses on discrete/data-driven pose representation, and
-Sprint 6 focuses on structure-aware / multi-channel improvement. Diffusion and retrieval/stitching
-remain meaningful later alternatives or future extensions, but they are not the primary chosen
-roadmap path at this stage.
+Contribution selection is already fixed in this roadmap. Sprint 4 completed the current
+contribution-audit milestone and froze the downstream comparison architecture as:
+
+- `M0 = Base`
+- `M1 = Base + C1`
+- `M2 = Base + C2`
+- `M3 = Base + C1 + C2`
+
+The accepted current audit outcome under that structure is:
+
+- `C1 = Dynamic VQ Pose Tokens`
+- `C2 = Channel-Aware Loss Reweighting`
+- fallback = `Articulator-Partitioned Latent Structure`
+- deferred = `Motion Primitives Representation`
+
+The remaining work is therefore not a naive "implement C1, then implement C2" sequence. The next
+step is to harden and validate the implemented baseline as a trustworthy `M0` reference, then
+build a minimal reusable visual inspection surface, then execute the controlled selected-pair
+implementation and `M0/M1/M2/M3` comparison program, and finally package the integrated
+thesis-facing result. Detailed candidate-selection reasoning remains in the
+[Contribution Audit](contribution-audit/index.md) rather than in this roadmap.
 
 ## Historical Context
 
@@ -46,7 +64,8 @@ Sprint 2 established the current Dataset Build foundation:
 
 Sprint 3 establishes the current implemented baseline milestone: a reproducible English
 text-to-pose baseline on the processed Dataset Build manifests. This sprint is baseline-only and is
-not the main thesis-contribution sprint.
+not the main thesis-contribution sprint. It creates the current reference point that later sprints
+must validate, reuse, and compare against as `M0`.
 
 ### In Scope
 
@@ -62,7 +81,7 @@ not the main thesis-contribution sprint.
 - structure-aware / multi-channel contribution work
 - diffusion as the primary model family
 - retrieval/stitching as the primary model family
-- demo polish, avatar integration, or final thesis packaging
+- demo polish, artifact publication, or final thesis packaging
 
 ### Acceptance Criteria
 
@@ -72,176 +91,214 @@ not the main thesis-contribution sprint.
   current repo surfaces and are tied to a formal experiment record.
 - The baseline uses processed manifests rather than direct raw-file access.
 - The baseline is clearly labeled as baseline evidence, not the main thesis contribution.
+- The baseline exists as the starting reference point for later hardening and controlled comparison
+  work.
 
 ### Main Risk
 
 Direct continuous regression may produce weak, smoothed, or under-articulated output. That risk is
 acceptable here because Sprint 3 exists to create a measurable reference point.
 
-## Sprint 4 - Evaluation & Error Analysis
+## Sprint 4 - Completed Contribution Audit
 
 ### Purpose
 
-Stabilize the evaluation stack before strong thesis-contribution claims are made.
+Record the completed Contribution Audit milestone that fixed the current thesis-facing selected
+pair and the frozen comparison structure for later work.
 
 ### In Scope
 
-- baseline evaluation protocol
-- pose-level and sequence-level metric selection
-- qualitative inspection workflow for generated pose sequences
-- error taxonomy for baseline failures
-- comparison templates for later Sprint 5 and Sprint 6 experiments
+- completion of the contribution-audit process for the current thesis path
+- recording the minimum required four-model evidence structure:
+  - `M0 = Base`
+  - `M1 = Base + C1`
+  - `M2 = Base + C2`
+  - `M3 = Base + C1 + C2`
+- recording the fixed current outcome:
+  - `C1 = Dynamic VQ Pose Tokens`
+  - `C2 = Channel-Aware Loss Reweighting`
+  - fallback = `Articulator-Partitioned Latent Structure`
+  - deferred = `Motion Primitives Representation`
+- recording that later sprints now proceed under this fixed outcome
 
 ### Out of Scope
 
-- merging evaluation work into Sprint 3
-- moving evaluation after the main thesis-contribution sprints
-- introducing a new main model family
-- claiming final contribution strength before the evaluation stack is stable
+- re-running contribution-selection reasoning inside the roadmap
+- re-scoring candidates
+- treating fallback or deferred candidates as newly selected
+- implementing the downstream model-comparison program
 
 ### Acceptance Criteria
 
-- Baseline outputs can be evaluated consistently with documented commands and inputs.
-- Evaluation results distinguish metric outputs from qualitative interpretation.
-- A baseline error-analysis record identifies major failure modes and comparison needs.
-- Sprint 5 experiments have a stable evaluation reference instead of inventing metrics ad hoc.
+- Sprint 4 is clearly recorded as a completed milestone.
+- The selected pair and frozen `M0/M1/M2/M3` architecture are clearly stated.
+- Later sprints are explicitly framed as downstream execution under the fixed Sprint 4 outcome.
 
 ### Main Risk
 
-Pose-based sign-language production metrics are imperfect. The sprint reduces that risk by making
-the evaluation assumptions explicit before contribution claims depend on them.
+The main risk is decision drift after audit completion, including accidental reopening of
+contribution selection during downstream implementation.
 
-## Sprint 5 - Thesis Contribution I: Discrete/Data-Driven Pose Representation
+## Sprint 5 - Baseline Evaluation / Error Analysis / Hardening
 
 ### Purpose
 
-Develop the first main thesis contribution: a discrete/data-driven pose representation for
-text-to-sign-pose production.
+Validate the implemented base model as a trustworthy reference point for later comparison work.
 
 ### In Scope
 
-- learned or data-driven pose units over the processed pose dataset
-- codebook-like, motion-primitive, tokenized, or otherwise discrete pose representation experiments
-- reconstruction and generation comparisons against the Sprint 3 baseline
-- evaluation through the Sprint 4 stack
+- verify that base-model training was run correctly
+- verify that base-model testing was run correctly
+- complete checks on epoch outputs and baseline behavior
+- error analysis of baseline outputs
+- notebook-based baseline testing surfaces
+- reusable evaluation and test surfaces that later models can reuse
+- package the validated baseline artifact
+- publish the validated baseline through Hugging Face
+- document downstream usage against the published artifact
 
 ### Out of Scope
 
-- replacing this sprint with diffusion
-- replacing this sprint with retrieval/stitching
-- collapsing this sprint into a generic modeling sprint
-- final demo or thesis packaging work
+- implementing `C1`
+- implementing `C2`
+- treating this sprint as final contribution-comparison work
+- demo polish beyond what is needed for validation surfaces
 
 ### Acceptance Criteria
 
-- The discrete/data-driven representation can be trained or derived from processed manifests.
-- Reconstruction or generation behavior is evaluated against the baseline and Sprint 4 metrics.
-- Experiment records make representation choices, data provenance, and limitations explicit.
-- Results are framed as the first main thesis-contribution path, not as final system packaging.
+- Training provenance, commands, configs, summaries, checkpoints, and baseline test outputs are
+  reviewed and recorded well enough to verify that the base-model training and testing path ran
+  correctly.
+- Epoch outputs and baseline behavior have documented review outcomes, and any required follow-up
+  checks for the baseline reference point are completed.
+- Notebook surfaces can run baseline testing or inspection workflows without relying on ad hoc
+  local-only procedures.
+- Reusable evaluation and test surfaces exist for later `M1/M2/M3` use.
+- A validated baseline artifact is packaged, published on Hugging Face, and documented as the
+  preferred downstream baseline reference whenever practical.
 
 ### Main Risk
 
-The learned representation may collapse, reconstruct poorly, or fail to improve generation. The
-evaluation stack should expose that failure mode rather than hiding it.
+The main risk is comparing later contribution models against a weak or poorly validated baseline
+reference.
 
-## Sprint 6 - Thesis Contribution II: Structure-Aware / Multi-Channel Improvement
-
-### Purpose
-
-Develop the second main thesis contribution: structure-aware / multi-channel improvement over the
-baseline and discrete/data-driven representation work.
-
-### In Scope
-
-- skeleton-aware, body/hand-aware, or channel-aware modeling changes
-- ablations across body, left hand, right hand, and optional face channels where supported by the
-  processed schema
-- comparisons against Sprint 3 baseline and Sprint 5 representation experiments
-- documentation of which structure or channel assumptions improve results
-
-### Out of Scope
-
-- replacing this sprint with retrieval/stitching
-- replacing this sprint with diffusion
-- introducing a new unrelated main model family
-- treating demo/playback work as the main contribution
-
-### Acceptance Criteria
-
-- Structure-aware or multi-channel variants are evaluated using the Sprint 4 stack.
-- Comparisons against Sprint 3 and Sprint 5 are recorded with reproducible provenance.
-- Ablations make clear which pose channels or structural assumptions contribute to observed changes.
-- Claims remain bounded by the available evidence.
-
-### Main Risk
-
-Additional structure can add complexity without measurable gain. The sprint must preserve ablations
-that show whether the complexity is justified.
-
-## Sprint 7 - Inference / Playback / Minimal Demo
+## Sprint 6 - Minimal Visual Demo / Inspectable Output Surface
 
 ### Purpose
 
-Provide inspectable downstream demo capability for generated pose sequences.
+Provide a minimal inspectable visual surface for model outputs that supports evaluation and
+communication.
 
 ### In Scope
 
-- reproducible inference path for selected trained artifacts
-- minimal pose playback or skeleton inspection
-- example generation records that connect text inputs to output pose sequences
-- lightweight demo documentation for thesis inspection
+- consume the published baseline artifact from Hugging Face
+- provide reproducible minimal visual playback, skeleton inspection, or output inspection
+- connect inspected outputs back to published artifacts and experiment identity
+- keep the surface reusable for later models, not only the base model
+- support later side-by-side inspection and comparison across `M0/M1/M2/M3` outputs through the
+  same minimal surface
 
 ### Out of Scope
 
-- redefining the main research contribution
-- replacing Sprint 5 or Sprint 6 with demo work
-- broad avatar or photorealistic rendering commitments
+- main research contribution claims
+- broad avatar or polished product/demo ambitions
+- ad hoc checkpoint-only usage when a published artifact is available
 - final thesis packaging
 
 ### Acceptance Criteria
 
-- Selected generated examples can be replayed or inspected reproducibly.
-- Demo artifacts are connected to the experiment records that produced them.
-- The demo is clearly downstream inspection support, not the central research claim.
+- The visual inspection surface works against the published baseline artifact.
+- Inspected examples can be reproduced from documented artifact references.
+- The surface is intentionally minimal and clearly framed as evaluation-support infrastructure.
+- The same surface can later be reused for `M1/M2/M3` outputs and later comparison-oriented
+  inspection.
 
 ### Main Risk
 
-Demo work can distract from thesis evidence. Keep it minimal and tied to already-evaluated outputs.
+The main risk is letting demo work expand beyond a minimal reusable inspection surface.
 
-## Sprint 8 - Thesis Packaging / Final Integration
+## Sprint 7 - Selected-Pair Implementation / Controlled 2x2 Comparison
 
 ### Purpose
 
-Package final comparisons, reproducibility evidence, and thesis-facing integration.
+Implement the selected contribution pair and execute the controlled comparison program under the
+frozen audit architecture.
 
 ### In Scope
 
-- final comparison tables and thesis-facing summaries
-- reproducibility review for configs, manifests, commands, and experiment records
-- integration of Sprint 3 through Sprint 7 evidence into a coherent final narrative
-- final documentation updates needed to explain the implemented research path
+- implement `C1 = Dynamic VQ Pose Tokens`
+- implement `C2 = Channel-Aware Loss Reweighting`
+- train and evaluate the frozen comparison set:
+  - `M0 = Base`
+  - `M1 = Base + C1`
+  - `M2 = Base + C2`
+  - `M3 = Base + C1 + C2`
+- reuse Sprint 5 evaluation and testing surfaces
+- reuse Sprint 6 visual inspection surfaces
+- continue published-artifact discipline as far as practical for downstream consumption
 
 ### Out of Scope
 
-- introducing a new main model family
-- redefining the Sprint 5 or Sprint 6 contribution path
-- broad Dataset Build redesign
-- new demo ambitions beyond minimal inspection needs
+- reopening candidate selection
+- substituting fallback or deferred candidates unless later explicitly triggered outside this
+  roadmap step
+- turning this sprint into a new literature review or a new audit
+- treating the visual surface as the main thesis contribution
 
 ### Acceptance Criteria
 
-- Final evidence clearly separates baseline, evaluation, thesis contributions, demo, and packaging.
-- Experiment records and docs support reproduction of the final comparison claims.
-- The thesis-facing story aligns with the frozen Sprint 3 through Sprint 8 roadmap.
+- All four planned comparison conditions are clearly defined and evaluated under the frozen
+  architecture.
+- The selected `C1/C2` pair is implemented as the current audited pair.
+- Downstream evaluation and testing reuse the Sprint 5 surfaces rather than creating a separate ad
+  hoc comparison path.
+- Visual inspection and comparison reuse the Sprint 6 surface rather than introducing a separate
+  model-specific inspection workflow.
+- Artifact handling remains reproducible and publication-oriented where practical, including later
+  selected-pair outputs.
 
 ### Main Risk
 
-Late integration may reveal missing provenance or weak comparisons. Sprint 8 should fix evidence
-gaps, not introduce new primary research directions.
+The main risk is uncontrolled comparison design drift, or contribution implementation that bypasses
+the frozen `M0/M1/M2/M3` structure.
+
+## Sprint 8 - Final Integration / Thesis Packaging
+
+### Purpose
+
+Integrate the final thesis-facing narrative and reproducibility package.
+
+### In Scope
+
+- integrate the baseline
+- integrate the completed audit outcome
+- integrate Sprint 5 hardened testing and evaluation surfaces
+- integrate Sprint 6 visual inspection surface
+- integrate Sprint 7 `M0/M1/M2/M3` comparisons
+- final thesis-facing documentation and comparison packaging
+
+### Out of Scope
+
+- new primary model-family selection
+- replacing the fixed selected pair
+- expanding the demo beyond minimal inspection needs
+- broad redesign of earlier pipeline stages
+
+### Acceptance Criteria
+
+- The final narrative clearly links historical foundation, baseline, completed audit, reusable
+  evaluation surfaces, visual inspection, and controlled 2x2 comparison evidence.
+- Final documentation and artifacts support reproducible thesis-facing comparison claims.
+- No new main selection logic is introduced in Sprint 8.
+
+### Main Risk
+
+The main risk is late-stage packaging gaps that weaken provenance or the final comparison story.
 
 ## Guardrails
 
-Future implementation should preserve the core Sprint 1 principles:
+Future implementation should preserve the core Sprint 1 principles and the post-audit sequencing
+discipline:
 
 - code in `src/`
 - notebooks as thin drivers
@@ -249,3 +306,9 @@ Future implementation should preserve the core Sprint 1 principles:
 - reproducible commands and logs
 - raw-data access behind documented manifests and schemas
 - large generated artifacts outside GitHub unless there is a strong reason to change policy
+- downstream usage should prefer published artifacts over informal local checkpoints whenever
+  practical
+- reusable testing and reusable visual inspection surfaces should be favored over one-off
+  sprint-specific tooling
+- later `M0/M1/M2/M3` comparison work should extend shared surfaces rather than reintroduce
+  ad hoc evaluation or demo paths
