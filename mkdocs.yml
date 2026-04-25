@@ -105,6 +105,11 @@ nav:
       - ADR 0015: decisions/adr-0015-define-runtime-artifact-archive-resume-and-evidence-strategy.md
       - ADR 0016: decisions/adr-0016-adopt-notebook-only-supported-workflow-and-single-execution-guide.md
       - ADR 0017: decisions/adr-0017-standardize-structured-documentation-surfaces-with-index-and-template.md
+      - ADR 0018: decisions/adr-0018-roadmap-as-normative-sprint-contract.md
+      - ADR 0019: decisions/adr-0019-split-notebook-architecture-as-target-workflow.md
+      - ADR 0020: decisions/adr-0020-published-model-artifacts-as-downstream-interface.md
+      - ADR 0021: decisions/adr-0021-four-model-2x2-comparison-architecture.md
+      - ADR 0022: decisions/adr-0022-standard-testing-surfaces-before-contribution-implementation.md
 
 markdown_extensions:
   - admonition
