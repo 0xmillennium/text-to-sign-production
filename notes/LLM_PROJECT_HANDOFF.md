@@ -310,7 +310,7 @@ This evidence supports Sprint 4 work, but it is not a released/loadable `M0`. Sp
   `docs/experiments/2026-04-baseline-modeling-experiment-record-colab-run-190420261845.md`
 - Runtime evidence and package artifacts remain supporting evidence.
 - Experiment records are durable evidence surfaces, not proof that Sprint 4 is completed.
-- The current baseline record documents one one-epoch Colab run and its supporting runtime
+- The current baseline record documents a one-epoch Colab run and its supporting runtime
   artifacts; it does not establish a released/loadable `M0`.
 
 ## 15. Key Governing ADRs
