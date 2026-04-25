@@ -1,314 +1,768 @@
 # Roadmap
 
-This page is the authoritative roadmap after Dataset Build. Sprint 1 through Sprint 4 are
-completed historical foundation: Sprint 1 established repository infrastructure, Sprint 2
-established the Dataset Build foundation, Sprint 3 produced the implemented baseline milestone, and
-Sprint 4 completed the Contribution Audit. Sprint 5 through Sprint 8 now define the remaining
-implementation, evaluation, demo, comparison, and thesis-integration path under the accepted
-current audit outcome.
+This roadmap defines the ideal project sequence from the beginning, using the current research and
+engineering understanding as the planning baseline. The project progresses from research planning
+to repository infrastructure, dataset construction, base model release, reusable testing,
+contribution models, comparative analysis, visual interface work, and thesis packaging.
 
-## Strategy
-
-Contribution selection is already fixed in this roadmap. Sprint 4 completed the current
-contribution-audit milestone and froze the downstream comparison architecture as:
+`C1` and `C2` are contribution roles defined by the Sprint 1 research-planning and
+contribution-selection work. Downstream model work uses the frozen comparison architecture:
 
 - `M0 = Base`
 - `M1 = Base + C1`
 - `M2 = Base + C2`
 - `M3 = Base + C1 + C2`
 
-The accepted current audit outcome under that structure is:
+Published artifacts and reusable evaluation surfaces are part of the reproducibility contract.
+Validated `M0`, `M1`, `M2`, and `M3` artifacts should be published through Hugging Face or an
+equivalent documented artifact surface. Downstream notebooks, tests, demos, and comparison
+surfaces should consume published artifacts whenever practical. Informal local checkpoints must not
+become the default downstream interface, and every released model should include sufficient
+metadata for reproducible loading and use.
 
-- `C1 = Dynamic VQ Pose Tokens`
-- `C2 = Channel-Aware Loss Reweighting`
-- fallback = `Articulator-Partitioned Latent Structure`
-- deferred = `Motion Primitives Representation`
+Notebooks are thin drivers for defined workflows, not primary implementation locations. Shared
+dataset, model, training, evaluation, artifact-loading, and visualization logic should live in
+reusable project code. The notebook set should cover a dedicated dataset build / export notebook,
+base model training and release notebook, Sprint 5 standard model testing notebook, Sprint 5 visual
+testing / visual inspection notebook, `C1` training and release notebook, `C2` training and release
+notebook, final combined model training and release notebook, and the later Sprint 10 final visual
+interface or demonstration surface. The Sprint 5 visual notebook is an evaluation-support surface;
+Sprint 10 owns the final use-facing or thesis-demonstration interface.
 
-The remaining work is therefore not a naive "implement C1, then implement C2" sequence. The next
-step is to harden and validate the implemented baseline as a trustworthy `M0` reference, then
-build a minimal reusable visual inspection surface, then execute the controlled selected-pair
-implementation and `M0/M1/M2/M3` comparison program, and finally package the integrated
-thesis-facing result. Detailed candidate-selection reasoning remains in the
-[Contribution Audit](contribution-audit/index.md) rather than in this roadmap.
+## Roadmap Overview
 
-## Historical Context
+| Sprint | Focus | Primary Output |
+| --- | --- | --- |
+| [1](#sprint-1) | Research planning and contribution selection | Selected `C1`/`C2` roles and frozen comparison architecture |
+| [2](#sprint-2) | Repository infrastructure | Reproducible project foundation |
+| [3](#sprint-3) | Dataset build | Reusable processed dataset artifacts |
+| [4](#sprint-4) | Base model | Released `M0` artifact |
+| [5](#sprint-5) | Testing pipelines | Reusable model evaluation pipeline |
+| [6](#sprint-6) | `C1` model | Released `M1` artifact |
+| [7](#sprint-7) | `C2` model | Released `M2` artifact |
+| [8](#sprint-8) | Combined model | Released `M3` artifact |
+| [9](#sprint-9) | 2x2 analysis | Comparative evidence |
+| [10](#sprint-10) | Visual interface | Thesis demonstration surface |
+| [11](#sprint-11) | Thesis packaging | Final thesis package |
 
-The following completed sprints explain how the current repository foundation was established.
+<a id="sprint-1"></a>
 
-### Sprint 1
-
-Sprint 1 delivers repository infrastructure only:
-
-- packaging
-- tests
-- documentation
-- CI/CD
-- historical DVC bootstrap, later removed from the active workflow by ADR-0012
-- ADR and experiment logging support
-
-### Sprint 2
-
-Sprint 2 established the current Dataset Build foundation:
-
-- raw How2Sign layout inspection and documentation
-- raw manifest generation and validation
-- OpenPose 2D normalization into versioned `.npz` samples
-- active `filter-v2.yaml` policy with usable body plus at least one usable hand
-- manifest-driven processed dataset export and packaging foundation
-- data-quality, split-integrity, and assumption reporting
-- full `train / val / test` validation recorded after Filter V2 and packaging hardening
-
-## Sprint 3 - Baseline Modeling
+## Sprint 1 - Literature Review, Research Planning, and Contribution Selection
 
 ### Purpose
 
-Sprint 3 establishes the current implemented baseline milestone: a reproducible English
-text-to-pose baseline on the processed Dataset Build manifests. This sprint is baseline-only and is
-not the main thesis-contribution sprint. It creates the current reference point that later sprints
-must validate, reuse, and compare against as `M0`.
+Define the research problem, establish the source-grounded project scope, and select the two main
+thesis contribution roles. This sprint determines `C1` and `C2`, freezes the `M0/M1/M2/M3`
+comparison architecture, and produces the research-planning documents required before downstream
+implementation begins.
 
-### In Scope
+### Inputs
 
-- manifest-driven training and validation data loading from processed Dataset Build outputs
-- a simple, reproducible text-to-continuous-pose baseline
-- baseline execution evidence, qualitative export, and record/package outputs
-- formal experiment recording that makes the baseline reproducible and comparable
+- Project objective and thesis goals
+- Available data assumptions and constraints
+- Candidate source papers and method families
+- Thesis timeline, evaluation, and writing constraints
+- Existing project documentation that affects scope or reproducibility expectations
 
-### Out of Scope
+### Outputs
 
-- strong thesis-contribution claims
-- discrete/data-driven pose representation work
-- structure-aware / multi-channel contribution work
-- diffusion as the primary model family
-- retrieval/stitching as the primary model family
-- demo polish, artifact publication, or final thesis packaging
-
-### Acceptance Criteria
-
-- A baseline run is reproducible from recorded configuration, command, and processed manifest
-  references.
-- Baseline execution evidence, qualitative exports, and record/package outputs are available as
-  current repo surfaces and are tied to a formal experiment record.
-- The baseline uses processed manifests rather than direct raw-file access.
-- The baseline is clearly labeled as baseline evidence, not the main thesis contribution.
-- The baseline exists as the starting reference point for later hardening and controlled comparison
-  work.
-
-### Main Risk
-
-Direct continuous regression may produce weak, smoothed, or under-articulated output. That risk is
-acceptable here because Sprint 3 exists to create a measurable reference point.
-
-## Sprint 4 - Completed Contribution Audit
-
-### Purpose
-
-Record the completed Contribution Audit milestone that fixed the current thesis-facing selected
-pair and the frozen comparison structure for later work.
-
-### In Scope
-
-- completion of the contribution-audit process for the current thesis path
-- recording the minimum required four-model evidence structure:
+- Verified bibliography and source corpus
+- Source-selection criteria and verified source-corpus boundaries
+- Literature positioning for the research problem
+- Contribution-selection record
+- Selected `C1` and `C2` contribution roles
+- Fallback and deferred alternatives, documented without changing the selected roles
+- Frozen comparison architecture:
   - `M0 = Base`
   - `M1 = Base + C1`
   - `M2 = Base + C2`
   - `M3 = Base + C1 + C2`
-- recording the fixed current outcome:
-  - `C1 = Dynamic VQ Pose Tokens`
-  - `C2 = Channel-Aware Loss Reweighting`
-  - fallback = `Articulator-Partitioned Latent Structure`
-  - deferred = `Motion Primitives Representation`
-- recording that later sprints now proceed under this fixed outcome
-
-### Out of Scope
-
-- re-running contribution-selection reasoning inside the roadmap
-- re-scoring candidates
-- treating fallback or deferred candidates as newly selected
-- implementing the downstream model-comparison program
-
-### Acceptance Criteria
-
-- Sprint 4 is clearly recorded as a completed milestone.
-- The selected pair and frozen `M0/M1/M2/M3` architecture are clearly stated.
-- Later sprints are explicitly framed as downstream execution under the fixed Sprint 4 outcome.
-
-### Main Risk
-
-The main risk is decision drift after audit completion, including accidental reopening of
-contribution selection during downstream implementation.
-
-## Sprint 5 - Baseline Evaluation / Error Analysis / Hardening
-
-### Purpose
-
-Validate the implemented base model as a trustworthy reference point for later comparison work.
+- Research assumptions, source-grounding policy, and rationale for key research framing choices
+- Rationale for whether the project is gloss-free or uses another intermediate representation
+  strategy
+- Conditions under which `C1` or `C2` selection should be revisited
+- Roadmap baseline for later implementation
 
 ### In Scope
 
-- verify that base-model training was run correctly
-- verify that base-model testing was run correctly
-- complete checks on epoch outputs and baseline behavior
-- error analysis of baseline outputs
-- notebook-based baseline testing surfaces
-- reusable evaluation and test surfaces that later models can reuse
-- package the validated baseline artifact
-- publish the validated baseline through Hugging Face
-- document downstream usage against the published artifact
+- Defining the research problem and project scope
+- Defining source-selection criteria and establishing the verified literature and source corpus
+  boundary
+- Identifying candidate method families
+- Selecting `C1` and `C2` as the two main thesis contribution roles
+- Defining fallback and deferred alternatives if needed
+- Freezing the four-model comparison structure
+- Defining evidence, source-grounding, and reproducibility expectations for later work
+- Documenting the rationale for key framing assumptions, including supervision and intermediate
+  representation assumptions
+- Defining what new evidence, feasibility result, or scope change would require revisiting the
+  `C1` or `C2` selection
 
 ### Out of Scope
 
-- implementing `C1`
-- implementing `C2`
-- treating this sprint as final contribution-comparison work
-- demo polish beyond what is needed for validation surfaces
+- Training models
+- Building the dataset pipeline
+- Implementing `C1` or `C2`
+- Building demos or visual interfaces
+- Replacing research selection with implementation convenience
 
 ### Acceptance Criteria
 
-- Training provenance, commands, configs, summaries, checkpoints, and baseline test outputs are
-  reviewed and recorded well enough to verify that the base-model training and testing path ran
-  correctly.
-- Epoch outputs and baseline behavior have documented review outcomes, and any required follow-up
-  checks for the baseline reference point are completed.
-- Notebook surfaces can run baseline testing or inspection workflows without relying on ad hoc
-  local-only procedures.
-- Reusable evaluation and test surfaces exist for later `M1/M2/M3` use.
-- A validated baseline artifact is packaged, published on Hugging Face, and documented as the
-  preferred downstream baseline reference whenever practical.
+- Research scope is clear enough to guide implementation.
+- Source corpus is concrete and verifiable.
+- Source-selection criteria and verified source-corpus boundaries are documented.
+- `C1` and `C2` contribution roles are selected and recorded.
+- The `M0/M1/M2/M3` comparison architecture is frozen.
+- Downstream implementation can proceed without reopening research selection.
+- Research assumptions and source-grounding rules are documented.
+- Key framing assumptions are justified, including whether the project is gloss-free or uses
+  another intermediate representation strategy.
+- Conditions for revisiting `C1` or `C2` selection are explicit.
 
 ### Main Risk
 
-The main risk is comparing later contribution models against a weak or poorly validated baseline
-reference.
+Premature implementation before the research direction is sufficiently grounded.
 
-## Sprint 6 - Minimal Visual Demo / Inspectable Output Surface
+<a id="sprint-2"></a>
+
+## Sprint 2 - Repository Infrastructure
 
 ### Purpose
 
-Provide a minimal inspectable visual surface for model outputs that supports evaluation and
-communication.
+Establish the technical foundation for reproducible research software, documentation, experiments,
+and notebooks.
+
+### Inputs
+
+- Sprint 1 roadmap baseline and research assumptions
+- Target repository conventions
+- Expected Python package, notebook, documentation, and test workflows
+- Reproducibility and artifact-management requirements
+
+### Outputs
+
+- Package structure and `src/` layout
+- Test structure and initial test commands
+- Linting, formatting, and type-checking configuration
+- CI workflow for tests and documentation checks
+- Documentation site foundation
+- ADR and experiment-log conventions
+- Reproducibility conventions for commands, configs, seeds, data versions, and artifacts
+- Notebook-as-thin-driver policy
 
 ### In Scope
 
-- consume the published baseline artifact from Hugging Face
-- provide reproducible minimal visual playback, skeleton inspection, or output inspection
-- connect inspected outputs back to published artifacts and experiment identity
-- keep the surface reusable for later models, not only the base model
-- support later side-by-side inspection and comparison across `M0/M1/M2/M3` outputs through the
-  same minimal surface
+- Establishing reusable project code organization
+- Creating test, lint, formatting, type-checking, and CI foundations
+- Setting documentation and decision-recording surfaces
+- Defining experiment logging conventions
+- Defining how notebooks call shared project code rather than carrying core logic
+- Documenting reproducibility expectations for later dataset, training, and evaluation work
 
 ### Out of Scope
 
-- main research contribution claims
-- broad avatar or polished product/demo ambitions
-- ad hoc checkpoint-only usage when a published artifact is available
-- final thesis packaging
+- Dataset processing
+- Model training
+- Research selection
+- Visual interface implementation
+- Adding dependencies without a clear infrastructure need
 
 ### Acceptance Criteria
 
-- The visual inspection surface works against the published baseline artifact.
-- Inspected examples can be reproduced from documented artifact references.
-- The surface is intentionally minimal and clearly framed as evaluation-support infrastructure.
-- The same surface can later be reused for `M1/M2/M3` outputs and later comparison-oriented
-  inspection.
+- Repository can be tested and documented reproducibly.
+- Development conventions are explicit.
+- Experiments and decisions have documented recording surfaces.
+- Shared code location and notebook responsibilities are clear.
+- Later sprints can add dataset, model, evaluation, and interface work without changing the basic
+  repository architecture.
 
 ### Main Risk
 
-The main risk is letting demo work expand beyond a minimal reusable inspection surface.
+Weak infrastructure causing later research work to rely on ad hoc scripts, undocumented decisions,
+or notebook-only implementation.
 
-## Sprint 7 - Selected-Pair Implementation / Controlled 2x2 Comparison
+<a id="sprint-3"></a>
+
+## Sprint 3 - Dataset Build
 
 ### Purpose
 
-Implement the selected contribution pair and execute the controlled comparison program under the
-frozen audit architecture.
+Turn the raw dataset into reusable model-training artifacts with documented assumptions, quality
+checks, and stable split handling.
+
+### Inputs
+
+- Raw dataset files and metadata
+- Dataset assumptions from Sprint 1
+- Repository infrastructure from Sprint 2
+- Required model input and output expectations
+- Reproducibility conventions for generated artifacts
+
+### Outputs
+
+- Raw dataset inspection notes
+- Dataset manifests
+- Filtering policy
+- Normalization procedure
+- Train, validation, and test split handling
+- Processed `.npz` or equivalent samples
+- Dataset quality reports
+- Reusable dataset artifacts for downstream training and testing
+- Dedicated dataset build / export notebook that orchestrates shared project code
 
 ### In Scope
 
-- implement `C1 = Dynamic VQ Pose Tokens`
-- implement `C2 = Channel-Aware Loss Reweighting`
-- train and evaluate the frozen comparison set:
+- Inspecting raw data layout and metadata
+- Generating manifests
+- Defining and applying filtering policy
+- Normalizing pose and related model inputs
+- Preserving split identity and split assumptions
+- Creating processed samples in a reusable format
+- Running quality checks and documenting dataset assumptions
+- Creating a dedicated thin dataset build / export notebook that orchestrates raw-data intake,
+  filtering, normalization, and export through shared project code
+- Keeping core dataset-processing logic in reusable project code rather than in notebook cells
+
+### Out of Scope
+
+- Model training
+- `C1` or `C2` implementation
+- Visual UI work
+- Changing the research contribution selection
+
+### Acceptance Criteria
+
+- Downstream training uses processed artifacts rather than direct raw-file access.
+- Dataset artifacts are reproducible from documented inputs and commands.
+- Splits and assumptions are documented.
+- Later `M0`, `M1`, `M2`, and `M3` models can reuse the same dataset format.
+- A dedicated dataset build / export notebook exists, is separate from model training notebooks,
+  and orchestrates reusable project code rather than embedding core processing logic.
+
+### Main Risk
+
+Dataset ambiguity or inconsistent preprocessing undermining every downstream model comparison.
+
+<a id="sprint-4"></a>
+
+## Sprint 4 - Base Model Training and Release
+
+### Purpose
+
+Produce `M0 = Base` as the trusted reference model for all later contribution comparisons.
+
+### Inputs
+
+- Processed dataset artifacts from Sprint 3
+- Repository training infrastructure
+- Base model configuration
+- Reproducibility conventions for experiments and released artifacts
+- Base model training and release notebook requirements
+
+### Outputs
+
+- Base model implementation
+- Base model training run
+- Validation and test outputs
+- Epoch-output review notes
+- Baseline error inspection
+- Dedicated base model training and release notebook
+- Packaged `M0` artifact
+- Hugging Face release or equivalent documented model publication
+- Model card or usage metadata
+- Downstream loading instructions
+
+### In Scope
+
+- Implementing the base model
+- Training `M0` on the processed dataset artifacts
+- Running validation and test procedures
+- Reviewing epoch outputs and correctness signals
+- Inspecting baseline errors
+- Packaging the validated base model artifact
+- Publishing `M0` through Hugging Face or an equivalent documented artifact surface
+- Documenting reproducible loading and use from the published artifact
+- Creating a dedicated base model training and release notebook that loads processed dataset
+  artifacts, drives `M0` training, supports validation/test review, and supports artifact packaging
+  and release through reusable project code
+
+### Out of Scope
+
+- `C1` implementation
+- `C2` implementation
+- Final 2x2 comparison
+- Final visual interface
+- Treating informal local checkpoints as the downstream model interface
+
+### Acceptance Criteria
+
+- Base model training and testing are reproducible from documented configuration, data references,
+  and commands.
+- Validation and test outputs are documented.
+- Epoch behavior has been reviewed.
+- Known baseline failure modes are documented.
+- The reviewed baseline is accepted as the `M0` reference for downstream comparison.
+- `M0` can be loaded from its published artifact.
+- Released `M0` artifact includes model metadata, configuration reference, and usage instructions
+  for reproducible loading.
+- Downstream workflows do not depend on informal local checkpoints.
+- Base model training and release notebook loads processed dataset artifacts, supports
+  validation/test review and artifact packaging/release, and is a thin driver over reusable project
+  code.
+
+### Main Risk
+
+Building later comparisons on a weak, incorrectly trained, or unreleased baseline.
+
+<a id="sprint-5"></a>
+
+## Sprint 5 - Reusable Testing Pipelines
+
+### Purpose
+
+Create model-agnostic testing infrastructure that can evaluate every released model through the
+same comparable procedure.
+
+### Inputs
+
+- Processed dataset artifacts and split definitions
+- Published `M0` artifact and loading metadata
+- Repository evaluation conventions
+- Expected comparison metadata requirements
+- Standard model testing notebook requirements
+- Visual testing / visual inspection notebook requirements
+
+### Outputs
+
+- Terminal-based model testing interface
+- Standard model testing notebook
+- Visual testing / visual inspection notebook for inspectable pose outputs
+- Published-artifact model loading path
+- Dataset split selection support
+- Standard inference and test execution
+- Comparable test reports
+- Error-analysis outputs
+- Captured metadata for model version, dataset version, config, split, and run identity
+
+### In Scope
+
+- Loading models from published artifact references whenever practical
+- Testing `M0`, `M1`, `M2`, and `M3` through the same interface
+- Selecting dataset splits for evaluation
+- Running standard inference and test procedures
+- Producing comparable reports and error-analysis outputs
+- Capturing model, dataset, config, split, and run identity metadata
+- Keeping the terminal-based testing interface and standard model testing notebook on the same
+  shared evaluation logic
+- Creating a visual testing / visual inspection notebook that loads released artifacts, generates
+  inspectable pose outputs, and supports visual comparison or inspection of model outputs
+- Keeping visual testing as a reusable evaluation-support surface, not the final use-facing
+  interface
+
+### Out of Scope
+
+- Training new contribution models
+- Final user-facing visual interface work; Sprint 5 visual work is limited to reusable
+  evaluation-support inspection
+- Thesis writing
+- Model-specific testing shortcuts that bypass the shared interface
+
+### Acceptance Criteria
+
+- Any released model can be put through the same test interface.
+- The pipeline can run at least one released model end-to-end and produce a persisted,
+  reproducible test report.
+- Outputs are comparable across models.
+- Test metadata is sufficient for reproducibility.
+- Pipeline supports later 2x2 comparison work.
+- Terminal and notebook testing paths use the same shared evaluation logic.
+- The standard model testing notebook can run a released model through the standard evaluation path
+  and produce persisted, comparable test reports.
+- The visual testing / visual inspection notebook can load a released model and produce
+  inspectable outputs for model-output review.
+- Both testing notebooks use shared project code rather than duplicating core evaluation or
+  visualization logic.
+
+### Main Risk
+
+Each model being tested through a different, non-comparable procedure.
+
+<a id="sprint-6"></a>
+
+## Sprint 6 - Main Thesis Contribution 1 Implementation and Release
+
+### Purpose
+
+Produce `M1 = Base + C1` by adding Main Thesis Contribution 1 to the base model while preserving a
+clear implementation boundary between the base functionality and `C1`.
+
+### Inputs
+
+- Sprint 1 definition of `C1`
+- Published `M0` artifact and base model code
+- Processed dataset artifacts
+- Reusable testing pipeline from Sprint 5
+- Artifact publication and metadata conventions
+- `C1` training and release notebook requirements
+
+### Outputs
+
+- `C1` implementation delta from the base model
+- Trained `M1` model
+- Validation outputs
+- Standard test reports from the reusable testing pipeline
+- Documented `C1` implementation boundary
+- Dedicated `C1` training and release notebook for `M1`
+- Packaged `M1` artifact
+- Hugging Face release or equivalent documented model publication
+- Usage documentation for loading and evaluating `M1`
+
+### In Scope
+
+- Implementing Main Thesis Contribution 1 as `C1`
+- Separating base functionality from the `C1` implementation delta
+- Training and validating `M1`
+- Testing `M1` through the reusable testing pipeline
+- Packaging and publishing the released `M1` artifact
+- Documenting usage and reproducible loading
+- Creating a dedicated `C1` training and release notebook that drives `M1 = Base + C1`
+  training/release and remains a thin driver over reusable project code
+
+### Out of Scope
+
+- `C2`
+- `M3`
+- Final 2x2 analysis
+- Final visual interface
+- Unrelated baseline changes that obscure the `C1` effect
+
+### Acceptance Criteria
+
+- `M1` is trained.
+- `M1` is tested using the standard testing pipeline.
+- `C1` implementation delta is documented.
+- `M1` is released as a reusable artifact.
+- Released artifact includes model metadata, configuration reference, and usage instructions.
+- Downstream comparison can consume the released `M1`.
+- `C1` training and release notebook delegates shared logic to reusable project code.
+
+### Main Risk
+
+`C1` implementation becoming entangled with unrelated baseline or `C2` changes.
+
+<a id="sprint-7"></a>
+
+## Sprint 7 - Main Thesis Contribution 2 Implementation and Release
+
+### Purpose
+
+Produce `M2 = Base + C2` by adding Main Thesis Contribution 2 to the base model while preserving a
+clear implementation boundary between the base functionality and `C2`.
+
+### Inputs
+
+- Sprint 1 definition of `C2`
+- Published `M0` artifact and base model code
+- Processed dataset artifacts
+- Reusable testing pipeline from Sprint 5
+- Artifact publication and metadata conventions
+- `C2` training and release notebook requirements
+
+### Outputs
+
+- `C2` implementation delta from the base model
+- Trained `M2` model
+- Validation outputs
+- Standard test reports from the reusable testing pipeline
+- Documented `C2` implementation boundary
+- Dedicated `C2` training and release notebook for `M2`
+- Packaged `M2` artifact
+- Hugging Face release or equivalent documented model publication
+- Usage documentation for loading and evaluating `M2`
+
+### In Scope
+
+- Implementing Main Thesis Contribution 2 as `C2`
+- Separating base functionality from the `C2` implementation delta
+- Training and validating `M2`
+- Testing `M2` through the reusable testing pipeline
+- Packaging and publishing the released `M2` artifact
+- Documenting usage and reproducible loading
+- Creating a dedicated `C2` training and release notebook that drives `M2 = Base + C2`
+  training/release and remains a thin driver over reusable project code
+
+### Out of Scope
+
+- `C1` implementation work
+- `M3`
+- Final 2x2 analysis
+- Final visual interface
+- Unrelated baseline changes that obscure the `C2` effect
+
+### Acceptance Criteria
+
+- `M2` is trained.
+- `M2` is tested using the standard testing pipeline.
+- `C2` implementation delta is documented.
+- `M2` is released as a reusable artifact.
+- Released artifact includes model metadata, configuration reference, and usage instructions.
+- Downstream comparison can consume the released `M2`.
+- `C2` training and release notebook delegates shared logic to reusable project code.
+
+### Main Risk
+
+`C2` effects being hard to isolate because the implementation is not cleanly separated from the
+base model.
+
+<a id="sprint-8"></a>
+
+## Sprint 8 - Final Combined Model Implementation and Release
+
+### Purpose
+
+Produce `M3 = Base + C1 + C2` by integrating the two selected contribution roles into one model
+without changing the meaning of the frozen comparison structure.
+
+### Inputs
+
+- Published `M0`, `M1`, and `M2` artifacts and metadata
+- Implemented `C1` and `C2` deltas
+- Processed dataset artifacts
+- Reusable testing pipeline from Sprint 5
+- Artifact publication and metadata conventions
+- Final combined model training and release notebook requirements
+
+### Outputs
+
+- Combined `C1` and `C2` model implementation
+- Compatibility and interaction checks
+- Trained `M3` model
+- Validation outputs
+- Standard test reports from the reusable testing pipeline
+- Documented `C1`/`C2` interaction issues or compatibility assumptions
+- Dedicated final combined model training and release notebook for `M3`
+- Packaged `M3` artifact
+- Hugging Face release or equivalent documented model publication
+- Usage documentation for loading and evaluating `M3`
+
+### In Scope
+
+- Integrating `C1` and `C2` into the same model
+- Checking compatibility and interaction behavior
+- Training and validating `M3`
+- Testing `M3` through the same pipeline used for `M0`, `M1`, and `M2`
+- Packaging and publishing the released `M3` artifact
+- Documenting usage and reproducible loading
+- Creating a dedicated final combined model training and release notebook that drives
+  `M3 = Base + C1 + C2` training/release and remains a thin driver over reusable project code
+
+### Out of Scope
+
+- Reselecting `C1` or `C2`
+- Introducing a new main contribution
+- Final comparative analysis as the main work
+- Changing the base model in ways unrelated to combining `C1` and `C2`
+
+### Acceptance Criteria
+
+- `M3` is trained.
+- `M3` is tested through the same pipeline as `M0`, `M1`, and `M2`.
+- `C1`/`C2` interaction issues are documented.
+- `M3` is released as a reusable artifact.
+- Released artifact includes model metadata, configuration reference, and usage instructions.
+- Model is ready for 2x2 comparative analysis.
+- Final combined model training and release notebook delegates shared logic to reusable project code.
+
+### Main Risk
+
+Combined-model effects being impossible to interpret because integration changes more than `C1`
+plus `C2`.
+
+<a id="sprint-9"></a>
+
+## Sprint 9 - 2x2 Comparative Analysis
+
+### Purpose
+
+Compare the frozen four-model set under one standardized protocol and produce thesis-ready
+evidence about base performance, individual contribution effects, and combined contribution
+behavior.
+
+### Inputs
+
+- Published `M0 = Base` artifact
+- Published `M1 = Base + C1` artifact
+- Published `M2 = Base + C2` artifact
+- Published `M3 = Base + C1 + C2` artifact
+- Processed dataset artifacts and split definitions
+- Reusable testing pipeline and comparison metadata
+- Error-analysis and qualitative inspection surfaces
+
+### Outputs
+
+- Standardized test runs for all four models
+- Numerical comparison tables
+- Qualitative comparison outputs
+- Error-analysis reports
+- Interpretation of base performance
+- Interpretation of `C1` effect
+- Interpretation of `C2` effect
+- Interpretation of `C1 + C2` combined effect
+- Thesis-ready comparison tables and reports
+
+### In Scope
+
+- Comparing:
   - `M0 = Base`
   - `M1 = Base + C1`
   - `M2 = Base + C2`
   - `M3 = Base + C1 + C2`
-- reuse Sprint 5 evaluation and testing surfaces
-- reuse Sprint 6 visual inspection surfaces
-- continue published-artifact discipline as far as practical for downstream consumption
+- Running standardized testing across all four released artifacts
+- Producing numerical and qualitative comparison evidence
+- Performing error analysis
+- Interpreting individual and combined contribution effects
+- Preparing comparison outputs for thesis use
 
 ### Out of Scope
 
-- reopening candidate selection
-- substituting fallback or deferred candidates unless later explicitly triggered outside this
-  roadmap step
-- turning this sprint into a new literature review or a new audit
-- treating the visual surface as the main thesis contribution
+- New model implementation
+- Contribution reselection
+- Final thesis writing as the primary task
+- Creating new test procedures that break comparability with earlier runs
 
 ### Acceptance Criteria
 
-- All four planned comparison conditions are clearly defined and evaluated under the frozen
-  architecture.
-- The selected `C1/C2` pair is implemented as the current audited pair.
-- Downstream evaluation and testing reuse the Sprint 5 surfaces rather than creating a separate ad
-  hoc comparison path.
-- Visual inspection and comparison reuse the Sprint 6 surface rather than introducing a separate
-  model-specific inspection workflow.
-- Artifact handling remains reproducible and publication-oriented where practical, including later
-  selected-pair outputs.
+- All four models are compared under the same test protocol.
+- Results are documented in comparable form.
+- Contribution effects are interpretable.
+- Analysis can support thesis claims.
+- Comparison inputs are traceable to released artifacts and documented dataset versions.
 
 ### Main Risk
 
-The main risk is uncontrolled comparison design drift, or contribution implementation that bypasses
-the frozen `M0/M1/M2/M3` structure.
+Drawing thesis conclusions from non-comparable runs or incomplete artifacts.
 
-## Sprint 8 - Final Integration / Thesis Packaging
+<a id="sprint-10"></a>
+
+## Sprint 10 - Final Visual Interface
 
 ### Purpose
 
-Integrate the final thesis-facing narrative and reproducibility package.
+Produce the final use-facing visual interface for project use and thesis demonstration while
+keeping it subordinate to the research evidence. This sprint builds on released artifacts and
+reusable inference/visualization code after Sprint 5 has already established reusable visual
+testing and inspection as evaluation support.
+
+### Inputs
+
+- Released model artifacts for `M0`, `M1`, `M2`, and `M3` as needed
+- Reusable artifact-loading code
+- Text-to-pose inference interface
+- Visualization or skeleton-rendering code
+- Thesis demonstration requirements
+
+### Outputs
+
+- Final use-facing visual interface for text input and pose output inspection
+- Released-artifact loading support
+- Skeleton playback or equivalent visual rendering
+- Optional model selection among released models when useful
+- Final demonstration notebook or interface surface when a notebook best supports reproducible
+  thesis demonstration
+- Documentation for running the interface from released artifacts
 
 ### In Scope
 
-- integrate the baseline
-- integrate the completed audit outcome
-- integrate Sprint 5 hardened testing and evaluation surfaces
-- integrate Sprint 6 visual inspection surface
-- integrate Sprint 7 `M0/M1/M2/M3` comparisons
-- final thesis-facing documentation and comparison packaging
+- Loading released model artifacts
+- Accepting text input
+- Generating pose output
+- Rendering skeleton playback or an equivalent visual output
+- Optionally selecting between released models when useful
+- Showing outputs in a form suitable for thesis demonstration
+- Keeping final demonstration notebooks or interface surfaces as thin drivers over shared
+  visualization and inference code
+- Separating the final use-facing interface from Sprint 5 visual testing / visual inspection
+  notebooks
 
 ### Out of Scope
 
-- new primary model-family selection
-- replacing the fixed selected pair
-- expanding the demo beyond minimal inspection needs
-- broad redesign of earlier pipeline stages
+- Photorealistic avatar requirements
+- Production-grade product deployment
+- New research claims
+- New contribution selection
+- Replacing the Sprint 5 reusable visual testing / visual inspection notebook
+- Interface polish that distracts from thesis evidence
 
 ### Acceptance Criteria
 
-- The final narrative clearly links historical foundation, baseline, completed audit, reusable
-  evaluation surfaces, visual inspection, and controlled 2x2 comparison evidence.
-- Final documentation and artifacts support reproducible thesis-facing comparison claims.
-- No new main selection logic is introduced in Sprint 8.
+- User can provide text input and inspect visual output.
+- Interface works from released artifacts.
+- Interface is stable enough for thesis presentation.
+- Interface does not become the main research claim.
+- Final demonstration notebook or interface surface uses reusable inference and visualization code.
 
 ### Main Risk
 
-The main risk is late-stage packaging gaps that weaken provenance or the final comparison story.
+Visual interface work expanding into product development and distracting from thesis evidence.
 
-## Guardrails
+<a id="sprint-11"></a>
 
-Future implementation should preserve the core Sprint 1 principles and the post-audit sequencing
-discipline:
+## Sprint 11 - Thesis Writing and Final Packaging
 
-- code in `src/`
-- notebooks as thin drivers
-- documented decisions
-- reproducible commands and logs
-- raw-data access behind documented manifests and schemas
-- large generated artifacts outside GitHub unless there is a strong reason to change policy
-- downstream usage should prefer published artifacts over informal local checkpoints whenever
-  practical
-- reusable testing and reusable visual inspection surfaces should be favored over one-off
-  sprint-specific tooling
-- later `M0/M1/M2/M3` comparison work should extend shared surfaces rather than reintroduce
-  ad hoc evaluation or demo paths
+### Purpose
+
+Package the project into its final thesis-facing form with a coherent narrative, traceable
+evidence, released artifacts, and reproducibility references.
+
+### Inputs
+
+- Research-planning outputs from Sprint 1
+- Infrastructure, dataset, model, testing, analysis, and interface documentation
+- Released `M0`, `M1`, `M2`, and `M3` artifacts and metadata
+- 2x2 comparative analysis results
+- Final figures, tables, limitations, and future-work notes
+
+### Outputs
+
+- Thesis writing
+- Methodology explanation
+- Dataset description
+- Model descriptions
+- Evaluation results
+- 2x2 comparative analysis
+- Limitations and future work
+- Final figures and tables
+- Reproducibility package
+- Final documentation polish
+
+### In Scope
+
+- Writing the thesis narrative
+- Explaining methodology, dataset, models, and evaluation
+- Integrating numerical and qualitative comparison evidence
+- Documenting limitations and future work
+- Preparing final figures and tables
+- Packaging reproducibility references for data, configs, model artifacts, notebooks, and commands
+- Aligning documentation with the thesis story
+
+### Out of Scope
+
+- New model family
+- New contribution selection
+- Major dataset redesign
+- New experimental direction
+- Reworking results without a documented reproducibility path
+
+### Acceptance Criteria
+
+- Thesis narrative is complete.
+- Final evidence is organized and traceable.
+- Figures and tables are ready.
+- Model artifacts and reproducibility references are documented.
+- Documentation and thesis story are aligned.
+- Final package points to published artifacts rather than informal local checkpoints whenever
+  practical.
+
+### Main Risk
+
+Late packaging revealing missing provenance, incomplete comparisons, or unclear claims.

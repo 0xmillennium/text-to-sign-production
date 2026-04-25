@@ -16,7 +16,7 @@ with:
 
 ## Documents
 
-- [Roadmap](roadmap.md): explains the overall thesis-path structure, separating historical foundation, the implemented baseline, the contribution-audit stage, and the downstream implementation path implied by the current audit outcome.
+- [Roadmap](roadmap.md): defines the normative ideal sprint contract, including sprint responsibilities, scope boundaries, acceptance criteria, risks, and the frozen `M0/M1/M2/M3` comparison structure.
 - [Literature Positioning](literature-positioning.md): explains how representative literature shaped the baseline, framed the audited candidate families, and supports the coherence of the currently selected `C1/C2` pair.
 - [Bibliography](bibliography.md): central numbered reference list for external literature cited across the research docs.
 - [Contribution Audit](contribution-audit/index.md): records the detailed family-level audit universe, candidate evidence records, scorecards, selection decisions, and the authoritative current audit outcome.
