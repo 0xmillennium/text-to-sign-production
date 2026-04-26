@@ -4,28 +4,22 @@
 
 - Repository name: `text-to-sign-production`
 - Project type: graduation thesis / research engineering repository
-- Domain: English text-to-sign-pose production
-- High-level target: build a reproducible research pipeline for English text input to sign-pose
-  model artifacts, evaluation surfaces, comparison evidence, and thesis packaging.
-- Long-term modeling direction:
-  `English text -> sign-pose representation -> keypoints -> skeleton/avatar`.
+- Domain: English text-to-sign pose production
+- High-level goal: a reproducible research pipeline for English text input to sign-pose /
+  pose-keypoint artifacts, evaluation, comparison, and thesis packaging.
 - GitHub repository: `https://github.com/0xmillennium/text-to-sign-production`
 - GitHub Pages docs: `https://0xmillennium.github.io/text-to-sign-production/`
 - Default branch: `master`
 
-Comparison architecture:
-
-- `M0 = Base`
-- `M1 = Base + C1`
-- `M2 = Base + C2`
-- `M3 = Base + C1 + C2`
+The current handoff must not preserve legacy selected-pair or final model-matrix framing. M0, when
+used, means only the Direct Text-to-Pose Baseline comparison floor.
 
 ## 2. Quick Access
 
 - GitHub repository: `https://github.com/0xmillennium/text-to-sign-production`
 - GitHub Pages docs: `https://0xmillennium.github.io/text-to-sign-production/`
 - Default branch: `master`
-- GitHub file URL template:
+- File URL template:
   `https://github.com/0xmillennium/text-to-sign-production/blob/master/<path>`
 - Raw file URL template:
   `https://raw.githubusercontent.com/0xmillennium/text-to-sign-production/master/<path>`
@@ -34,398 +28,321 @@ Comparison architecture:
 
 Examples:
 
-- GitHub roadmap file:
+- Roadmap file:
   `https://github.com/0xmillennium/text-to-sign-production/blob/master/docs/research/roadmap.md`
-- Raw roadmap:
-  `https://raw.githubusercontent.com/0xmillennium/text-to-sign-production/master/docs/research/roadmap.md`
 - Roadmap page:
   `https://0xmillennium.github.io/text-to-sign-production/research/roadmap/`
-- Contribution audit result page:
+- Audit result page:
   `https://0xmillennium.github.io/text-to-sign-production/research/contribution-audit/audit-result/`
+- Literature positioning page:
+  `https://0xmillennium.github.io/text-to-sign-production/research/literature-positioning/`
+- Source corpus page:
+  `https://0xmillennium.github.io/text-to-sign-production/research/source-corpus/`
 
 ## 3. How To Use This Handoff
 
-This file is a context bridge for a new ChatGPT/Codex session. It is meant to help a new assistant
-start from current project reality without relying on previous conversation history.
+This file is a context bridge for a new ChatGPT/Codex session. It exists so a new assistant can
+start from the current project state without relying on previous conversation history.
 
-Canonical docs remain the source of truth. Verify claims against the repository before editing,
-especially `docs/research/roadmap.md`, `docs/research/contribution-audit/`, `docs/execution.md`,
-`docs/data/`, `docs/experiments/`, and `docs/testing/`.
+Canonical docs remain the source of truth. Verify claims against repository files before editing,
+especially the research roadmap, audit result, literature positioning, data docs, experiment
+records, execution guide, testing docs, source code, scripts, and tests.
 
-Use `docs/research/roadmap.md` as the normative ideal roadmap. If this handoff and a canonical
-surface disagree, inspect the canonical surface first and update this handoff only after the owning
-documentation surface is corrected.
+Do not treat this handoff as authoritative if it conflicts with canonical docs. If canonical docs
+conflict with each other, do not silently resolve the conflict here; record the conflict as current
+state and update canonical surfaces in their own task.
 
-## 4. Current Roadmap Baseline
+## 4. Current Source-Of-Truth Hierarchy
 
-`docs/research/roadmap.md` is the normative ideal roadmap.
+Current research source-of-truth chain:
 
-The current ideal roadmap has 11 sprints:
+```text
+docs/research/source-selection-criteria.md
+  -> docs/research/source-corpus.md
+    -> docs/research/contribution-audit/
+      -> docs/research/contribution-audit/audit-result.md
+        -> docs/research/literature-positioning.md
+          -> docs/research/roadmap.md
+```
 
-1. Literature Review, Research Planning, and Contribution Selection
-2. Repository Infrastructure
-3. Dataset Build
-4. Base Model Training and Release
-5. Reusable Testing Pipelines
-6. Main Thesis Contribution 1 Implementation and Release
-7. Main Thesis Contribution 2 Implementation and Release
-8. Final Combined Model Implementation and Release
-9. 2x2 Comparative Analysis
-10. Final Visual Interface
-11. Thesis Writing and Final Packaging
+Implementation and evidence surfaces to inspect alongside the research chain:
 
-The comparison architecture is:
+- `docs/data/`
+- `docs/experiments/`
+- `docs/testing/`
+- `docs/execution.md`
+- `src/`
+- `scripts/`
+- `configs/`
+- `notebooks/`
+- `tests/`
 
-- `M0 = Base`
-- `M1 = Base + C1`
-- `M2 = Base + C2`
-- `M3 = Base + C1 + C2`
+Known conflict: `README.md`, `docs/index.md`, public workflow contract tests, and several ADRs
+still contain stale C1/C2 or sprint-era wording. Treat the refreshed `docs/research/` chain as the
+current research-planning authority until those surfaces are cleaned up.
 
-Published artifacts and reusable evaluation surfaces are part of the target reproducibility
-contract. Future `M0`, `M1`, `M2`, and `M3` artifacts should be published through Hugging Face or an
-equivalent documented artifact surface, with metadata and loading instructions.
+## 5. Current Research Architecture
 
-## 5. Current Sprint Status Baseline
+The merged research chain is source-grounded and audit-derived:
 
-- Sprint 1: `mostly completed`
-- Sprint 2: `completed`
-- Sprint 3: `mostly completed`
-- Sprint 4: `partially completed`
-- Sprint 5-11: `planned`
+- Source-selection criteria define which sources may support the audit and how evidence boundaries
+  are handled.
+- Source corpus is the canonical public source registry, currently recording 28 reviewed sources
+  with stable `SRC-*` IDs.
+- Candidate universe records define family-level audit axes.
+- Candidate cards instantiate eight concrete audit records.
+- Scorecards record six readiness scorecards without selecting or ranking final outcomes.
+- Selection decisions record candidate-level role decisions.
+- Audit result synthesizes the whole audit.
+- Literature positioning explains the thesis contribution frame relative to the source corpus and
+  audit result.
+- Roadmap translates the audit result and positioning into a Phase 0-12 execution map.
 
-Current active sprint:
+No repository evidence was found for the exact claim that a final broad research review passed
+with no blocker/major/minor/nit findings. Do not repeat that claim unless a future canonical record
+documents it.
 
-- Sprint 4 - Base Model Training and Release
+The old plain bibliography-centered architecture is no longer the current research authority.
 
-Highest sprint honestly completed:
+## 6. Current Thesis Contribution Frame
 
-- Sprint 2 - Repository Infrastructure
+The current thesis contribution frame is a reproducible, gloss-free, How2Sign-compatible
+text-to-sign pose-production research pipeline that compares representation-based,
+latent-generative, and structure-aware text-to-pose candidates under a shared baseline,
+evaluation, comparator, visualization, reporting, and reproducibility surface.
 
-Work sequencing:
+Current boundaries:
 
-- Sprint 4 closure is the active path.
-- Sprint 1 closure can proceed in parallel with Sprint 4.
-- Sprint 3 notebook closure can proceed in parallel with Sprint 4.
-- C1/C2 implementation should not start before Sprint 4 is closed and Sprint 5 testing surfaces
-  exist.
-- Do not preserve older sprint numbering from stale plans.
+- No final implementation model is selected.
+- No final candidate ranking is assigned.
+- No experimental result is claimed by the research audit.
+- No near-term full 3D/avatar implementation is authorized.
+- Automatic metrics and visual plausibility are not proof of sign intelligibility.
 
-## 6. Where To Look For What
+## 7. Current Candidate Role Boundaries
 
-- Project overview: `README.md`
-- Published docs home: `docs/index.md`
-- Execution / Colab workflow: `docs/execution.md`
-- Repository structure: `docs/repository-map.md`
-- Roadmap / sprint plan: `docs/research/roadmap.md`
-- Literature positioning: `docs/research/literature-positioning.md`
-- Bibliography: `docs/research/bibliography.md`
-- Contribution audit result: `docs/research/contribution-audit/audit-result.md`
-- Candidate decisions: `docs/research/contribution-audit/selection-decisions/`
-- Dataset docs: `docs/data/`
-- Experiments: `docs/experiments/`
-- Testing docs: `docs/testing/`
-- ADRs: `docs/decisions/`
-- Source code: `src/text_to_sign_production/`
-- Scripts / CLI wrappers: `scripts/`
-- Configs: `configs/`
-- Notebooks: `notebooks/`
+| Surface | Current role |
+| --- | --- |
+| Direct Text-to-Pose Baseline | M0 comparison floor, not a model contribution claim. |
+| Learned Pose-Token Bottleneck | Primary model candidate. |
+| Gloss-Free Latent Diffusion | Primary high-support/high-risk model candidate. |
+| Articulator-Disentangled Latent Modeling | Primary structure-preservation model candidate. |
+| Text-Pose Semantic Consistency | Auxiliary/additive objective, not standalone primary model direction. |
+| Retrieval-Augmented Pose Comparator | Comparator/counter-alternative, not primary neural generation candidate. |
+| How2Sign-Compatible Evaluation Protocol | Evaluation surface, not model candidate. |
+| Sparse-Keyframe / Avatar-Control Future Direction | Future-work/avatar boundary, not near-term implementation. |
 
-## 7. Docs URL Mapping
+## 8. Current Roadmap Baseline
 
-GitHub Pages publishes `docs/` paths under:
+The current roadmap uses Phase, not legacy sprint numbering. Phase order is execution sequence,
+not final ranking. Candidate phases are comparable experimental units, not final implementation
+commitments.
 
-`https://0xmillennium.github.io/text-to-sign-production/`
+- Phase 0 - Research Audit Consolidation
+- Phase 1 - Dataset Access And Supervision Boundary
+- Phase 2 - Artifact Schema And Data Pipeline
+- Phase 3 - Pose / Keypoint Extraction And Normalization
+- Phase 4 - M0 Direct Text-to-Pose Baseline
+- Phase 5 - Evaluation Harness And Reporting Protocol
+- Phase 6 - Learned Pose-Token Bottleneck Candidate
+- Phase 7 - Gloss-Free Latent Diffusion Candidate
+- Phase 8 - Articulator-Aware Structure Candidate
+- Phase 9 - Auxiliary Semantic Consistency And Retrieval Comparator
+- Phase 10 - Comparative Analysis And Candidate Synthesis
+- Phase 11 - Visual Representation Layer
+- Phase 12 - Thesis Writing And Reproducibility Release
 
-Mapping rules:
+## 9. Current Roadmap Implementation Status
 
-- `docs/index.md` maps to the docs root.
-- Other `docs/<path>.md` files usually map to
-  `https://0xmillennium.github.io/text-to-sign-production/<path-without-md>/`.
-- Directory `index.md` files usually map to the directory URL.
+| Phase | Current status | Summary |
+| --- | --- | --- |
+| Phase 0 | mostly_complete | Research chain merged; public root docs, ADRs, and public contract tests still contain stale selected-pair/sprint wording. |
+| Phase 1 | mostly_complete | Dataset/supervision evidence exists; consolidated access/license/redistribution note still needed. |
+| Phase 2 | completed | Artifact schema and data pipeline are implemented and validated through docs, code, tests, and experiment records. |
+| Phase 3 | mostly_complete | OpenPose/BFH parsing and normalization exist; visual debug/playback surface is missing. |
+| Phase 4 | mostly_complete | Baseline implementation and one baseline experiment record exist; failure-mode inventory and evaluation linkage remain missing. |
+| Phase 5 | partial | Metric primitives and qualitative helpers exist; reusable evaluation harness/reporting protocol remains missing. |
+| Phase 6-12 | planned | Later model, comparator, synthesis, visualization, and thesis-release phases are not yet implemented. |
 
-Examples:
+Do not mark a phase complete unless repository evidence supports the claim.
 
+## 10. Immediate Next Work
+
+1. Phase 0 cleanup: update stale public root docs, ADR wording, and public contract expectations
+   that still expose old selected-pair or outcome framing.
+2. Phase 1 consolidation: document dataset access, supervision, license, and redistribution
+   boundaries in a canonical, reviewable form.
+3. Phase 3 visual debug: add a skeleton/keypoint inspection or playback surface for processed and
+   generated pose artifacts.
+4. Phase 4 linkage: add baseline failure-mode inventory and connect baseline outputs to the
+   emerging evaluation/reporting surface.
+5. Phase 5 harness: build a reusable evaluation harness and reporting protocol that can evaluate
+   M0 outputs reproducibly.
+
+Keep Phase 6+ model candidate work planned until Phase 5 can evaluate M0 outputs reproducibly.
+
+## 11. Repository Surfaces To Inspect
+
+- `README.md`
 - `docs/index.md`
-  -> `https://0xmillennium.github.io/text-to-sign-production/`
 - `docs/research/roadmap.md`
-  -> `https://0xmillennium.github.io/text-to-sign-production/research/roadmap/`
-- `docs/research/literature-positioning.md`
-  -> `https://0xmillennium.github.io/text-to-sign-production/research/literature-positioning/`
 - `docs/research/contribution-audit/audit-result.md`
-  -> `https://0xmillennium.github.io/text-to-sign-production/research/contribution-audit/audit-result/`
+- `docs/research/literature-positioning.md`
+- `docs/research/source-corpus.md`
+- `docs/data/`
+- `docs/experiments/`
+- `docs/testing/`
+- `docs/execution.md`
+- `docs/decisions/`
+- `src/text_to_sign_production/`
+- `scripts/`
+- `configs/`
+- `notebooks/`
+- `tests/`
 
-## 8. Research Decisions Snapshot
+Do not use the old plain bibliography page as the current canonical source registry.
 
-Current contribution-audit result, from `docs/research/contribution-audit/audit-result.md`:
+## 12. Current Implementation Evidence Snapshot
 
-- Current selected `C1`: `Dynamic VQ Pose Tokens`
-- Current selected `C2`: `Channel-Aware Loss Reweighting`
-- Current fallback: `Articulator-Partitioned Latent Structure`
-- Current deferred candidate: `Motion Primitives Representation`
+Supported by current repo evidence:
 
-Caution:
+- Dataset build pipeline exists.
+- Processed-v1 artifact schema, docs, validation, and archive documentation exist.
+- OpenPose/BFH keypoint parsing and normalization exist.
+- Baseline model, training, inference, checkpointing, packaging, and qualitative export surfaces
+  exist.
+- One dataset build experiment record exists.
+- One baseline modeling experiment record exists.
+- Metric primitive(s), including masked keypoint L2 evaluation, exist.
+- Qualitative export helpers exist.
 
-- These are current Sprint 1 research-planning outcomes.
-- Sprint 1 is only `mostly completed`.
-- New source evidence, stronger source-selection criteria, or a better gloss-free/intermediate
-  representation rationale may require revisiting C1/C2 before implementation.
-- Do not frame C1/C2 as immutable.
-- Do not reopen contribution selection casually; revisit it only if Sprint 1 closure evidence
-  requires it.
+Important limits:
 
-## 9. Current Repo Reality vs Target Roadmap
+- The reusable evaluation harness/reporting protocol is incomplete.
+- `scripts/evaluate_baseline.py` explicitly reports that baseline evaluation is not implemented
+  yet.
+- No learned-token implementation exists yet.
+- No latent-diffusion implementation exists yet.
+- No articulator-aware candidate implementation exists yet.
+- No retrieval comparator implementation exists yet.
+- No near-term full avatar implementation exists.
+- No released/loadable M0 artifact is documented.
+- No Hugging Face or other external model release is documented.
 
-Current repo reality:
+## 13. Experiments And Evidence Records
 
-- One project-wide Colab notebook exists:
-  `notebooks/colab/text_to_sign_production_colab.ipynb`.
-- Dataset Build pipeline is implemented.
-- Baseline implementation and one recorded Colab run exist.
-- Checkpointing, qualitative export, runtime records, and baseline package evidence exist.
-- No released/loadable `M0` artifact exists yet.
-- No standard released-artifact testing pipeline exists yet.
-- No dedicated notebook split exists yet.
-- The existing baseline run is useful evidence, but it is not a released `M0`.
-- Local checkpoints are not published artifacts.
+`docs/experiments/` is the durable experiment-record surface. Experiment records are evidence, not
+automatic proof of phase completion.
 
-Target roadmap:
+Current records:
 
-- Dedicated dataset build/export notebook.
-- Dedicated base model training/release notebook.
-- Standard model testing notebook.
-- Visual testing/inspection notebook.
-- Dedicated C1 training/release notebook.
-- Dedicated C2 training/release notebook.
-- Dedicated final combined model training/release notebook.
-- Published artifacts for `M0`, `M1`, `M2`, and `M3`.
+- `docs/experiments/2026-04-dataset-build-experiment-record-filter-v2-full-validation.md`
+  records the validated Dataset Build run and processed-v1 artifact evidence.
+- `docs/experiments/2026-04-baseline-modeling-experiment-record-colab-run-190420261845.md`
+  records one baseline modeling Colab run with checkpoints, qualitative outputs, runtime evidence,
+  and archives.
 
-## 10. First Four Sprint Closure Work
+Do not invent additional experiment records or claim unrecorded results.
 
-Sprint 1 closure:
+## 14. ADR And Governance Notes
 
-- Document source-selection criteria.
-- Verify source-corpus boundaries.
-- Document the gloss-free / intermediate representation rationale.
-- Define C1/C2 revisit conditions.
-- Clean up contribution-audit index wording if stale.
-- Consider expanding source evidence before C1/C2 implementation if current corpus boundaries
-  remain too narrow.
+ADRs are historical/governance context. Current research planning is controlled by:
 
-Sprint 2 closure:
+- `docs/research/roadmap.md`
+- `docs/research/contribution-audit/audit-result.md`
+- `docs/research/literature-positioning.md`
 
-- No material closure task.
-- Sprint accepted as completed.
+ADRs that mention old C1/C2 or M0/M1/M2/M3 framing should not be treated as current final
+model-selection policy unless they are updated to align with the refreshed roadmap. ADR cleanup may
+belong to Phase 0 foundation cleanup if stale public wording remains.
 
-Sprint 3 closure:
+Stable ADR ideas that still appear valid:
 
-- Create a dedicated dataset build/export notebook.
-- Keep the dataset notebook separate from model training notebooks.
-- Ensure the notebook calls shared project code rather than owning core logic.
-- Optionally verify external artifact/archive availability.
-
-Sprint 4 closure:
-
-- Train and accept `M0`.
-- Run validation/test evaluation.
-- Review epoch behavior.
-- Document known failure modes / baseline error analysis.
-- Create a dedicated base model training/release notebook.
-- Package `M0`.
-- Publish `M0` to Hugging Face or an equivalent documented artifact surface.
-- Add model card / metadata / config / usage instructions.
-- Prove downstream workflows can load `M0` from the published artifact.
-
-## 11. Notebook Architecture
-
-| Notebook surface | Sprint | Purpose |
-|---|---:|---|
-| Dataset build/export notebook | Sprint 3 | Build reusable dataset artifacts |
-| Base model training/release notebook | Sprint 4 | Train, evaluate, package, and publish `M0` |
-| Standard model testing notebook | Sprint 5 | Run non-visual comparable test reports |
-| Visual testing / visual inspection notebook | Sprint 5 | Inspect model outputs visually for evaluation support |
-| C1 training/release notebook | Sprint 6 | Train and publish `M1` |
-| C2 training/release notebook | Sprint 7 | Train and publish `M2` |
-| Final combined model training/release notebook | Sprint 8 | Train and publish `M3` |
-| Final visual interface/demo surface | Sprint 10 | Thesis-facing visual interface |
-
-Notebook rules:
-
-- Notebooks are thin drivers.
-- Shared logic belongs in `src/`.
-- Notebooks should not become the primary implementation location.
-- Notebook cells should orchestrate reusable project code, not duplicate dataset, modeling,
-  evaluation, packaging, or visualization logic.
-
-## 12. Artifact / Release Discipline
-
+- Notebooks remain thin drivers; shared logic belongs in `src/`.
 - Large generated artifacts stay outside Git.
-- Drive/run-root paths remain current execution surfaces.
-- Future model artifacts should be published through Hugging Face or an equivalent documented
-  artifact surface.
-- Downstream notebooks, tests, and demos should consume published artifacts where practical.
-- Local checkpoints must not become the default downstream interface.
-- Do not treat local checkpoints, Drive run roots, or runtime archives as released `M0/M1/M2/M3`
-  artifacts unless a documented release surface exists.
+- Published or reusable artifacts are preferred as downstream interfaces.
+- The current operator surface is the project-wide Colab workflow documented in
+  `docs/execution.md`.
+- DVC is removed from the active workflow.
 
-Current useful run-root paths:
+Do not use ADR-0021 or ADR-0022 to reintroduce final C1/C2 selection.
 
-- Raw How2Sign root:
-  `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/`
-- Dataset Build artifact root:
-  `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/`
-- Baseline Modeling run root:
-  `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/`
-- Local modeling run root:
-  `outputs/modeling/baseline-modeling/runs/<run_name>/`
+## 15. Testing And Validation Snapshot
 
-## 13. Current Implemented Surfaces
+Active pytest layers are `unit`, `integration`, `e2e`, and `operational`. The default CI-safe
+pytest run excludes `operational`; operational checks cover real Colab, Drive, private data, large
+archives, and external runtime behavior.
 
-### Dataset Build Surface
+Current CI-safe layers cover dataset workflow logic, baseline helpers, archive/resume behavior,
+notebook and docs wording, public workflow contracts, and thin wrappers.
 
-The Dataset Build implementation is strong. Manifests, filtering, normalization, reports, artifact
-docs, archive docs, and processed `.npz` sample contracts exist. Processed artifacts are external
-to Git and documented under `docs/data/`.
+Before major changes, run the most targeted useful checks:
 
-Sprint 3 remains `mostly completed` because the dedicated dataset build/export notebook is missing.
-The current project-wide Colab notebook can run Dataset Build, but it does not satisfy the target
-dedicated-notebook architecture by itself.
+```bash
+python -m mkdocs build --strict
+python -m pytest <relevant-subset>
+python -m pytest
+```
 
-### Existing Baseline Modeling Evidence
+Build/test commands may create local ignored artifacts. Check `git status --short` after
+validation.
 
-Baseline implementation exists. One recorded Colab run exists:
-
-`docs/experiments/2026-04-baseline-modeling-experiment-record-colab-run-190420261845.md`
-
-Checkpointing, qualitative export, runtime records, package artifacts, and useful evidence exist.
-This evidence supports Sprint 4 work, but it is not a released/loadable `M0`. Sprint 4 remains
-`partially completed`.
-
-## 14. Experiment Records
-
-- `docs/experiments/index.md` is the canonical index for durable Markdown experiment records.
-- `docs/experiments/template.md` is the canonical template for new experiment records.
-- Current Dataset Build record:
-  `docs/experiments/2026-04-dataset-build-experiment-record-filter-v2-full-validation.md`
-- Current baseline experiment record:
-  `docs/experiments/2026-04-baseline-modeling-experiment-record-colab-run-190420261845.md`
-- Runtime evidence and package artifacts remain supporting evidence.
-- Experiment records are durable evidence surfaces, not proof that Sprint 4 is completed.
-- The current baseline record documents a one-epoch Colab run and its supporting runtime
-  artifacts; it does not establish a released/loadable `M0`.
-
-## 15. Key Governing ADRs
-
-- ADR-0002: notebooks remain thin drivers and do not own core project logic.
-- ADR-0012: DVC is removed from the active workflow.
-- ADR-0015: Baseline Modeling uses stable run roots, deterministic archives, and defined
-  archive/resume evidence behavior.
-- ADR-0016: the single supported operator workflow is the Colab notebook, with `docs/execution.md`
-  as the execution guide.
-- ADR-0017: structured documentation surfaces use `index.md`, `template.md`, and real leaf records.
-- ADR-0018: `docs/research/roadmap.md` is the normative ideal sprint contract; sprint status is
-  assessed separately.
-- ADR-0019: the current single Colab workflow is transitional; the target is split thin-driver
-  notebooks.
-- ADR-0020: downstream model use should consume published artifacts rather than informal local
-  checkpoints.
-- ADR-0021: thesis-facing model comparison uses `M0/M1/M2/M3`.
-- ADR-0022: released `M0` and reusable testing surfaces should precede full C1/C2 implementation.
-
-The current single-notebook workflow is the present supported execution surface, while the roadmap
-target, formalized by ADR-0019, is a split notebook architecture. Treat this as a transition state,
-not a contradiction: current execution should follow the supported Colab workflow, but future
-sprint closure should move toward the dedicated notebook surfaces defined in the roadmap.
-
-ADRs are historical and governing context. Current operator behavior should still be checked
-against `docs/execution.md`, `docs/data/`, `docs/testing/`, and the current source code before
-making changes.
-
-## 16. Testing Snapshot
-
-Existing repo test suite:
-
-- Active pytest layers are `unit`, `integration`, `e2e`, and `operational`.
-- CI-safe coverage focuses on `unit`, `integration`, and `e2e`.
-- Operational checks cover real Colab, Drive, large archives, private data, and external runtime
-  behavior.
-- Existing tests cover dataset workflow logic, baseline helpers, archive/resume behavior, notebook
-  and docs wording, public workflow contracts, and thin wrappers.
-
-Existing baseline helpers:
-
-- Baseline training helpers, checkpoint loading, qualitative export, evidence bundles, and package
-  helpers exist.
-- Existing qualitative helpers are useful supporting surfaces, but they are not the final reusable
-  testing pipeline.
-
-Missing Sprint 5 surfaces:
-
-- No standard released-artifact model testing pipeline exists yet.
-- No standard model testing notebook exists yet.
-- No visual testing / visual inspection notebook exists yet.
-- Existing baseline qualitative export does not replace the target Sprint 5 reusable testing
-  pipeline.
-
-## 17. Operating Rules For A New Chat
+## 16. Operating Rules For A New Chat
 
 Do:
 
-- Treat `docs/research/roadmap.md` as the normative sprint contract per ADR-0018.
-- Treat the split notebook architecture as the target workflow per ADR-0019.
-- Treat published artifacts as the downstream model interface per ADR-0020.
-- Treat `M0/M1/M2/M3` as the comparison architecture per ADR-0021.
-- Verify repo files before claiming completion.
-- Treat Sprint 4 as active work.
-- Close Sprint 1 and Sprint 3 gaps in parallel if needed.
-- Preserve notebook thin-driver discipline.
-- Preserve artifact publication discipline.
+- Verify canonical docs before claiming status.
+- Treat roadmap phases as the current planning frame.
+- Keep Phase 6+ planned until the Phase 5 evaluation harness exists.
+- Preserve the no-public-gloss boundary.
+- Preserve metric-limitation and human-evaluation boundaries.
 - Keep large generated artifacts outside Git.
-- Use canonical docs as the first place to inspect before changing implementation.
+- Keep notebooks as thin drivers.
+- Treat experiment records as evidence surfaces, not automatic completion proofs.
 
 Do not:
 
-- Treat old sprint numbering as authoritative.
-- Treat the existing baseline run as released `M0`.
+- Reintroduce C1/C2 selected-pair framing.
+- Treat model phase order as final ranking.
+- Treat the existing baseline run as released/loadable M0 unless documented.
 - Treat local checkpoints as published artifacts.
-- Treat the single Colab notebook as satisfying all future notebook requirements.
-- Start C1/C2 work before Sprint 4 and Sprint 5 dependencies are closed, per ADR-0022.
-- Reopen contribution selection casually.
-- Invent Hugging Face releases, notebooks, test reports, model cards, release metadata, or artifact
-  publications.
+- Claim experimental results not recorded.
+- Start later model candidate work before evaluation harness readiness.
+- Infer sign intelligibility from automatic metrics or visual plausibility.
+- Authorize near-term full 3D/avatar implementation.
 
-## 18. Immediate Next Actions
+## 17. Things Not To Reintroduce
 
-1. Active path - execute Sprint 4 closure:
-   - train/validate/test accepted `M0`
-   - write baseline error analysis
-   - create dedicated base model training/release notebook
-   - publish/load `M0`
-   - document metadata/usage
+Do not reintroduce:
 
-2. Parallel closure - close Sprint 1 research-planning gaps:
-   - source-selection criteria
-   - source-corpus boundaries
-   - gloss-free/intermediate-representation rationale
-   - C1/C2 revisit conditions
+- selected-C1 wording
+- selected-C2 wording
+- final two-contribution pair framing
+- current chosen-pair wording
+- C1/C2 active outcome framing
+- the old 11-sprint roadmap
+- the old active path from the sprint-era roadmap
+- a fixed M0/M1/M2/M3 final model matrix
+- the old plain bibliography page as canonical source registry
+- near-term full avatar implementation
+- automatic metrics as proof of sign intelligibility
+- local source paths in public docs
+- dedicated legacy contribution-pair notebooks as current targets
+- published contribution-matrix artifacts as current roadmap commitments
+- old closure work from the superseded sprint plan
 
-3. Parallel closure - close Sprint 3 notebook gap:
-   - create dedicated dataset build/export notebook
+## 18. Documentation Maintenance Policy
 
-4. After Sprint 4:
-   - build Sprint 5 standard and visual testing pipelines
-
-## 19. Documentation Maintenance Policy
-
-- Execution changes -> `docs/execution.md`
+- Research source policy / source registry changes ->
+  `docs/research/source-selection-criteria.md` and `docs/research/source-corpus.md`
+- Contribution audit changes -> `docs/research/contribution-audit/`
+- Audit synthesis changes -> `docs/research/contribution-audit/audit-result.md`
+- Literature positioning changes -> `docs/research/literature-positioning.md`
+- Roadmap changes -> `docs/research/roadmap.md`
 - Data/artifact changes -> `docs/data/`
-- Testing changes -> `docs/testing/`
-- Research-plan changes -> `docs/research/roadmap.md`
-- Source/citation changes -> `docs/research/bibliography.md`
-- Contribution decision changes -> `docs/research/contribution-audit/`
 - Experiment records -> `docs/experiments/`
+- Execution changes -> `docs/execution.md`
+- Testing changes -> `docs/testing/`
 - ADR/governance changes -> `docs/decisions/`
-- Repository structure -> `docs/repository-map.md`
-- Research-positioning changes -> `docs/research/literature-positioning.md`
-- Roadmap governance decisions should be recorded in ADRs before being treated as stable project
-  policy.
-- Update this handoff only after canonical surfaces are updated.
+- Repository structure changes -> `docs/repository-map.md`
+- Handoff updates -> update only after canonical surfaces are updated
