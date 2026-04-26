@@ -1,184 +1,277 @@
 # Literature Positioning
 
-This page explains how the verified literature cited in [Bibliography](bibliography.md) shapes the
-post-Dataset-Build roadmap and how the completed current contribution audit should be interpreted
-at a research-framing level. It is a literature-synthesis and rationale surface, not the detailed
-audit ledger itself.
+## Purpose
 
-## Problem Framing
+This document positions the thesis contribution frame against the refreshed
+[Source Corpus](source-corpus.md) and
+[Contribution Audit Result](contribution-audit/audit-result.md).
 
-The project targets English text-to-sign-pose generation on top of the processed Dataset Build
-manifests. The output is not ordinary text: it is a time-varying pose sequence with body and hand
-channels, optional face information, variable sequence length, signer motion, timing, and
-linguistic content all coupled together.
+It is not the canonical source registry. It is not a scorecard. It is not a
+selection-decision surface. It is not a roadmap. It does not select a final
+model. It explains how the thesis contribution frame sits relative to the
+literature.
 
-This is difficult because the locally verified papers consistently describe sign languages as
-visual, spatial, and multi-channel, and they repeatedly note that generated pose sequences can
-remain under-articulated or unnatural even when they are numerically close to reference motion.
-That is why the repository first established a reproducible baseline, then routed
-contribution-path selection through the contribution-audit surface, and only after that fixed the
-current thesis-facing contribution pair.
+## Controlling Audit Basis
 
-## Local-Source Boundary
+This positioning is controlled by:
 
-This page uses only the verified paper corpus cited in [Bibliography](bibliography.md) as
-literature support.
-Broader symbolic or intermediate-pipeline literature may be relevant to the field, but it falls
-outside the current verified paper set for this page and is therefore not used here as evidence.
+- [Source Selection Criteria](source-selection-criteria.md)
+- [Source Corpus](source-corpus.md)
+- [Candidate Universe](contribution-audit/candidate-universe/index.md)
+- [Candidate Cards](contribution-audit/candidate-cards/index.md)
+- [Scorecards](contribution-audit/scorecards/index.md)
+- [Selection Decisions](contribution-audit/selection-decisions/index.md)
+- [Contribution Audit Result](contribution-audit/audit-result.md)
 
-## Relation To The Contribution Audit
+The literature positioning is controlled by the audit result; it does not re-run candidate scoring or alter selection-decision statuses.
 
-The detailed contribution-path evaluation, scorecards, veto review, and final candidate-level
-decisions are recorded through the [Contribution Audit](contribution-audit/index.md). This page
-complements that audit rather than replacing it.
+Source-level authority remains in [Source Corpus](source-corpus.md). This file
+should not duplicate the 28-source registry, introduce independent
+bibliography-style source claims, or replace the source-corpus classification
+fields. Literature claims in this file should be interpreted through the
+source-corpus and audit-result surfaces.
 
-At the current framing level, the completed audit outcome is:
+## Problem Frame
 
-- `C1 = Dynamic VQ Pose Tokens`
-- `C2 = Channel-Aware Loss Reweighting`
-- fallback = `Articulator-Partitioned Latent Structure`
-- deferred = `Motion Primitives Representation`
+The project addresses gloss-free text-to-sign pose production under a How2Sign-compatible supervision regime, with pose/keypoint-level output as the near-term thesis artifact.
 
-The locally verified literature supports the family-level rationale behind this framing. The
-current audit then interprets the selected pair as complementary rather than redundant: the
-selected `C1` primarily changes representation, while the selected `C2` is treated as a lighter
-structure-aware optimization path. That complementarity remains an audit-level interpretation
-rather than a direct paper claim.
+The research problem is not only how to generate motion from text, but how to do
+so under a reproducible research pipeline that preserves no-public-gloss
+supervision assumptions, shared artifacts, shared evaluation, and comparable
+reporting. The project is positioned around English text or transcript input,
+sign video, extracted pose/keypoint supervision, and How2Sign-compatible
+artifact planning.
 
-## Method-Family Overview
+The project does not position itself as full sign-language translation,
+human-validated signing generation, or immediate 3D/avatar production.
 
-Within the locally verified corpus, the literature supports six relevant framing areas:
+## Positioning Summary
 
-1. direct text-to-continuous pose generation
-2. discrete / data-driven pose representation
-3. structure-aware / multi-channel generation
-4. retrieval / stitching-based approaches
-5. diffusion-based approaches
-6. evaluation signals visible in the local corpus
+The thesis is positioned as a controlled, reproducible comparison framework for
+gloss-free text-to-pose production rather than as a single architecture claim.
+It uses the literature to define baseline, representation, latent-generation,
+structure-aware, semantic-alignment, retrieval-comparator, evaluation, and
+future-avatar boundaries under one shared experimental surface.
 
-These areas do not all play the same role. Some define baseline or historical framing, some define
-the selected current contribution path, and some remain serious audited alternatives that were not
-selected in the current outcome.
+The gap addressed by this thesis is not merely the absence of another
+text-to-sign model. The gap is the absence of a controlled, reproducible,
+no-public-gloss comparison surface that evaluates multiple text-to-pose
+production directions under shared artifacts, a shared baseline, shared
+evaluation constraints, comparator pressure, visualization boundaries, and
+explicit metric limitations.
 
-## Direct Text To Continuous Pose Generation
+This positioning does not name a final selected model and does not rank
+candidate families as final thesis outcomes.
 
-- Representative source: [1](bibliography.md#ref-01).
-- What the local corpus supports: this line of work provides a clear baseline path from spoken
-  language text to continuous multi-channel pose generation without requiring a manually supplied
-  symbolic bottleneck.
-- How it informs the current audit: the current audit treats direct continuous generation as the
-  necessary implemented baseline rather than as the preferred thesis contribution route. That
-  interpretation is consistent with local papers that keep visible the difficulties of
-  under-articulation, regression-to-the-mean behavior, and transition quality in continuous sign
-  production.
+## Position Relative To Dataset, Supervision, And Gloss / Notation Boundaries
 
-## Discrete / Data-Driven Pose Representation
+How2Sign-compatible positioning is therefore a supervision and artifact-compatibility claim, not a blanket claim that every sign-language-production method is directly reusable.
 
-- Representative sources: [2](bibliography.md#ref-02), [3](bibliography.md#ref-03),
-  [4](bibliography.md#ref-04).
-- What the local corpus supports: discrete or data-driven intermediate representations are a real
-  sign language production direction. The local papers support dynamic vector quantization,
-  reusable motion units, and motion-primitives-style structure as serious alternatives to direct
-  continuous regression.
-- How the current audit interprets this family: the current audit treats discrete/data-driven
-  representation as the strongest current route for the `C1` role. Within that family, the current
-  audit interprets `Dynamic VQ Pose Tokens` as the selected `C1` path because the local literature
-  supports a gloss-free dynamic-discrete route directly, while `Motion Primitives Representation`
-  remains more conditional in this repository due to its strongest direct source using gloss
-  supervision. Relative additivity, adaptation burden, and repository fit remain audit-level
-  conclusions rather than direct paper findings.
+The project treats How2Sign-style text/video/pose artifacts as the near-term
+supervision anchor. Gloss-free and gloss-optional methods are most directly
+compatible with that regime. Gloss-dependent, notation-dependent,
+dictionary-based, isolated-sign, or gloss-pose-alignment methods may provide
+boundary or transferable evidence, but they do not become direct support without
+a documented adaptation path.
 
-## Structure-Aware / Multi-Channel Generation
+Output pose/keypoint compatibility alone is not sufficient if the method depends
+on unavailable gloss, HamNoSys, notation, dictionary, or isolated-sign
+supervision. This boundary is what allows the project to compare candidate model
+directions without silently changing the supervision regime.
 
-- Representative sources: [1](bibliography.md#ref-01), [5](bibliography.md#ref-05),
-  [6](bibliography.md#ref-06).
-- What the local corpus supports: sign production should not be treated as a single undifferentiated
-  motion target. The local papers directly support multi-channel or articulator-aware modeling as a
-  serious direction, and DARSLP directly supports a combined gloss-free method that includes both
-  articulator-based disentanglement and channel-aware weighted regularization.
-- How the current audit interprets this family: the current audit treats structure-aware /
-  multi-channel improvement as the strongest current route for the `C2` role. Within that family,
-  the current audit interprets `Channel-Aware Loss Reweighting` as the selected `C2` path because
-  it is the lighter repository fit in the current audit record, while keeping visible that the
-  exact standalone loss-only form is only partly supported by the local literature. The current
-  audit retains `Articulator-Partitioned Latent Structure` as the principal fallback because local
-  literature directly supports the richer combined mechanism, even though the current repository
-  path treats it as operationally heavier.
+This positioning is represented by the
+[Dataset and Supervision Boundary](contribution-audit/candidate-universe/dataset-supervision-boundary.md),
+the
+[Gloss/Notation-Dependent Pose Generation Boundary](contribution-audit/candidate-universe/gloss-notation-dependent-boundary.md),
+and the source-level classifications in the [Source Corpus](source-corpus.md).
 
-## Why The Selected Pair Remains Defensible
+## Position Relative To Foundational Text-to-Pose Baselines
 
-The selected current pair is treated by the current audit as a coherent combined path.
+Foundational text-to-pose baselines define the comparison floor for the project.
+They establish why a direct text/transcript-to-pose route is needed as a minimum
+reference before stronger representation-based, latent-generative, or
+structure-aware candidates can be interpreted.
 
-- `Dynamic VQ Pose Tokens` primarily changes representation by introducing a discrete/data-driven
-  pose-token mechanism.
-- `Channel-Aware Loss Reweighting` is treated by the current audit as a lighter optimization-level
-  structure-aware intervention that emphasizes channel-sensitive learning pressure.
+The project treats direct text-to-pose as a necessary M0 baseline and ablation floor, not as the primary thesis contribution.
 
-The locally verified literature supports the relevance of both families. The further claim that the
-selected pair is the best current combined route for this repository remains an audit-level
-synthesis built on the literature plus the project's additivity, workflow, and implementation
-constraints.
+This positioning is represented by the
+[Direct Text-to-Pose Baseline](contribution-audit/candidate-cards/direct-text-to-pose-baseline.md)
+candidate and the
+[Foundational Text-to-Pose Baselines](contribution-audit/candidate-universe/foundational-text-to-pose-baselines.md)
+family. Baseline readiness is therefore used to support comparison discipline,
+not to make a model-contribution claim.
 
-## Retrieval / Stitching-Based Approaches
+## Position Relative To Learned Pose / Motion Representation Work
 
-- Representative sources: [7](bibliography.md#ref-07), [4](bibliography.md#ref-04).
-- What the local corpus supports: retrieval, example-backed construction, and explicit stitching are
-  serious alternatives that address continuity and prosody more explicitly than simple unit
-  concatenation.
-- How the current audit interprets this family: retrieval/stitching remained a serious audited
-  counter-alternative family, but the current contribution audit did not select it as part of the
-  final `C1/C2` pair.
+Learned pose-token and motion-representation literature defines the cleanest
+near-term representation-focused primary candidate family. It motivates a
+text-to-token-to-pose route in which pose/keypoint-derived tokens, compact motion
+codes, or learned non-gloss intermediate representations can mediate between
+text input and generated pose output.
 
-## Diffusion-Based Approaches
+Learned pose/motion representation work defines the cleanest near-term representation-focused route, but tokenization alone must not be treated as proof of semantic adequacy.
 
-- Representative source: [8](bibliography.md#ref-08).
-- What the local corpus supports: diffusion-based sign production is a real and technically credible
-  family-level alternative capable of generating sign sequences directly from spoken text or speech
-  audio.
-- How the current audit interprets this family: diffusion remained a serious audited
-  counter-alternative family, but the current contribution audit did not select it as part of the
-  final `C1/C2` pair. Relative repository fit and implementation burden remain audit-level
-  judgments rather than direct paper findings.
+This positioning is represented by the
+[Learned Pose-Token Bottleneck](contribution-audit/candidate-cards/learned-pose-token-bottleneck.md)
+candidate and the
+[Learned Pose/Motion Representations](contribution-audit/candidate-universe/learned-pose-motion-representations.md)
+family. The route remains a primary model direction for comparison, not a final
+selection.
 
-## Evaluation Signals In The Local Corpus
+## Position Relative To Latent Generative Production Work
 
-- The verified corpus shows repeated use of back-translation evaluation, including in
-  [1](bibliography.md#ref-01), [3](bibliography.md#ref-03), [4](bibliography.md#ref-04), and
-  [7](bibliography.md#ref-07).
-- The verified corpus also includes user evaluation as part of how sign quality is interpreted,
-  most explicitly in [1](bibliography.md#ref-01), [3](bibliography.md#ref-03), and
-  [7](bibliography.md#ref-07).
-- Benchmark comparison and reported competitive or state-of-the-art results are also visible in the
-  verified corpus, including MCST-Transformer [5](bibliography.md#ref-05), DARSLP
-  [6](bibliography.md#ref-06), MS2SL [8](bibliography.md#ref-08), and the discrete/data-driven
-  representation papers [2](bibliography.md#ref-02), [4](bibliography.md#ref-04).
-- The current audit therefore treats later implementation evidence as needing more than a single
-  metric, but that evaluation framing is derived from the local corpus rather than from absent 2025
-  evaluation sources.
+Latent diffusion and related generative production work defines the strongest
+high-potential generative route in the refreshed audit. It supports treating
+text-conditioned latent pose or motion generation as a serious primary candidate
+family, especially where generation quality, sequence-level coherence, and
+motion diversity are central concerns.
 
-## Current Research-Direction Framing
+Latent generative production provides a high-potential generative direction, but high method support must not be read as low implementation or evaluation risk.
 
-The current literature-informed framing, restricted to the local verified corpus, is now:
+This positioning is represented by the
+[Gloss-Free Latent Diffusion](contribution-audit/candidate-cards/gloss-free-latent-diffusion.md)
+candidate and the
+[Latent Generative Production](contribution-audit/candidate-universe/latent-generative-production.md)
+family. The project treats this direction as scientifically important and
+risk-heavy, not as a low-risk default implementation choice.
 
-- the baseline remains necessary but is not the main thesis contribution
-- the selected current contribution pair is `Dynamic VQ Pose Tokens` as `C1` and
-  `Channel-Aware Loss Reweighting` as `C2`
-- locally verified literature supports both the discrete/data-driven `C1` family and the
-  structure-aware / multi-channel `C2` family
-- the current audit interprets the selected pair as complementary because it combines a
-  representation-level contribution with a lighter structure-aware contribution
-- `Articulator-Partitioned Latent Structure` remains the main fallback if the selected `C2` route
-  later proves unsatisfactory
-- `Motion Primitives Representation` remains deferred rather than rejected
-- retrieval/stitching and diffusion remain serious alternative families in the broader local-source
-  landscape even though they are not part of the current selected pair
+## Position Relative To Structure-Aware Articulator Modeling
 
-## Limits / Notes
+Structure-aware and articulator-aware work motivates explicit preservation of
+sign-relevant body, hand, face, channel, and articulator structure. It keeps the
+project from treating sign pose as an undifferentiated coordinate vector and
+supports a primary candidate route focused on structure preservation.
 
-- This page is a literature-synthesis and rationale page, not the detailed audit ledger.
-- Detailed scorecards, veto reasoning, candidate-level decisions, and the authoritative current
-  outcome remain in the [Contribution Audit](contribution-audit/index.md).
-- Only the verified paper corpus cited in [Bibliography](bibliography.md) is used as evidence on
-  this page.
-- Relative repository fit, additivity, operational simplicity, and pair coherence remain current
-  audit interpretations rather than direct paper claims.
+Structure-aware and articulator-aware work motivates explicit body, hand, face, and channel preservation, but its project fit depends on artifact schema, masks, channel partitions, loss balancing, and channel-aware evaluation.
+
+This positioning is represented by the
+[Articulator-Disentangled Latent Modeling](contribution-audit/candidate-cards/articulator-disentangled-latent.md)
+candidate and the
+[Structure-Aware and Articulator-Aware Modeling](contribution-audit/candidate-universe/structure-aware-articulator-modeling.md)
+family. The route is viable, but its claims require stable channel definitions
+and evaluation that can observe channel-specific failures.
+
+## Position Relative To Text-Pose Semantic Alignment Work
+
+Semantic alignment is important because generated sign motion must remain
+coupled to the source text rather than merely looking plausible as motion.
+However, the current audit retains semantic alignment as an auxiliary or
+additive mechanism rather than as a standalone primary model direction.
+
+Semantic alignment is retained as an auxiliary/additive mechanism rather than as a standalone primary model direction.
+
+This positioning is represented by the
+[Text-Pose Semantic Consistency Objective](contribution-audit/candidate-cards/text-pose-semantic-consistency.md)
+candidate and the
+[Text-Pose Semantic Alignment and Conditioning](contribution-audit/candidate-universe/text-pose-semantic-alignment.md)
+family. It may strengthen another candidate only if later ablation defines the
+attachment point and evaluation method.
+
+## Position Relative To Retrieval / Stitching Alternatives
+
+Retrieval, stitching, and motion-primitives literature is retained as
+counter-alternative pressure. It tests whether learned or generative production
+directions actually improve over reuse, nearest-neighbor, or assembly-based
+alternatives under leakage-safe evaluation.
+
+Retrieval and stitching alternatives are retained as comparator pressure, not as the primary thesis model direction.
+
+This positioning is represented by the
+[Retrieval-Augmented Pose Comparator](contribution-audit/candidate-cards/retrieval-augmented-pose-comparator.md)
+candidate and the
+[Retrieval, Stitching, and Motion-Primitives Alternatives](contribution-audit/candidate-universe/retrieval-stitching-primitives.md)
+family. Retrieval realism must not be treated as semantic correctness, and
+no-public-gloss adaptation plus leakage-safe evaluation remain required.
+
+## Position Relative To Evaluation Methodology
+
+The project positions evaluation as a first-class contribution constraint, not as a post-hoc metric table. Evaluation defines whether baseline, primary model,
+auxiliary, comparator, and future-boundary claims can be interpreted under a
+shared surface.
+
+The evaluation surface should include pose/keypoint metrics, embedding checks,
+cautious recognition or back-translation checks where available, qualitative
+inspection, and metric-limitation documentation. Automatic metrics are not sufficient proof of sign intelligibility.
+
+This positioning is represented by the
+[How2Sign-Compatible Evaluation Protocol](contribution-audit/candidate-cards/how2sign-evaluation-protocol.md)
+candidate and the
+[Evaluation and Benchmark Methodology](contribution-audit/candidate-universe/evaluation-benchmark-methodology.md)
+family. The evaluation protocol constrains candidate comparison; it is not a
+competing model candidate.
+
+## Position Relative To 3D Avatar / Parametric Frontier Work
+
+3D avatar, sparse-keyframe, and parametric frontier work is retained as a future-work and output-surface boundary, not as near-term thesis implementation scope.
+
+This literature clarifies where keypoint-level production may eventually lead:
+avatar-compatible motion, sparse keyframes, richer body/hand/face
+representations, parametric control, and rendering-oriented output surfaces.
+Near-term visualization may use skeleton/keypoint playback and debugging
+surfaces. Full avatar, SMPL-X, parametric rendering, or photorealistic signer
+production remains future boundary unless later scope changes.
+
+This positioning is represented by the
+[Sparse-Keyframe / Avatar-Control Future Direction](contribution-audit/candidate-cards/sparse-keyframe-avatar-future.md)
+candidate and the
+[3D Avatar and Parametric Motion Frontier](contribution-audit/candidate-universe/threed-avatar-parametric-frontier.md)
+family.
+
+## Thesis Contribution Position
+
+The thesis contribution is not "we propose model X."
+
+The thesis contribution is a reproducible, gloss-free, How2Sign-compatible
+comparison and production pipeline for text-to-sign pose generation, with
+controlled evaluation of representation-based, latent-generative, and
+structure-aware model directions.
+
+The contribution includes shared dataset and artifact discipline, an M0
+baseline, an evaluation harness, candidate model comparison, auxiliary semantic
+alignment as optional/additive, a retrieval comparator, a visualization
+boundary, and reproducibility documentation. The project contribution is the
+controlled construction and comparison surface that makes these roles
+interpretable together.
+
+The literature positioning therefore justifies a roadmap that begins with data/artifact schema, baseline, evaluation harness, and visualization/reporting infrastructure before treating candidate models as comparable experimental units.
+
+## Claims Not Made
+
+This literature positioning does not claim that the project:
+
+- solves full sign-language translation,
+- produces linguistically validated human-grade signing,
+- has selected a final implementation model,
+- has produced experimental results,
+- uses public manual gloss supervision,
+- treats automatic pose metrics as sufficient proof of intelligibility,
+- implements a near-term full 3D/avatar/rendering system,
+- ranks the candidate families as final thesis outcomes.
+
+## Downstream Use
+
+The roadmap must translate this positioning into workstreams for dataset access, artifact schema, pose/keypoint processing, M0 baseline, evaluation harness, candidate models, auxiliary semantic objective, retrieval comparator, visualization, comparative analysis, and thesis writing.
+
+The roadmap must not invent priorities independent of the audit result and this
+literature positioning. It must preserve the no-public-gloss boundary, metric
+limitation requirements, and future-avatar boundary.
+
+For thesis writing, this document should control the literature-review
+narrative: source-corpus entries should be discussed through the positioning
+axes above, not as an undifferentiated chronological bibliography. The
+methodology chapter should inherit the no-public-gloss, shared-artifact, M0
+baseline, evaluation, comparator, and future-avatar boundaries defined here. The
+limitations and future-work chapters should preserve the automatic-metric,
+semantic-adequacy, and 3D/avatar-scope constraints recorded in this positioning.
+
+## Maintenance Triggers
+
+Update this file only when:
+
+- the source corpus changes materially,
+- the audit result changes,
+- selection-decision statuses change,
+- implementation results alter candidate interpretation,
+- dataset access or supervision assumptions change,
+- thesis scope changes,
+- the roadmap introduces a new contribution claim not supported by this positioning.

@@ -14,7 +14,7 @@ Use this area in the following order:
 2. Use [Candidate Universe](candidate-universe/index.md) for family-level audit-universe records.
 3. Use [Candidate Cards](candidate-cards/index.md) for candidate-level evidence records derived from the family-level universe.
 4. Use [Scorecards](scorecards/index.md) for weighted candidate scoring records derived from concrete candidate cards.
-5. Use [Selection Decisions](selection-decisions/index.md) for candidate-level and pairwise decision records, including veto reasoning and final-status reasoning.
+5. Use [Selection Decisions](selection-decisions/index.md) for candidate-level decision and handoff records, including veto reasoning and final-status reasoning.
 6. Use [Audit Result](audit-result.md) as the authoritative final outcome surface for the entire audit.
 
 ## Document Roles
@@ -23,7 +23,7 @@ Use this area in the following order:
 - [Candidate Universe](candidate-universe/index.md): family-level audit-universe records
 - [Candidate Cards](candidate-cards/index.md): candidate-level full evidence records
 - [Scorecards](scorecards/index.md): candidate-level weighted scoring records
-- [Selection Decisions](selection-decisions/index.md): candidate-level and pairwise decision records
+- [Selection Decisions](selection-decisions/index.md): candidate-level decision and handoff records
 
 Leaf records under the subdirectories are supporting audit surfaces. They do not replace
 [Audit Result](audit-result.md) as the authoritative whole-audit outcome surface.
