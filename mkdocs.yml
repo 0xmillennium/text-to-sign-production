@@ -51,40 +51,54 @@ nav:
   - Research:
       - Overview: research/index.md
       - Roadmap: research/roadmap.md
+      - Source Selection Criteria: research/source-selection-criteria.md
       - Literature Positioning: research/literature-positioning.md
-      - Bibliography: research/bibliography.md
+      - Source Corpus: research/source-corpus.md
       - Contribution Audit:
           - Overview: research/contribution-audit/index.md
           - Audit Result: research/contribution-audit/audit-result.md
           - Candidate Universe:
               - Overview: research/contribution-audit/candidate-universe/index.md
               - Template: research/contribution-audit/candidate-universe/template.md
-              - Discrete / Data-Driven Representation: research/contribution-audit/candidate-universe/discrete-data-driven-representation.md
-              - Structure-Aware / Multi-Channel Improvement: research/contribution-audit/candidate-universe/structure-aware-multi-channel-improvement.md
-              - Retrieval / Stitching: research/contribution-audit/candidate-universe/retrieval-stitching.md
-              - Diffusion-Based Generation: research/contribution-audit/candidate-universe/diffusion-based-generation.md
-              - Controlled Wildcard Slot: research/contribution-audit/candidate-universe/controlled-wildcard-slot.md
+              - Dataset and Supervision Boundary: research/contribution-audit/candidate-universe/dataset-supervision-boundary.md
+              - Foundational Text-to-Pose Baselines: research/contribution-audit/candidate-universe/foundational-text-to-pose-baselines.md
+              - Learned Pose/Motion Representations: research/contribution-audit/candidate-universe/learned-pose-motion-representations.md
+              - Structure-Aware and Articulator-Aware Modeling: research/contribution-audit/candidate-universe/structure-aware-articulator-modeling.md
+              - Latent Generative Production: research/contribution-audit/candidate-universe/latent-generative-production.md
+              - Text-Pose Semantic Alignment and Conditioning: research/contribution-audit/candidate-universe/text-pose-semantic-alignment.md
+              - Retrieval, Stitching, and Motion-Primitives Alternatives: research/contribution-audit/candidate-universe/retrieval-stitching-primitives.md
+              - Gloss/Notation-Dependent Pose Generation Boundary: research/contribution-audit/candidate-universe/gloss-notation-dependent-boundary.md
+              - 3D Avatar and Parametric Motion Frontier: research/contribution-audit/candidate-universe/threed-avatar-parametric-frontier.md
+              - Evaluation and Benchmark Methodology: research/contribution-audit/candidate-universe/evaluation-benchmark-methodology.md
           - Candidate Cards:
               - Overview: research/contribution-audit/candidate-cards/index.md
               - Template: research/contribution-audit/candidate-cards/template.md
-              - Dynamic VQ Pose Tokens: research/contribution-audit/candidate-cards/dynamic-vq-pose-tokens.md
-              - Motion Primitives Representation: research/contribution-audit/candidate-cards/motion-primitives-representation.md
-              - Channel-Aware Loss Reweighting: research/contribution-audit/candidate-cards/channel-aware-loss-reweighting.md
-              - Articulator-Partitioned Latent Structure: research/contribution-audit/candidate-cards/articulator-partitioned-latent-structure.md
+              - Direct Text-to-Pose Baseline: research/contribution-audit/candidate-cards/direct-text-to-pose-baseline.md
+              - How2Sign-Compatible Evaluation Protocol: research/contribution-audit/candidate-cards/how2sign-evaluation-protocol.md
+              - Learned Pose-Token Bottleneck: research/contribution-audit/candidate-cards/learned-pose-token-bottleneck.md
+              - Articulator-Disentangled Latent Modeling: research/contribution-audit/candidate-cards/articulator-disentangled-latent.md
+              - Gloss-Free Latent Diffusion: research/contribution-audit/candidate-cards/gloss-free-latent-diffusion.md
+              - Text-Pose Semantic Consistency Objective: research/contribution-audit/candidate-cards/text-pose-semantic-consistency.md
+              - Retrieval-Augmented Pose Comparator: research/contribution-audit/candidate-cards/retrieval-augmented-pose-comparator.md
+              - Sparse-Keyframe / Avatar-Control Future Direction: research/contribution-audit/candidate-cards/sparse-keyframe-avatar-future.md
           - Scorecards:
               - Overview: research/contribution-audit/scorecards/index.md
               - Template: research/contribution-audit/scorecards/template.md
-              - Dynamic VQ Pose Tokens: research/contribution-audit/scorecards/dynamic-vq-pose-tokens.md
-              - Channel-Aware Loss Reweighting: research/contribution-audit/scorecards/channel-aware-loss-reweighting.md
-              - Articulator-Partitioned Latent Structure: research/contribution-audit/scorecards/articulator-partitioned-latent-structure.md
-              - Motion Primitives Representation: research/contribution-audit/scorecards/motion-primitives-representation.md
+              - Direct Text-to-Pose Baseline: research/contribution-audit/scorecards/direct-text-to-pose-baseline-scorecard.md
+              - Learned Pose-Token Bottleneck: research/contribution-audit/scorecards/learned-pose-token-bottleneck-scorecard.md
+              - Gloss-Free Latent Diffusion: research/contribution-audit/scorecards/gloss-free-latent-diffusion-scorecard.md
+              - Articulator-Disentangled Latent Modeling: research/contribution-audit/scorecards/articulator-disentangled-latent-scorecard.md
+              - Text-Pose Semantic Consistency Objective: research/contribution-audit/scorecards/text-pose-semantic-consistency-scorecard.md
+              - Retrieval-Augmented Pose Comparator: research/contribution-audit/scorecards/retrieval-augmented-pose-comparator-scorecard.md
           - Selection Decisions:
               - Overview: research/contribution-audit/selection-decisions/index.md
               - Template: research/contribution-audit/selection-decisions/template.md
-              - Dynamic VQ Pose Tokens: research/contribution-audit/selection-decisions/dynamic-vq-pose-tokens.md
-              - Channel-Aware Loss Reweighting: research/contribution-audit/selection-decisions/channel-aware-loss-reweighting.md
-              - Articulator-Partitioned Latent Structure: research/contribution-audit/selection-decisions/articulator-partitioned-latent-structure.md
-              - Motion Primitives Representation: research/contribution-audit/selection-decisions/motion-primitives-representation.md
+              - Direct Text-to-Pose Baseline: research/contribution-audit/selection-decisions/direct-text-to-pose-baseline-selection-decision.md
+              - Learned Pose-Token Bottleneck: research/contribution-audit/selection-decisions/learned-pose-token-bottleneck-selection-decision.md
+              - Gloss-Free Latent Diffusion: research/contribution-audit/selection-decisions/gloss-free-latent-diffusion-selection-decision.md
+              - Articulator-Disentangled Latent Modeling: research/contribution-audit/selection-decisions/articulator-disentangled-latent-selection-decision.md
+              - Text-Pose Semantic Consistency Objective: research/contribution-audit/selection-decisions/text-pose-semantic-consistency-selection-decision.md
+              - Retrieval-Augmented Pose Comparator: research/contribution-audit/selection-decisions/retrieval-augmented-pose-comparator-selection-decision.md
   - Decisions:
       - Overview: decisions/index.md
       - Template: decisions/template.md

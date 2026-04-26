@@ -1,46 +1,63 @@
 # Selection Decision Template
 
-This template preserves the accepted decision logic for final contribution selection:
-
-1. review the completed scorecard
-2. review the evidence-confidence label
-3. apply hard veto checks
-4. determine contribution eligibility
-5. record final selection logic
-
-It is a template only and does not record a real final decision outcome.
+This template records candidate-level decision reasoning after a populated candidate card and scorecard have been reviewed. It is downstream of candidate cards and scorecards, and upstream of the whole-audit result. It does not replace the audit result.
 
 ## Candidate Under Decision
 
-Not yet assigned.
+- `Candidate ID`: Not yet assigned.
+- `Candidate card link`: Not yet assigned.
+- `Scorecard link`: Not yet assigned.
+- `Candidate record type`: Not yet assigned.
+- `Originating family ID`: Not yet assigned.
+- `Originating family link`: Not yet assigned.
 
-## Decision Context
+## Decision Inputs
 
-Not yet documented.
+- `Candidate card reviewed`: Not yet established.
+- `Scorecard reviewed`: Not yet established.
+- `Source-corpus evidence reviewed`: Not yet established.
+- `Boundary evidence reviewed`: Not yet established.
+- `Evaluation constraints reviewed`: Not yet established.
+- `Open scorecard issues reviewed`: Not yet established.
 
-## Weighted Score Status
+## Scorecard Summary
 
-Not yet recorded.
+- `Weighted total score`: Not yet recorded.
+- `Scorecard type`: Not yet recorded.
+- `Evidence-confidence label`: Not yet assigned.
+- `Score interpretation`: Not yet documented.
+- `Blocking caveats from scorecard`: Not yet documented.
 
-## Confidence Status
+## Evidence-Confidence Status
 
-Not yet recorded.
+Allowed values:
+
+- `low`
+- `medium`
+- `high`
+
+- `Evidence-confidence label`: Not yet assigned.
+- `Confidence rationale`: Not yet documented.
 
 ## Hard Veto Checks
 
-Use status values such as `pass`, `fail`, or `not yet determined`.
+Use status values:
 
-### Independent Additivity Veto
+- `pass`
+- `fail`
+- `not_yet_determined`
+
+### Evidence Chain Veto
 
 - `Status`: Not yet recorded.
 - `Rationale`: Not yet recorded.
 
-### Problem Drift Veto
+### Dataset / Supervision Compatibility Veto
 
 - `Status`: Not yet recorded.
 - `Rationale`: Not yet recorded.
 
-### Data / Workflow Compatibility Veto
+### Repository / Workflow Compatibility Veto
 
 - `Status`: Not yet recorded.
 - `Rationale`: Not yet recorded.
@@ -50,55 +67,73 @@ Use status values such as `pass`, `fail`, or `not yet determined`.
 - `Status`: Not yet recorded.
 - `Rationale`: Not yet recorded.
 
-### Evidence Sufficiency Veto
+### Scope-Control Veto
 
 - `Status`: Not yet recorded.
 - `Rationale`: Not yet recorded.
 
-### Pairwise Compatibility Veto
+### Additivity / Isolation Veto
 
 - `Status`: Not yet recorded.
 - `Rationale`: Not yet recorded.
 
 ## Veto Summary
 
-Not yet recorded.
+- `All vetoes passed`: Not yet established.
+- `Failed vetoes`: Not yet documented.
+- `Veto summary rationale`: Not yet documented.
 
-## Contribution-Eligibility Status
+## Decision Eligibility Status
 
-Eligibility requires all of the following:
+Eligibility for primary advancement requires all of the following:
 
-- weighted score at least `75/100`
-- evidence confidence of `medium` or `high`
-- all veto gates passed
+- weighted score at least `75/100`,
+- evidence confidence of `medium` or `high`,
+- all hard veto gates passed,
+- no unresolved blocking caveat from the scorecard.
 
-Not yet recorded.
+The primary-advancement threshold applies only to `advance_for_audit_result_consideration`.
+Baseline, counter-alternative, auxiliary/additive, and future-work decisions may use role-specific
+decision statuses when the scorecard supports that non-primary role.
 
-## Pairwise Compatibility Note
+- `Eligibility status`: Not yet recorded.
+- `Eligibility rationale`: Not yet documented.
 
-Not yet recorded.
-
-## Final Status
+## Decision Status
 
 Allowed values:
 
-- `selected_for_C1`
-- `selected_for_C2`
-- `kept_as_comparator`
-- `kept_as_fallback`
-- `deferred`
-- `rejected`
+- `advance_for_audit_result_consideration`
+- `keep_as_counter_alternative`
+- `keep_as_baseline_or_ablation`
+- `keep_as_auxiliary_or_additive_objective`
+- `defer_pending_evidence`
+- `defer_as_future_work`
+- `reject_for_current_audit`
 
-Not yet assigned.
+- `Decision status`: Not yet assigned.
 
 ## Decision Rationale
 
 Not yet recorded.
 
+## Conditions Or Follow-Up Required
+
+- `Evidence follow-up`: Not yet documented.
+- `Evaluation follow-up`: Not yet documented.
+- `Implementation follow-up`: Not yet documented.
+- `Boundary-condition follow-up`: Not yet documented.
+
+## Audit-Result Handoff Note
+
+- `Handoff summary`: Not yet documented.
+- `How this decision should be used by audit-result.md`: Not yet documented.
+- `Limitations to preserve in final audit result`: Not yet documented.
+
 ## Record Boundary Note
 
-- This document records decision-level reasoning only.
-- It is downstream of populated [Candidate Cards](../candidate-cards/index.md) and
-  [Scorecards](../scorecards/index.md).
-- It does not replace [Audit Result](../audit-result.md) as the authoritative whole-audit outcome
-  surface.
+- This document records candidate-level decision reasoning only.
+- It is downstream of populated [Candidate Cards](../candidate-cards/index.md) and [Scorecards](../scorecards/index.md).
+- It does not create or modify candidate cards or scorecards.
+- It does not replace [Audit Result](../audit-result.md) as the authoritative whole-audit outcome surface.
+- It does not assign legacy C1/C2 outcomes.

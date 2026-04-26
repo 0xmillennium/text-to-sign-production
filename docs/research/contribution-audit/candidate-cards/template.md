@@ -1,6 +1,6 @@
 # Candidate Card Template
 
-This template preserves the candidate-level evidence-record structure for a concrete audit candidate. It is a template only and does not record a real candidate outcome.
+This template is for concrete candidate-level audit records. It is not a scorecard, selection decision, or final audit result.
 
 ## Candidate ID
 
@@ -10,53 +10,57 @@ Not yet assigned.
 
 Not yet assigned.
 
-## Family
+## Candidate Record Type
 
 Allowed labels:
 
-- `discrete_data_driven`
-- `structure_multi_channel`
-- `retrieval_stitching`
-- `diffusion`
-- `wildcard`
+- `model_candidate`
+- `counter_alternative_candidate`
+- `baseline_candidate`
+- `evaluation_support_candidate`
+- `frontier_future_work_candidate`
 
-- `Family label`: Not yet assigned.
-- `Family-level universe record`: Not yet linked.
+- `Candidate record type`: Not yet assigned.
 
-## Initial Status
+## Originating Candidate-Universe Family
 
-Allowed labels:
+- `Family ID`: Not yet assigned.
+- `Family link`: Not yet assigned.
+- `Family type/status`: Not yet assigned.
+- `Reason this candidate is derived from this family`: Not yet documented.
 
-- `primary_candidate`
-- `counter_alternative`
-- `wildcard`
+Allowed family type/status values:
 
-- `Initial status label`: Not yet assigned.
+- `primary_candidate_family`
+- `counter_alternative_family`
+- `boundary_family`
+- `evaluation_family`
+- `frontier_watch_family`
+- `background_context_family`
 
-## One-Sentence Technical Definition
+## Candidate-Level Technical Definition
 
 Not yet documented.
 
-## Research Role
+## Candidate Boundary
+
+- `Included mechanism`: Not yet documented.
+- `Explicitly excluded mechanisms`: Not yet documented.
+- `Not to be confused with`: Not yet documented.
+
+## Research Role In Current Audit
 
 Allowed labels:
 
-- `candidate_for_C1`
-- `candidate_for_C2`
-- `counterfactual_comparator`
-- `fallback_path`
+- `primary_model_candidate`
+- `counter_alternative_candidate`
+- `baseline_or_ablation_candidate`
+- `auxiliary_additive_objective`
+- `fallback_candidate`
+- `evaluation_support_candidate`
 - `future_work_candidate`
 
 - `Research role label`: Not yet assigned.
-
-## Base-Model Additivity
-
-Use audit-neutral wording such as `Established: ...`, `Conditional: ...`, or `Not yet established in the current audit record.`
-
-- `additive_over_base`: Not yet established in the current audit record.
-- `what_changes`: Not yet documented.
-- `requires_other_contribution`: Not yet established in the current audit record.
-- `independent_variant_exists`: Not yet established in the current audit record.
 
 ## Expected Improvement Mechanism
 
@@ -70,120 +74,163 @@ Controlled vocabulary candidates:
 - `temporal_jitter`
 - `timing_misalignment`
 - `hand_articulation_loss`
+- `non_manual_loss`
 - `cross_channel_inconsistency`
 - `semantic_mismatch`
 - `mode_averaging`
 - `sequence_drift`
 - `unnatural_transitions`
+- `token_collapse`
+- `reconstruction_loss`
+- `retrieval_discontinuity`
+- `evaluation_blind_spot`
 
 - `Applicable failure modes`: Not yet documented.
 
-## Required Data / Supervision Assumptions
+## Data And Supervision Assumptions
 
-Use audit-neutral wording such as `Current audit assumption: ...`, `Conditional: ...`, or `Current audit evidence is insufficient to state this confidently.`
+- `Dataset compatibility`: Not yet established.
+  Allowed labels: `how2sign_direct`, `how2sign_compatible`, `cross_lingual_transferable`, `dataset_private_transferable`, `dataset_unclear`.
 
-- `Current processed manifests sufficient`: Not yet established in the current audit record.
-- `Extra annotation required`: Not yet established in the current audit record.
-- `Gloss required`: Not yet established in the current audit record.
-- `Dictionary/example bank required`: Not yet established in the current audit record.
-- `Segmentation required`: Not yet established in the current audit record.
+- `Gloss dependency`: Not yet established.
+  Allowed labels: `gloss_free`, `gloss_optional`, `gloss_adaptable`, `gloss_dependent`, `gloss_unclear`, `notation_dependent`.
+
+- `Extra annotation required`: Not yet established.
+- `Segmentation required`: Not yet established.
+- `Dictionary/example bank required`: Not yet established.
+- `3D/parametric artifacts required`: Not yet established.
+- `Current project artifacts sufficient`: Not yet established.
 
 ## Repository / Workflow Compatibility
 
-Use audit-neutral wording such as `Current audit assessment: ...`, `Conditional: ...`, or `Not yet established in the current audit record.`
+- `Compatible with current pose/keypoint artifact schema`: Not yet established.
+- `Compatible with current experiment workflow`: Not yet established.
+- `Heavy new preprocessing required`: Not yet established.
+- `Thin-driver notebook principle affected`: Not yet established.
+- `Reproducibility risk`: Not yet documented.
 
-- `Compatible with current .npz schema`: Not yet established in the current audit record.
-- `Compatible with current Colab-centered workflow`: Not yet established in the current audit record.
-- `Heavy new preprocessing required`: Not yet established in the current audit record.
-- `Thin-driver notebook principle affected`: Not yet established in the current audit record.
+## Evidence Chain
 
-## Supporting Evidence
+- `Source-selection basis`: Not yet documented.
+- `Source-corpus entries used`: Not yet documented.
+- `Candidate-universe family used`: Not yet documented.
+- `Boundary families consulted`: Not yet documented.
+- `Evaluation family consulted`: Not yet documented.
+
+## Supporting Source-Corpus Evidence
 
 Allowed `Support type` values:
 
-- `direct`
-- `near-direct`
-- `indirect`
+- `direct_candidate_support`
+- `near_direct_method_support`
+- `transferable_method_support`
+- `boundary_support`
+- `evaluation_support`
 
 ### Source 1
 
-- `Citation`: Not yet documented.
+- `Source corpus entry`: Not yet assigned.
+- `Source link`: Not yet assigned.
 - `Support type`: Not yet documented.
 - `Claim supported`: Not yet documented.
 - `Evidence note`: Not yet documented.
-- `Source location`: Not yet documented.
 - `Interpretation boundary`: Not yet documented.
 
 ### Source 2
 
-- `Citation`: Not yet documented.
+- `Source corpus entry`: Not yet assigned.
+- `Source link`: Not yet assigned.
 - `Support type`: Not yet documented.
 - `Claim supported`: Not yet documented.
 - `Evidence note`: Not yet documented.
-- `Source location`: Not yet documented.
 - `Interpretation boundary`: Not yet documented.
 
 ### Source 3
 
-- `Citation`: Optional. Populate only if needed.
-- `Support type`: Optional. Populate only if needed.
-- `Claim supported`: Optional. Populate only if needed.
-- `Evidence note`: Optional. Populate only if needed.
-- `Source location`: Optional. Populate only if needed.
-- `Interpretation boundary`: Optional. Populate only if needed.
+- `Source corpus entry`: Optional.
+- `Source link`: Optional.
+- `Support type`: Optional.
+- `Claim supported`: Optional.
+- `Evidence note`: Optional.
+- `Interpretation boundary`: Optional.
 
-## Contradicting Or Limiting Evidence
+## Limiting Or Contradicting Evidence
+
+Allowed `Limitation type` values:
+
+- `method_limitation`
+- `dataset_limitation`
+- `supervision_limitation`
+- `evaluation_limitation`
+- `scope_limitation`
+- `counter_evidence`
 
 ### Source 1
 
-- `Citation`: Not yet documented.
+- `Source corpus entry`: Not yet assigned.
+- `Source link`: Not yet assigned.
+- `Limitation type`: Not yet documented.
 - `Claim limited`: Not yet documented.
 - `Evidence note`: Not yet documented.
-- `Source location`: Not yet documented.
 - `Interpretation boundary`: Not yet documented.
 
 ### Source 2
 
-- `Citation`: Optional. Populate only if needed.
-- `Claim limited`: Optional. Populate only if needed.
-- `Evidence note`: Optional. Populate only if needed.
-- `Source location`: Optional. Populate only if needed.
-- `Interpretation boundary`: Optional. Populate only if needed.
+- `Source corpus entry`: Optional.
+- `Source link`: Optional.
+- `Limitation type`: Optional.
+- `Claim limited`: Optional.
+- `Evidence note`: Optional.
+- `Interpretation boundary`: Optional.
 
-### Candidate-Level Evidence Synthesis
+## Candidate-Level Evidence Synthesis
 
 - `Best-supported claim`: Not yet documented.
 - `Least-secure claim`: Not yet documented.
+- `Evidence confidence`: Not yet established.
 - `Evidence confidence rationale`: Not yet documented.
 
 ## Comparison To Strong Alternatives
 
 Not yet documented.
 
-## Minimum Ablation Plan
+## Minimum Evaluation And Ablation Plan
 
-Not yet documented.
+- `Minimum comparison baseline`: Not yet documented.
+- `Required ablation`: Not yet documented.
+- `Primary metric family`: Not yet documented.
+- `Secondary metric family`: Not yet documented.
+- `Qualitative inspection needed`: Not yet established.
+- `Metric limitation note`: Not yet documented.
+- `Evaluation-family reference`: [Evaluation and Benchmark Methodology](../candidate-universe/evaluation-benchmark-methodology.md)
 
-## Position In The Four-Model Matrix
+## Additivity And Isolation
 
-Use audit-neutral wording such as `Established: ...`, `Conditional: ...`, or `Not yet established in the current audit record.`
-
-- `fits_as_C1`: Not yet established in the current audit record.
-- `fits_as_C2`: Not yet established in the current audit record.
-- `fits_joint_model`: Not yet established in the current audit record.
-- `breaks_factorial_design`: Not yet established in the current audit record.
+- `Additive over baseline`: Not yet established.
+- `Baseline changed`: Not yet documented.
+- `Primary isolated variable`: Not yet documented.
+- `Requires another candidate`: Not yet established.
+- `Independent ablation possible`: Not yet established.
+- `Likely interactions with other candidate families`: Not yet documented.
 
 ## Complexity / Risk Estimate
 
 - `Implementation complexity`: Not yet documented.
-- `Failure cost (days or bucket)`: Not yet documented.
+- `Failure cost`: Not yet documented.
 - `Hidden dependency risk`: Not yet documented.
 - `Scope-creep risk`: Not yet documented.
+- `Evaluation risk`: Not yet documented.
+
+## Downstream Scoring Notes
+
+- `Scorecard readiness`: Not yet established.
+- `Open questions for scorecard`: Not yet documented.
+- `Evidence gaps to resolve before selection decision`: Not yet documented.
 
 ## Record Boundary Note
 
 - This document records candidate-level evidence only.
-- [Scorecards](../scorecards/index.md) and
-  [Selection Decisions](../selection-decisions/index.md) are maintained in their dedicated audit
-  surfaces.
-- No final selection outcome is recorded here.
+- It does not assign a score.
+- It does not select or reject the candidate.
+- [Scorecards](../scorecards/index.md), [Selection Decisions](../selection-decisions/index.md),
+  and [Audit Result](../audit-result.md) are maintained in their dedicated downstream audit surfaces.
