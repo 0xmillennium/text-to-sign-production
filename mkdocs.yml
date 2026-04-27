@@ -50,9 +50,7 @@ nav:
           - Record Archive: data/artifacts/baseline-modeling/record-archive.md
   - Research:
       - Overview: research/index.md
-      - Roadmap: research/roadmap.md
       - Source Selection Criteria: research/source-selection-criteria.md
-      - Literature Positioning: research/literature-positioning.md
       - Source Corpus: research/source-corpus.md
       - Contribution Audit:
           - Overview: research/contribution-audit/index.md
@@ -99,6 +97,8 @@ nav:
               - Articulator-Disentangled Latent Modeling: research/contribution-audit/selection-decisions/articulator-disentangled-latent-selection-decision.md
               - Text-Pose Semantic Consistency Objective: research/contribution-audit/selection-decisions/text-pose-semantic-consistency-selection-decision.md
               - Retrieval-Augmented Pose Comparator: research/contribution-audit/selection-decisions/retrieval-augmented-pose-comparator-selection-decision.md
+      - Literature Positioning: research/literature-positioning.md
+      - Roadmap: research/roadmap.md
   - Decisions:
       - Overview: decisions/index.md
       - Template: decisions/template.md
@@ -124,6 +124,7 @@ nav:
       - ADR 0020: decisions/adr-0020-published-model-artifacts-as-downstream-interface.md
       - ADR 0021: decisions/adr-0021-four-model-2x2-comparison-architecture.md
       - ADR 0022: decisions/adr-0022-standard-testing-surfaces-before-contribution-implementation.md
+      - ADR 0023: decisions/adr-0023-phase-based-research-governance-and-public-documentation-boundaries.md
 
 markdown_extensions:
   - admonition

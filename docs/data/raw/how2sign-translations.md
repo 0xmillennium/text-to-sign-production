@@ -15,15 +15,15 @@ used to create Dataset Build raw manifests.
 
 ## Canonical Path Pattern
 
-- Raw external Drive input: `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/translations/how2sign_realigned_<split>.csv`
+- Raw external Drive input: `<COLAB_DRIVE_PROJECT_ROOT>/raw/how2sign/translations/how2sign_realigned_<split>.csv`
 - Worktree read path: `/content/text-to-sign-production/data/raw/how2sign/translations/how2sign_realigned_<split>.csv`
 - `<split>` is one of `train`, `val`, or `test`.
 
 ## Verified Example Path
 
-- `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/translations/how2sign_realigned_train.csv`
-- `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/translations/how2sign_realigned_val.csv`
-- `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/translations/how2sign_realigned_test.csv`
+- `<COLAB_DRIVE_PROJECT_ROOT>/raw/how2sign/translations/how2sign_realigned_train.csv`
+- `<COLAB_DRIVE_PROJECT_ROOT>/raw/how2sign/translations/how2sign_realigned_val.csv`
+- `<COLAB_DRIVE_PROJECT_ROOT>/raw/how2sign/translations/how2sign_realigned_test.csv`
 
 ## Produced By
 

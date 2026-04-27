@@ -8,6 +8,14 @@ roles, producers, consumers, and contents.
 
 - [Template](template.md): Canonical structure and vocabulary for every `docs/data` leaf page.
 
+## Path Placeholders
+
+Artifact leaf pages use symbolic roots instead of personal Drive paths:
+
+- `<COLAB_DRIVE_PROJECT_ROOT>`: the mounted Drive project directory that contains this project's
+  raw inputs and artifacts.
+- `<PROJECT_ARTIFACT_ROOT>`: the artifact root under the Drive project directory.
+
 ## Raw Inputs
 
 - [How2Sign translations](raw/how2sign-translations.md): Raw split translation files used to create Dataset Build manifests.

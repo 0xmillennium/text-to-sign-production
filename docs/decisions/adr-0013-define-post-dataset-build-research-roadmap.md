@@ -1,10 +1,13 @@
 # ADR-0013: Define the Post-Dataset-Build Research Roadmap
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-04-17
 
-Historical status note: this ADR preserves the post-Dataset-Build roadmap as it was frozen at the
-time. It remains useful for thesis sequencing context, but it is not the current operator guide.
+Status note: this ADR is retained as historical context only. ADR-0023 is the current governing
+decision for phase-based research governance and public documentation boundaries. This ADR must not
+be used to reintroduce C1/C2 selected-pair framing, sprint-era roadmap sequencing as current
+planning, M0/M1/M2/M3 final model-matrix framing, or released/loadable M0 claims without documented
+release evidence.
 
 ## Context
 

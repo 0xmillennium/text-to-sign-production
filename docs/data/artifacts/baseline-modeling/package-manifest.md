@@ -14,11 +14,11 @@ The package manifest describes the runtime-side baseline modeling package assemb
 
 ## Canonical Path Pattern
 
-- Drive-published package manifest: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/record/baseline_modeling_package.json`
+- Drive-published package manifest: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/record/baseline_modeling_package.json`
 
 ## Verified Example Path
 
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/record/baseline_modeling_package.json`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/record/baseline_modeling_package.json`
 
 ## Produced By
 

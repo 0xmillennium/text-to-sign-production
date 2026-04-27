@@ -15,15 +15,15 @@ and summarizes the exported panel.
 
 ## Canonical Path Pattern
 
-- Panel definition: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/qualitative/panel_definition.json`
-- Per-sample records: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/qualitative/records.jsonl`
-- Panel summary: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/qualitative/panel_summary.json`
+- Panel definition: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/qualitative/panel_definition.json`
+- Per-sample records: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/qualitative/records.jsonl`
+- Panel summary: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/qualitative/panel_summary.json`
 
 ## Verified Example Path
 
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/qualitative/panel_definition.json`
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/qualitative/records.jsonl`
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/qualitative/panel_summary.json`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/qualitative/panel_definition.json`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/qualitative/records.jsonl`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/qualitative/panel_summary.json`
 
 ## Produced By
 

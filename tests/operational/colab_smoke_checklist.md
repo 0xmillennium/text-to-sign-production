@@ -6,7 +6,7 @@ Use this checklist before release-time claims about the real Dataset Build Colab
 
 - The notebook is `notebooks/colab/text_to_sign_production_colab.ipynb`.
 - Google Drive contains the fixed raw input layout under
-  `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/`.
+  `<COLAB_DRIVE_PROJECT_ROOT>/raw/how2sign/`.
 - Translation files exist for `train`, `val`, and `test`.
 - Keypoint archives exist as `.tar.zst` files for `train`, `val`, and `test`.
 - The Colab runtime has enough disk space for local archive copy and extraction.
@@ -27,7 +27,7 @@ Use this checklist before release-time claims about the real Dataset Build Colab
 10. Confirm processed `.npz` samples are produced for each split.
 11. Confirm reports are produced under `data/processed/v1/reports/`.
 12. Confirm output archives are published under
-   `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/`.
+   `<PROJECT_ARTIFACT_ROOT>/dataset-build/processed-v1/`.
 13. Confirm the published archive set includes `dataset_build_manifests_reports.tar.zst` and
     `dataset_build_samples_train.tar.zst`, `dataset_build_samples_val.tar.zst`, and
     `dataset_build_samples_test.tar.zst`.

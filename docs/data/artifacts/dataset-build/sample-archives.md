@@ -15,14 +15,14 @@ restored independently from manifests and reports.
 
 ## Canonical Path Pattern
 
-- Drive-published archive path: `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/dataset_build_samples_<split>.tar.zst`
+- Drive-published archive path: `<PROJECT_ARTIFACT_ROOT>/dataset-build/processed-v1/dataset_build_samples_<split>.tar.zst`
 - `<split>` is one of `train`, `val`, or `test`.
 
 ## Verified Example Path
 
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/dataset_build_samples_train.tar.zst`
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/dataset_build_samples_val.tar.zst`
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/dataset_build_samples_test.tar.zst`
+- `<PROJECT_ARTIFACT_ROOT>/dataset-build/processed-v1/dataset_build_samples_train.tar.zst`
+- `<PROJECT_ARTIFACT_ROOT>/dataset-build/processed-v1/dataset_build_samples_val.tar.zst`
+- `<PROJECT_ARTIFACT_ROOT>/dataset-build/processed-v1/dataset_build_samples_test.tar.zst`
 
 ## Produced By
 

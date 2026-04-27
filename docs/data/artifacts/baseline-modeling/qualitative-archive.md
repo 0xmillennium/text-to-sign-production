@@ -15,11 +15,11 @@ under the same run root.
 
 ## Canonical Path Pattern
 
-- Drive-published archive path: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/archives/baseline_qualitative_outputs.tar.zst`
+- Drive-published archive path: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/archives/baseline_qualitative_outputs.tar.zst`
 
 ## Verified Example Path
 
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/archives/baseline_qualitative_outputs.tar.zst`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/archives/baseline_qualitative_outputs.tar.zst`
 
 ## Produced By
 

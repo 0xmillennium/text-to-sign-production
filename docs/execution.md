@@ -17,11 +17,13 @@ The single supported workflow is the project-wide Colab notebook:
 
 `notebooks/colab/text_to_sign_production_colab.ipynb`
 
-Current public stage: Dataset Build.
+Implemented operational surfaces:
 
-Implemented internal downstream surface: Baseline Modeling.
+- Dataset Build
+- Baseline Modeling
 
-Not yet implemented: broader evaluation, contribution modeling, playback/demo.
+This section describes operator-facing workflow coverage. Research planning status and candidate
+boundaries live in [docs/research](research/index.md).
 
 ## Before You Start
 

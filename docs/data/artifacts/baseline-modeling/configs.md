@@ -15,13 +15,13 @@ run config used by a specific baseline run.
 
 ## Canonical Path Pattern
 
-- Drive-published source config: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/config/source_baseline.yaml`
-- Drive-published effective config: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/config/baseline.yaml`
+- Drive-published source config: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/config/source_baseline.yaml`
+- Drive-published effective config: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/config/baseline.yaml`
 
 ## Verified Example Path
 
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/config/source_baseline.yaml`
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/config/baseline.yaml`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/config/source_baseline.yaml`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/config/baseline.yaml`
 
 ## Produced By
 

@@ -15,15 +15,15 @@ baseline run.
 
 ## Canonical Path Pattern
 
-- Checkpoint summary: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/checkpoints/run_summary.json`
-- Metrics summary: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/metrics/run_summary.json`
-- Record-side copied summary: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/record/run_summary.json`
+- Checkpoint summary: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/checkpoints/run_summary.json`
+- Metrics summary: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/metrics/run_summary.json`
+- Record-side copied summary: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/record/run_summary.json`
 
 ## Verified Example Path
 
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/checkpoints/run_summary.json`
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/metrics/run_summary.json`
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/record/run_summary.json`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/checkpoints/run_summary.json`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/metrics/run_summary.json`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/record/run_summary.json`
 
 ## Produced By
 

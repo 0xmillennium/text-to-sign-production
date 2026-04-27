@@ -1,16 +1,27 @@
 # Test Contracts
 
-The contract layer protects the public expectations that contributors and operators are most likely to notice when they drift: notebook shape, docs wording, workflow inventory, and the thin scripts and wrappers that still define the current repo surface.
+The contract layer protects the public expectations that contributors and operators are most likely
+to notice when they drift: notebook shape, documentation boundaries, workflow inventory, and the
+thin scripts and wrappers that still define the current repo surface.
 
 ## Public Surface Contracts
 
-The current suite protects more than internal implementation details. It checks that the repository still exposes one main Colab notebook, the expected workflow scripts, and the current stage-oriented public wording around Dataset Build and Baseline Modeling.
+The current suite protects more than internal implementation details. It checks that the repository
+still exposes one main Colab notebook, the expected workflow scripts, and public entry surfaces that
+route readers to canonical docs without turning README or the docs home into implementation-status
+dashboards.
 
-The explicit public workflow contract lives in `tests/integration/ops/test_public_workflow_contract.py`. That file verifies the main notebook name and structure, the expected public workflow surface inventory, and the current status wording that appears across durable public text surfaces.
+The explicit public workflow contract lives in
+`tests/integration/ops/test_public_workflow_contract.py`. That file verifies the main notebook name
+and structure, the expected public workflow surface inventory, and the governance boundaries that
+keep stale selected-candidate, phase-status, and release-artifact claims out of public entry pages.
 
 ## Notebook And Docs Contracts
 
-CI-safe integration tests catch drift between the main notebook and the docs that reference it. The contract checks verify that public docs still point to `notebooks/colab/text_to_sign_production_colab.ipynb`, preserve the current public status lines, and do not regress to removed notebook names or removed workflow wording.
+CI-safe integration tests catch drift between the main notebook and the docs that reference it. The
+contract checks verify that public docs still point to
+`notebooks/colab/text_to_sign_production_colab.ipynb`, route workflow readers to Execution, and do
+not regress to removed notebook names or stale public framing.
 
 The notebook contract also checks operator-facing structure inside the notebook itself: required section headings, stable code-cell identifiers, and the split between reuse, extract, and run cells for Dataset Build and Baseline Modeling outputs.
 

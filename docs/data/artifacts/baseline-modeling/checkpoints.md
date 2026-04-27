@@ -15,13 +15,13 @@ epochs of a run.
 
 ## Canonical Path Pattern
 
-- Drive-published best checkpoint: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/checkpoints/best.pt`
-- Drive-published last checkpoint: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/checkpoints/last.pt`
+- Drive-published best checkpoint: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/checkpoints/best.pt`
+- Drive-published last checkpoint: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/checkpoints/last.pt`
 
 ## Verified Example Path
 
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/checkpoints/best.pt`
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/checkpoints/last.pt`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/checkpoints/best.pt`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/checkpoints/last.pt`
 
 ## Produced By
 
