@@ -5,6 +5,7 @@ theme:
 
 nav:
   - Home: index.md
+  - How2Sign: how2sign.md
   - Getting Started: getting-started.md
   - Execution: execution.md
   - Development Setup: development-setup.md

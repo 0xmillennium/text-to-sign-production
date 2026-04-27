@@ -13,6 +13,7 @@ experimental proof of sign-language intelligibility.
 
 ## By Intent
 
+- Dataset boundary: [How2Sign](how2sign.md)
 - Research context: [Research Context](research/index.md)
 - Research roadmap: [Research Roadmap](research/roadmap.md)
 - Source corpus: [Source Corpus](research/source-corpus.md)
@@ -28,6 +29,8 @@ experimental proof of sign-language intelligibility.
 ## Documentation Map
 
 - [Getting Started](getting-started.md): first-path routing for new readers.
+- [How2Sign Dataset Boundary](how2sign.md): How2Sign access, license, redistribution, citation,
+  and supervision assumptions.
 - [Execution](execution.md): supported notebook-first workflow.
 - [Data Artifact Dictionary](data/index.md): canonical reference for data and artifacts.
 - [Testing](testing/index.md): test layers, validation surfaces, and contract boundaries.

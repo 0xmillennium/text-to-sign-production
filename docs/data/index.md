@@ -4,6 +4,9 @@
 published archives, and baseline modeling artifacts. Use these pages for artifact paths,
 roles, producers, consumers, and contents.
 
+For How2Sign access, license, redistribution, citation, and supervision boundaries, see
+[How2Sign](../how2sign.md).
+
 ## Standard
 
 - [Template](template.md): Canonical structure and vocabulary for every `docs/data` leaf page.

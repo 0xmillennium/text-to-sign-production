@@ -16,6 +16,10 @@ The explicit public workflow contract lives in
 and structure, the expected public workflow surface inventory, and the governance boundaries that
 keep stale selected-candidate, phase-status, and release-artifact claims out of public entry pages.
 
+The How2Sign boundary contract lives in
+`tests/integration/docs/test_how2sign_boundary_contract.py`. It protects the top-level dataset
+boundary page, its navigation links, and its license, redistribution, and supervision guardrails.
+
 ## Notebook And Docs Contracts
 
 CI-safe integration tests catch drift between the main notebook and the docs that reference it. The
