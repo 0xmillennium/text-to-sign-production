@@ -15,11 +15,11 @@ restore, or cite the processed v1 dataset surface.
 
 ## Canonical Path Pattern
 
-- Drive-published archive path: `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/dataset_build_manifests_reports.tar.zst`
+- Drive-published archive path: `<PROJECT_ARTIFACT_ROOT>/dataset-build/processed-v1/dataset_build_manifests_reports.tar.zst`
 
 ## Verified Example Path
 
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/dataset_build_manifests_reports.tar.zst`
+- `<PROJECT_ARTIFACT_ROOT>/dataset-build/processed-v1/dataset_build_manifests_reports.tar.zst`
 
 ## Produced By
 

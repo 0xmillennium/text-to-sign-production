@@ -12,7 +12,7 @@ behavior.
   - `data/processed/v1/manifests/val.jsonl`
   - referenced `data/processed/v1/samples/<split>/<sample_id>.npz` files
 - The Sprint 3 run root is:
-  `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/`.
+  `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/`.
 - The default run name is `baseline-default` unless intentionally changed in the notebook.
 
 ## Fresh Publish Scenario

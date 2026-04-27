@@ -15,10 +15,16 @@ Use this layer for:
 Do not use this layer for local deterministic unit, integration, or e2e tests. Those belong under
 `tests/unit/`, `tests/integration/`, and `tests/e2e/`.
 
+Path placeholders:
+
+- `<COLAB_DRIVE_PROJECT_ROOT>` is the mounted Drive project directory that contains this project's
+  raw inputs and artifacts.
+- `<PROJECT_ARTIFACT_ROOT>` is the artifact root under that Drive project directory.
+
 Operational Dataset Build checks should use the repo default `configs/data/filter-v2.yaml` unless
 the legacy strict `configs/data/filter-v1.yaml` policy is intentionally selected for comparison.
 Successful Colab runs publish this archive set under
-`/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/`:
+`<PROJECT_ARTIFACT_ROOT>/dataset-build/processed-v1/`:
 
 - `dataset_build_manifests_reports.tar.zst`
 - `dataset_build_samples_train.tar.zst`
@@ -32,7 +38,7 @@ copying the whole split sample directory.
 Operational Sprint 3 Baseline Modeling checks use the main notebook
 `notebooks/colab/text_to_sign_production_colab.ipynb` and the run root:
 
-`/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/`
+`<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/`
 
 The expected archive set under each run's `archives/` directory is:
 

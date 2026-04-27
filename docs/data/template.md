@@ -51,6 +51,7 @@ Use only these values in `Artifact Unit`:
 
 - `Canonical Path Pattern` must include a reusable pattern with placeholders such as `<split>` or
   `<run_name>` when a stable pattern exists.
+- Wrap angle-bracket placeholders in inline code so Markdown renders them visibly.
 - `Verified Example Path` should include at least one concrete path from verified inventory or
   repo-observed constants. If only a verified directory/root is available, state that clearly.
 - Distinguish raw external input paths, worktree extracted paths, and Drive-published artifact or

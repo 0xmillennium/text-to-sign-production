@@ -15,15 +15,15 @@ parses and normalizes pose data.
 
 ## Canonical Path Pattern
 
-- Raw external Drive input: `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/archives/<split>_2D_keypoints.tar.zst`
+- Raw external Drive input: `<COLAB_DRIVE_PROJECT_ROOT>/raw/how2sign/archives/<split>_2D_keypoints.tar.zst`
 - Worktree extracted path: `/content/text-to-sign-production/data/raw/how2sign/bfh_keypoints/<split>_2D_keypoints/`
 - `<split>` is one of `train`, `val`, or `test`.
 
 ## Verified Example Path
 
-- `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/archives/train_2D_keypoints.tar.zst`
-- `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/archives/val_2D_keypoints.tar.zst`
-- `/content/drive/MyDrive/text-to-sign-production/raw/how2sign/archives/test_2D_keypoints.tar.zst`
+- `<COLAB_DRIVE_PROJECT_ROOT>/raw/how2sign/archives/train_2D_keypoints.tar.zst`
+- `<COLAB_DRIVE_PROJECT_ROOT>/raw/how2sign/archives/val_2D_keypoints.tar.zst`
+- `<COLAB_DRIVE_PROJECT_ROOT>/raw/how2sign/archives/test_2D_keypoints.tar.zst`
 
 ## Produced By
 

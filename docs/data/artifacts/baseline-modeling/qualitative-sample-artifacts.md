@@ -15,16 +15,16 @@ panel.
 
 ## Canonical Path Pattern
 
-- Prediction artifact: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/qualitative/predictions/<zero_padded_index>__<sanitized_sample_id>.npz`
-- Reference artifact: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/qualitative/references/<zero_padded_index>__<sanitized_sample_id>.npz`
+- Prediction artifact: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/qualitative/predictions/<zero_padded_index>__<sanitized_sample_id>.npz`
+- Reference artifact: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/qualitative/references/<zero_padded_index>__<sanitized_sample_id>.npz`
 - `<zero_padded_index>` is the zero-based panel order padded to four digits, such as `0000`.
 - `<sanitized_sample_id>` replaces characters outside `[A-Za-z0-9_.-]` with `_`, then trims
   leading and trailing `.` or `_`; an empty sanitized value becomes `sample`.
 
 ## Verified Example Path
 
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/qualitative/predictions/`
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/qualitative/references/`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/qualitative/predictions/`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/qualitative/references/`
 
 Only the prediction and reference directory roots are verified in the current artifact inventory.
 Concrete `.npz` filenames follow the canonical path pattern above.

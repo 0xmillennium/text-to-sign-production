@@ -14,11 +14,11 @@ The record archive publishes the runtime record package directory for reuse or t
 
 ## Canonical Path Pattern
 
-- Drive-published archive path: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/archives/baseline_record_package.tar.zst`
+- Drive-published archive path: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/archives/baseline_record_package.tar.zst`
 
 ## Verified Example Path
 
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/archives/baseline_record_package.tar.zst`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/archives/baseline_record_package.tar.zst`
 
 ## Produced By
 

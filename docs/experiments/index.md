@@ -3,11 +3,9 @@
 Experiment records are the durable Markdown surface for empirical work that needs provenance and
 interpretation beyond routine generated reports.
 
-Current public stage: Dataset Build.
+Operational documentation currently covers Dataset Build and Baseline Modeling workflows.
 
-Implemented internal downstream surface: Baseline Modeling.
-
-Not yet implemented: broader evaluation, contribution modeling, playback/demo.
+Research planning status and candidate boundaries live in [Research Context](../research/index.md).
 
 Use the [Experiment Record Template](template.md) when creating a new formal record.
 

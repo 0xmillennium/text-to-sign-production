@@ -15,13 +15,13 @@ a runtime evidence surface.
 
 ## Canonical Path Pattern
 
-- Qualitative evidence: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/qualitative/baseline_evidence_bundle.json`
-- Record-side copied evidence: `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/<run_name>/record/baseline_evidence_bundle.json`
+- Qualitative evidence: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/qualitative/baseline_evidence_bundle.json`
+- Record-side copied evidence: `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/record/baseline_evidence_bundle.json`
 
 ## Verified Example Path
 
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/qualitative/baseline_evidence_bundle.json`
-- `/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/190420261845/record/baseline_evidence_bundle.json`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/qualitative/baseline_evidence_bundle.json`
+- `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/190420261845/record/baseline_evidence_bundle.json`
 
 ## Produced By
 

@@ -18,33 +18,29 @@ NOTEBOOK_PATH = PROJECT_ROOT / "notebooks" / "colab" / NOTEBOOK_NAME
 CURRENT_NOTEBOOK_REFERENCE = f"notebooks/colab/{NOTEBOOK_NAME}"
 OLD_NOTEBOOK_NAME = "dataset_build_colab.ipynb"
 NOTEBOOK_PUBLIC_STATUS_LINES = (
-    "Current public stage: Dataset Build",
-    "Implemented internal downstream surface: Baseline Modeling",
-    "Not yet implemented: broader evaluation, contribution modeling, playback/demo",
+    "Implemented operational surfaces: Dataset Build and Baseline Modeling",
+    "Research planning status and candidate boundaries live in",
 )
-DOC_STATUS_SNIPPETS = {
-    "README.md": (
-        "## Current Status",
-        "- Dataset Build is completed.",
-        "- Baseline Modeling is completed as the implemented baseline milestone.",
-        "- The Contribution Audit is completed.",
-        "`C1 = Dynamic VQ Pose Tokens`",
-        "`C2 = Channel-Aware Loss Reweighting`",
-    ),
-    "docs/index.md": (
-        "## Current Repository State",
-        "- Dataset Build is completed.",
-        "- Baseline Modeling is completed as the implemented baseline milestone.",
-        "- The Contribution Audit is completed.",
-        "`C1 = Dynamic VQ Pose Tokens`",
-        "`C2 = Channel-Aware Loss Reweighting`",
-    ),
-    "docs/experiments/index.md": (
-        "Current public stage: Dataset Build.",
-        "Implemented internal downstream surface: Baseline Modeling.",
-        "Not yet implemented: broader evaluation, contribution modeling, playback/demo.",
-    ),
-}
+ACTIVE_PUBLIC_SURFACES = (
+    "README.md",
+    "docs/index.md",
+    "docs/execution.md",
+    "docs/experiments/index.md",
+    "docs/decisions/index.md",
+)
+FORBIDDEN_ACTIVE_PUBLIC_SNIPPETS = (
+    "C1 = Dynamic VQ Pose Tokens",
+    "C2 = Channel-Aware Loss Reweighting",
+    "current selected pair",
+    "selected pair",
+    "selected-pair implementation",
+    "current thesis-facing direction is fixed",
+    "Sprint 5 through Sprint 8",
+    "Current public stage: Dataset Build",
+    "Current public stage: Baseline Modeling",
+    "Implemented internal downstream surface",
+    "bibliography",
+)
 
 
 def _load_notebook() -> dict[str, Any]:
@@ -299,24 +295,49 @@ def test_public_docs_reference_current_notebook_only() -> None:
         source = path.read_text(encoding="utf-8")
         assert OLD_NOTEBOOK_NAME not in source, path
 
-    docs_expected_to_reference_notebook = (
-        "README.md",
-        "docs/getting-started.md",
-        "docs/execution.md",
-    )
+    docs_expected_to_reference_notebook = ("docs/getting-started.md", "docs/execution.md")
     for relative_path in docs_expected_to_reference_notebook:
         assert CURRENT_NOTEBOOK_REFERENCE in _read_repo_file(relative_path), relative_path
 
-    docs_expected_to_route_to_execution = ("docs/index.md",)
-    for relative_path in docs_expected_to_route_to_execution:
-        assert "[Execution](execution.md)" in _read_repo_file(relative_path), relative_path
-
-
-def test_public_docs_preserve_current_status_wording() -> None:
-    for relative_path, expected_snippets in DOC_STATUS_SNIPPETS.items():
+    docs_expected_to_route_to_execution = {
+        "README.md": "[Execution](docs/execution.md)",
+        "docs/index.md": "[Execution](execution.md)",
+    }
+    for relative_path, expected_link in docs_expected_to_route_to_execution.items():
         source = _read_repo_file(relative_path)
-        for expected_snippet in expected_snippets:
-            assert expected_snippet in source, relative_path
+        assert expected_link in source, relative_path
+
+
+def test_active_public_surfaces_reject_stale_governance_framing() -> None:
+    notebook_markdown, notebook_code = _load_notebook_sources()
+    sources = {
+        relative_path: _read_repo_file(relative_path) for relative_path in ACTIVE_PUBLIC_SURFACES
+    }
+    sources[f"notebook markdown: {CURRENT_NOTEBOOK_REFERENCE}"] = notebook_markdown
+    sources[f"notebook code: {CURRENT_NOTEBOOK_REFERENCE}"] = notebook_code
+
+    for surface_name, source in sources.items():
+        normalized_source = source.lower()
+        for forbidden_snippet in FORBIDDEN_ACTIVE_PUBLIC_SNIPPETS:
+            assert forbidden_snippet.lower() not in normalized_source, surface_name
+
+
+def test_public_surfaces_explain_operational_not_stage_status() -> None:
+    execution_source = _read_repo_file("docs/execution.md")
+    experiments_source = _read_repo_file("docs/experiments/index.md")
+    notebook_markdown, notebook_code = _load_notebook_sources()
+
+    assert "Implemented operational surfaces:" in execution_source
+    assert "- Dataset Build" in execution_source
+    assert "- Baseline Modeling" in execution_source
+    assert (
+        "Operational documentation currently covers Dataset Build and Baseline Modeling workflows."
+        in experiments_source
+    )
+    assert (
+        "Implemented operational surfaces: Dataset Build and Baseline Modeling" in notebook_markdown
+    )
+    assert "Implemented operational surfaces: Dataset Build and Baseline Modeling" in notebook_code
 
 
 def test_public_docs_reference_repository_map_surface() -> None:
@@ -331,36 +352,110 @@ def test_public_docs_reference_repository_map_surface() -> None:
     assert "Repository Map: repository-map.md" in mkdocs_source
 
 
-def test_readme_public_surface_structure_is_stable() -> None:
+def test_readme_public_surface_structure_is_stable_landing_page() -> None:
     source = _read_repo_file("README.md")
 
     required_headings = (
-        "## Concise Project Summary",
-        "## Current Status",
-        "## Implemented Surfaces",
-        "## Selected Current Research Direction",
-        "## Supported Workflow",
-        "## Artifact / Publication / Reproducibility",
-        "## Scope Boundaries",
-        "## Documentation Map",
-        "## Getting Started",
+        "# text-to-sign-production",
+        "## Documentation",
+        "## Current Research Boundary",
+        "## Scope",
+        "## Development",
+        "## License",
     )
     for heading in required_headings:
         assert heading in source
 
     required_snippets = (
-        "- Dataset Build is completed.",
-        "- Baseline Modeling is completed as the implemented baseline milestone.",
-        "- The Contribution Audit is completed.",
-        "`C1 = Dynamic VQ Pose Tokens`",
-        "`C2 = Channel-Aware Loss Reweighting`",
-        "The single supported operational workflow is the project-wide Colab notebook:",
-        CURRENT_NOTEBOOK_REFERENCE,
+        "stable repository landing page",
         "[Docs Home](docs/index.md)",
+        "[Research Context](docs/research/index.md)",
+        "[Research Roadmap](docs/research/roadmap.md)",
+        "[Source Corpus](docs/research/source-corpus.md)",
+        "[Contribution Audit Result](docs/research/contribution-audit/audit-result.md)",
         "[Execution](docs/execution.md)",
+        "[Data](docs/data/index.md)",
+        "[Experiments](docs/experiments/index.md)",
+        "[Testing](docs/testing/index.md)",
+        "[Decisions](docs/decisions/index.md)",
+        "[Repository Map](docs/repository-map.md)",
+        "No final implementation model is selected.",
+        "No final candidate ranking is assigned.",
+        "No experimental proof of sign-language intelligibility is claimed.",
+        "No released public model artifact is claimed",
+        "Development Setup",
     )
     for snippet in required_snippets:
         assert snippet in source
+
+    snapshot_headings = (
+        "## Current Status",
+        "## Implemented Surfaces",
+        "## Selected Current Research Direction",
+        "## Supported Workflow",
+        "## Artifact / Publication / Reproducibility",
+    )
+    for heading in snapshot_headings:
+        assert heading not in source
+
+
+def test_docs_index_public_surface_is_navigation_overview() -> None:
+    source = _read_repo_file("docs/index.md")
+
+    required_snippets = (
+        "# text-to-sign-production Docs",
+        "## What These Docs Cover",
+        "Use this page for navigation.",
+        "Phase-specific status, experiment evidence, and operational",
+        "instructions live in the canonical leaf docs",
+        "does not select a final model",
+        "assign a final candidate ranking",
+        "or claim",
+        "experimental proof of sign-language intelligibility",
+        "[Research Context](research/index.md)",
+        "[Research Roadmap](research/roadmap.md)",
+        "[Source Corpus](research/source-corpus.md)",
+        "[Contribution Audit Result](research/contribution-audit/audit-result.md)",
+        "[Execution](execution.md)",
+        "[Data](data/index.md)",
+        "[Experiments](experiments/index.md)",
+        "[Testing](testing/index.md)",
+        "[Decisions](decisions/index.md)",
+        "[Development Setup](development-setup.md)",
+        "[Repository Map](repository-map.md)",
+    )
+    for snippet in required_snippets:
+        assert snippet in source
+
+    status_dashboard_snippets = (
+        "## Current Repository State",
+        "Dataset Build is completed",
+        "Baseline Modeling is completed as the implemented baseline milestone",
+        "## Current Research Direction",
+    )
+    for snippet in status_dashboard_snippets:
+        assert snippet not in source
+
+
+def test_decisions_index_routes_to_current_governance_and_superseded_history() -> None:
+    source = _read_repo_file("docs/decisions/index.md")
+
+    assert "[ADR Template](template.md)" in source
+    assert "ADRs are historical decision records, not the active operator guide." in source
+    assert "ADR-0023: Phase-Based Research Governance And Public Documentation Boundaries" in source
+    assert "current Phase 0-12 research frame and public documentation boundaries" in source
+
+    superseded_records = (
+        "ADR-0013",
+        "ADR-0018",
+        "ADR-0019",
+        "ADR-0020",
+        "ADR-0021",
+        "ADR-0022",
+    )
+    for record_id in superseded_records:
+        line = next(line for line in source.splitlines() if record_id in line)
+        assert "superseded historical" in line
 
 
 def test_public_docs_use_canonical_experiments_surface() -> None:

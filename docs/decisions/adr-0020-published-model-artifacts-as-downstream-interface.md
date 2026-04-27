@@ -1,7 +1,13 @@
 # ADR-0020: Published Model Artifacts as Downstream Interface
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-04-25
+
+Status note: this ADR is retained as historical context only. ADR-0023 is the current governing
+decision for phase-based research governance and public documentation boundaries. This ADR must not
+be used to reintroduce C1/C2 selected-pair framing, sprint-era roadmap sequencing as current
+planning, M0/M1/M2/M3 final model-matrix framing, or released/loadable M0 claims without documented
+release evidence.
 
 ## Context
 
