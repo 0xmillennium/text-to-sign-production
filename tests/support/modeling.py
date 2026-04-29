@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -12,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 import yaml
 
-import text_to_sign_production.data.utils as utils_mod
+import text_to_sign_production.core.paths as paths_mod
 from tests.support.builders.manifests import processed_record, write_jsonl_records
 from tests.support.builders.samples import write_processed_sample_npz
 from text_to_sign_production.modeling.training.config import (
@@ -23,10 +22,6 @@ from text_to_sign_production.modeling.training.config import (
     BaselineModelConfig,
     BaselineOptimizerConfig,
     BaselineTrainingConfig,
-)
-from text_to_sign_production.workflows.baseline_modeling import (
-    BaselineRunLayout,
-    resolve_baseline_run_layout,
 )
 
 
@@ -41,18 +36,12 @@ class ModelingWorkspace:
     artifact_runs_root: Path
     run_name: str = "baseline-test"
 
-    @property
-    def layout(self) -> BaselineRunLayout:
-        return resolve_baseline_run_layout(
-            run_name=self.run_name,
-            artifact_runs_root=self.artifact_runs_root,
-        )
-
 
 def patch_modeling_repo_root(monkeypatch: Any, root: Path) -> None:
     """Patch the repo-root boundary used by repo-relative Sprint 3 test paths."""
 
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", root.resolve())
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", root.resolve())
+    monkeypatch.setattr(paths_mod, "DEFAULT_DATA_ROOT", (root / "data").resolve())
 
 
 def processed_sample_relative_path(split: str = "train", sample_id: str = "sample") -> str:
@@ -63,7 +52,7 @@ def processed_sample_relative_path(split: str = "train", sample_id: str = "sampl
 
 def baseline_config_payload(
     *,
-    checkpoint_output_dir: str = "outputs/modeling/baseline-test",
+    checkpoint_output_dir: str = "data/artifacts/base/baseline-test/checkpoints",
     backbone_name: str = "dummy",
 ) -> dict[str, Any]:
     """Return the default tiny Sprint 3 baseline config payload for tests."""
@@ -172,7 +161,7 @@ def write_processed_modeling_sample(
 def write_baseline_modeling_config(
     root: Path,
     *,
-    checkpoint_output_dir: str = "outputs/modeling/baseline-test",
+    checkpoint_output_dir: str = "data/artifacts/base/baseline-test/checkpoints",
     backbone_name: str = "dummy",
 ) -> Path:
     """Write a tiny baseline config that points at processed Dataset Build manifests."""
@@ -253,7 +242,7 @@ def write_tiny_baseline_modeling_workspace(
     train_sample_ids: tuple[str, ...] = ("train-sample",),
     val_sample_ids: tuple[str, ...] = ("val-sample",),
     run_name: str = "baseline-test",
-    checkpoint_output_dir: str = "outputs/modeling/baseline-test",
+    checkpoint_output_dir: str = "data/artifacts/base/baseline-test/checkpoints",
     backbone_name: str = "dummy",
 ) -> ModelingWorkspace:
     """Write tiny processed train/val inputs plus a baseline config."""
@@ -321,70 +310,9 @@ def write_fake_qualitative_outputs(output_dir: Path) -> None:
     )
 
 
-def write_fake_record_outputs(layout: BaselineRunLayout) -> None:
-    """Write the minimal runtime package surface used by resume tests."""
-
-    layout.record_dir.mkdir(parents=True, exist_ok=True)
-    (layout.package_manifest_path).write_text(
-        json.dumps({"schema_version": "t2sp-baseline-modeling-package-v1"}),
-        encoding="utf-8",
-    )
-    (layout.record_evidence_bundle_path).write_text(
-        json.dumps({"schema_version": "t2sp-baseline-evidence-v1"}),
-        encoding="utf-8",
-    )
-    (layout.record_run_summary_path).write_text(
-        json.dumps({"backbone_name": "dummy"}),
-        encoding="utf-8",
-    )
-
-
 def touch_file(path: Path, content: str = "x") -> Path:
     """Create a small text file and return its path."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return path
-
-
-def fake_create_archive(
-    *,
-    archive_path: Path,
-    members: tuple[Path, ...],
-    cwd: Path,
-    label: str,
-    snapshot_parent: Path | None = None,
-    artifact_description: str | None = None,
-) -> Path:
-    """Boundary fake for archive creation in CI-safe workflow tests."""
-
-    del members, cwd, label, snapshot_parent, artifact_description
-    archive_path.parent.mkdir(parents=True, exist_ok=True)
-    archive_path.write_bytes(b"archive")
-    return archive_path
-
-
-def raise_dataset_build_archive_error(
-    *,
-    archive_path: Path,
-    members: tuple[Path, ...],
-    cwd: Path,
-    label: str,
-    snapshot_parent: Path | None = None,
-) -> Path:
-    """Archive fake that preserves the historical Dataset Build wording regression."""
-
-    del archive_path, members, cwd, label, snapshot_parent
-    raise FileNotFoundError("Missing required Dataset Build outputs:\n- stale")
-
-
-def fake_extract_archive_with(
-    build_extracted_tree: Callable[[Path], None],
-) -> Callable[..., None]:
-    """Return an extraction fake that writes a tiny extracted member tree."""
-
-    def fake_extract(archive: Path, destination: Path, *, label: str) -> None:
-        del archive, label
-        build_extracted_tree(destination)
-
-    return fake_extract

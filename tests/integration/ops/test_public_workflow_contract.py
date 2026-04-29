@@ -1,4 +1,8 @@
-"""Public notebook, docs, and script contract tests."""
+"""Transition contract for the public notebook-facing workflow surface.
+
+This file remains under ``tests/integration/ops`` temporarily for continuity; the
+assertions are about the public workflow contract, not an ``ops`` Python package.
+"""
 
 from __future__ import annotations
 
@@ -13,14 +17,18 @@ import pytest
 pytestmark = pytest.mark.integration
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-NOTEBOOK_NAME = "text_to_sign_production_colab.ipynb"
-NOTEBOOK_PATH = PROJECT_ROOT / "notebooks" / "colab" / NOTEBOOK_NAME
-CURRENT_NOTEBOOK_REFERENCE = f"notebooks/colab/{NOTEBOOK_NAME}"
-OLD_NOTEBOOK_NAME = "dataset_build_colab.ipynb"
-NOTEBOOK_PUBLIC_STATUS_LINES = (
-    "Implemented operational surfaces: Dataset Build and Baseline Modeling",
-    "Research planning status and candidate boundaries live in",
+COLAB_ROOT = PROJECT_ROOT / "notebooks" / "colab"
+TARGET_NOTEBOOK_NAMES = (
+    "text_to_sign_dataset_colab.ipynb",
+    "text_to_sign_visualization_colab.ipynb",
+    "text_to_sign_base_colab.ipynb",
 )
+TARGET_NOTEBOOK_PATHS = tuple(COLAB_ROOT / name for name in TARGET_NOTEBOOK_NAMES)
+OLD_PUBLIC_NOTEBOOK_NAMES = (
+    "text_to_sign_production_colab.ipynb",
+    "text_to_sign_visual_debug_colab.ipynb",
+)
+OLD_NOTEBOOK_NAME = "dataset_build_colab.ipynb"
 ACTIVE_PUBLIC_SURFACES = (
     "README.md",
     "docs/index.md",
@@ -43,261 +51,177 @@ FORBIDDEN_ACTIVE_PUBLIC_SNIPPETS = (
 )
 
 
-def _load_notebook() -> dict[str, Any]:
-    loaded = json.loads(NOTEBOOK_PATH.read_text(encoding="utf-8"))
-    if not isinstance(loaded, dict):
-        raise TypeError(f"Notebook root must be a JSON object: {NOTEBOOK_PATH}")
-    return cast(dict[str, Any], loaded)
+def test_public_notebooks_are_final_three_notebook_surface_and_valid_json() -> None:
+    colab_notebooks = sorted(path.name for path in COLAB_ROOT.glob("*.ipynb"))
+
+    assert colab_notebooks == sorted(TARGET_NOTEBOOK_NAMES)
+
+    for path in TARGET_NOTEBOOK_PATHS:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+
+        assert isinstance(loaded, dict)
+        assert isinstance(loaded.get("cells"), list)
+
+    for old_name in OLD_PUBLIC_NOTEBOOK_NAMES:
+        assert old_name not in colab_notebooks
 
 
-def _load_notebook_sources() -> tuple[str, str]:
-    notebook = _load_notebook()
-    markdown_source = "\n".join(
-        "".join(cell.get("source", []))
-        for cell in notebook["cells"]
-        if cell.get("cell_type") == "markdown"
+def test_public_surface_has_notebook_workflows_without_script_or_ops_packages() -> None:
+    colab_notebooks = sorted(path.name for path in COLAB_ROOT.glob("*.ipynb"))
+    scripts_dir = PROJECT_ROOT / "scripts"
+
+    assert not scripts_dir.exists()
+    for target_name in TARGET_NOTEBOOK_NAMES:
+        assert target_name in colab_notebooks
+    assert OLD_NOTEBOOK_NAME not in colab_notebooks
+
+    assert (PROJECT_ROOT / "src/text_to_sign_production/workflows/dataset.py").is_file()
+    assert (PROJECT_ROOT / "src/text_to_sign_production/workflows/visualization.py").is_file()
+    assert (PROJECT_ROOT / "src/text_to_sign_production/workflows/base.py").is_file()
+
+    removed_workflow_modules = (
+        PROJECT_ROOT / "src/text_to_sign_production/workflows/baseline_modeling.py",
+        PROJECT_ROOT / "src/text_to_sign_production/workflows/dataset_build.py",
+        PROJECT_ROOT / "src/text_to_sign_production/workflows/_baseline_archive_ops.py",
     )
-    code_source = "\n".join(
-        "".join(cell.get("source", []))
-        for cell in notebook["cells"]
-        if cell.get("cell_type") == "code"
+    for module_path in removed_workflow_modules:
+        assert not module_path.exists(), module_path
+
+    assert not (PROJECT_ROOT / "src/text_to_sign_production/ops").exists()
+
+    removed_python_archive_helpers = (
+        PROJECT_ROOT / "src/text_to_sign_production/ops/archive_ops.py",
+        PROJECT_ROOT / "src/text_to_sign_production/ops/colab_workflow.py",
+        PROJECT_ROOT / "src/text_to_sign_production/workflows/_baseline_archive_ops.py",
+        PROJECT_ROOT / "tests/support/builders/archives.py",
     )
-    return markdown_source, code_source
+    for helper_path in removed_python_archive_helpers:
+        assert not helper_path.exists(), helper_path
 
 
-def _load_notebook_cells() -> list[dict[str, Any]]:
-    return list(_load_notebook()["cells"])
-
-
-def _read_repo_file(relative_path: str) -> str:
-    return (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
-
-
-@lru_cache(maxsize=1)
-def _durable_public_text_paths() -> list[Path]:
-    return [
-        PROJECT_ROOT / "README.md",
-        PROJECT_ROOT / "mkdocs.yml",
-        *sorted((PROJECT_ROOT / "docs").rglob("*.md")),
-        *sorted((PROJECT_ROOT / "tests/operational").rglob("*.md")),
-    ]
-
-
-def test_colab_notebook_contains_stage_oriented_supported_workflow() -> None:
-    markdown_source, code_source = _load_notebook_sources()
-    combined_source = markdown_source + "\n" + code_source
-
-    expected_headings = (
-        "# Text-To-Sign Production Colab",
-        "## Section 0: Runtime And Session Setup",
-        "## Section 1: Drive Mount",
-        "## Section 2: Repo Acquisition And Install",
-        "### 2.1 Acquire Repository",
-        "### 2.2 Install Repository Requirements",
-        "### 2.3 Configure Python Environment",
-        "### 2.4 Load Shared Workflow Helpers",
-        "## Section 3: Dataset Build Outputs",
-        "### 3.1 Reuse Extracted Dataset Build Outputs",
-        "### 3.2 Extract Archived Dataset Build Outputs",
-        "### 3.3 Run Dataset Build And Publish Outputs",
-        "## Section 4: Baseline Modeling Training Outputs",
-        "### 4.0 Modeling/GPU Sanity Check",
-        "### 4.1 Prepare Baseline Run Root",
-        "### 4.2 Reuse Extracted Training Outputs",
-        "### 4.3 Extract Archived Training Outputs",
-        "### 4.4 Run Training And Publish Outputs",
-        "## Section 5: Qualitative Panel Outputs",
-        "### 5.1 Reuse Extracted Qualitative Panel Outputs",
-        "### 5.2 Extract Archived Qualitative Panel Outputs",
-        "### 5.3 Run Qualitative Panel Export And Publish Outputs",
-        "## Section 6: Record/Package Outputs",
-        "### 6.1 Reuse Extracted Record/Package Outputs",
-        "### 6.2 Extract Archived Record/Package Outputs",
-        "### 6.3 Assemble/Package And Publish Record Outputs",
-        "## Section 7: Final Artifact Inspection",
-    )
-    for heading in expected_headings:
-        assert heading in markdown_source
-
+def test_target_notebooks_call_public_workflows_and_not_old_helpers() -> None:
+    notebook_code = _joined_notebook_code_sources(TARGET_NOTEBOOK_PATHS)
     required_snippets = (
-        *NOTEBOOK_PUBLIC_STATUS_LINES,
-        'PIPELINE_SPLITS = ["train", "val", "test"]',
-        'BASELINE_RUN_NAME = "baseline-default"',
-        "BASELINE_PANEL_SIZE = 8",
-        'drive.mount("/content/drive", force_remount=False)',
-        'if str(WORKTREE_ROOT / "src") not in sys.path:',
-        'sys.path.insert(0, str(WORKTREE_ROOT / "src"))',
-        "DEFAULT_FILTER_CONFIG_RELATIVE_PATH",
-        "from text_to_sign_production.workflows.dataset_build import run_dataset_build",
-        "from text_to_sign_production.workflows.baseline_modeling import",
-        "COLAB_BASELINE_ARTIFACT_RUNS_ROOT",
-        "BASELINE_CONFIG_PATH = DEFAULT_BASELINE_CONFIG_PATH",
-        "DEFAULT_BASELINE_CONFIG_PATH",
-        "import numpy as np",
-        "import torch",
-        "import transformers",
-        "torch.cuda.is_available()",
-        "torch.cuda.get_device_name(0)",
-        "AutoTokenizer",
-        "T5EncoderModel",
-        "sentencepiece",
-        "No Hugging Face model was instantiated or downloaded",
-        "GPU runtime is recommended/expected for Baseline Modeling training",
-        "If this sanity check fails, do not start training",
-        "restart the runtime and rerun setup before training",
-        "visible train/validation progress",
-        "sample-count progress",
-        "created from a local snapshot first",
-        "published to Drive",
-        "run_baseline_modeling",
-        "run_dataset_build(",
-        "run_baseline_modeling(",
-        'input_mode="fixed_colab_drive"',
-        'output_mode="fixed_colab_drive"',
-        "filter_config_path=WORKTREE_ROOT / DEFAULT_FILTER_CONFIG_RELATIVE_PATH",
-        "/content/drive/MyDrive/text-to-sign-production/artifacts/dataset-build/processed-v1/",
-        "/content/drive/MyDrive/text-to-sign-production/artifacts/baseline-modeling/runs/",
-        "dataset_build_manifests_reports.tar.zst",
-        "dataset_build_samples_",
-        "baseline_training_outputs.tar.zst",
-        "baseline_qualitative_outputs.tar.zst",
-        "baseline_record_package.tar.zst",
+        "text_to_sign_production.workflows.dataset",
+        "DatasetWorkflowConfig",
+        "validate_dataset_inputs",
+        "run_dataset_workflow",
+        "text_to_sign_production.workflows.visualization",
+        "VisualizationSelectionConfig",
+        "VisualizationWorkflowConfig",
+        "select_visualization_sample",
+        "validate_visualization_inputs",
+        "run_visualization_workflow",
+        "text_to_sign_production.workflows.base",
+        "BaseWorkflowConfig",
+        "validate_base_inputs",
+        "run_base_workflow",
     )
+    forbidden_snippets = (
+        "text_to_sign_production.ops",
+        "archive_ops",
+        "colab_workflow",
+        "scripts.",
+        "workflows.dataset_build",
+        "workflows.baseline_modeling",
+        "_baseline_archive_ops",
+        "extract_tar_zst_with_progress",
+        "restore_tar_zst_members",
+        "restore_processed_visual_debug_inputs",
+        "ensure_bfh_clip_videos",
+        "merge_extracted_tree",
+        "extract_baseline_archive",
+    )
+
     for snippet in required_snippets:
-        assert snippet in combined_source
+        assert snippet in notebook_code, snippet
+    for snippet in forbidden_snippets:
+        assert snippet not in notebook_code, snippet
 
-    removed_snippets = (
-        OLD_NOTEBOOK_NAME,
-        "public_urls",
-        "mounted_paths",
-        "RAW_INPUT_MODE",
-        "TRANSLATION_URLS",
-        "KEYPOINT_ARCHIVE_URLS",
-        "MOUNTED_TRANSLATION_FILES",
-        "MOUNTED_KEYPOINT_SPLIT_DIRS",
-        "gdown",
-        "storage.local.yaml",
-        "storage.example.yaml",
-        "T2SP_PROGRESS_MODE",
-        ".tar.gz",
-        "scripts/package_sprint2_outputs.py",
-        "scripts/prepare_raw.py",
-        "scripts/normalize_keypoints.py",
-        "scripts/filter_samples.py",
-        "scripts/export_training_manifest.py",
-        "from text_to_sign_production.ops.colab_workflow import stage_colab_inputs",
-        "from text_to_sign_production.ops.colab_workflow import publish_colab_outputs",
-        "from text_to_sign_production.data.raw import build_raw_manifests",
-        "from text_to_sign_production.data.normalize import normalize_all_splits",
-        "from text_to_sign_production.data.filtering import filter_all_splits",
-        "from text_to_sign_production.data.manifests import export_final_manifests",
-        "google.colab.files",
-        "COLAB_A100_BASELINE_CONFIG_PATH",
-        "import scipy",
-        "import sklearn",
-        "from_pretrained",
+
+def test_public_surface_uses_core_layout_and_mirrored_data_tree() -> None:
+    notebook_code = _joined_notebook_code_sources(TARGET_NOTEBOOK_PATHS)
+    src_source = _joined_python_sources(PROJECT_ROOT / "src")
+
+    for snippet in (
+        "ProjectLayout",
+        "runtime_layout = ProjectLayout(WORKTREE_ROOT)",
+        "drive_layout = ProjectLayout(DRIVE_PROJECT_ROOT)",
+        "drive_layout.raw_bfh_keypoints_archive",
+        "drive_layout.processed_sample_archive",
+        "drive_layout.processed_manifests_reports_archive",
+        '-C "{WORKTREE_ROOT}"',
+    ):
+        assert snippet in notebook_code, snippet
+
+    for snippet in (
+        "class ProjectLayout",
+        "def processed_sample_archive",
+        "def processed_manifests_reports_archive",
+        "def base_run_archive",
+        "OutputExistsPolicy",
+        "prepare_output_file",
+        "prepare_output_dir",
+    ):
+        assert snippet in src_source, snippet
+
+
+def test_public_surface_has_no_old_runtime_or_drive_layout_strings() -> None:
+    source = "\n".join(
+        [
+            _joined_notebook_code_sources(TARGET_NOTEBOOK_PATHS),
+            _joined_python_sources(PROJECT_ROOT / "src"),
+        ]
     )
-    for snippet in removed_snippets:
-        assert snippet not in combined_source
-
-
-def test_colab_code_cells_are_preceded_by_operational_markdown() -> None:
-    cells = _load_notebook_cells()
-    for index, cell in enumerate(cells):
-        if cell.get("cell_type") != "code":
-            continue
-        assert index > 0
-        previous = cells[index - 1]
-        assert previous.get("cell_type") == "markdown"
-        markdown = "".join(previous.get("source", []))
-        for required_phrase in (
-            "What this step does:",
-            "Required inputs:",
-            "Produced outputs:",
-            "When this step may be skipped:",
-        ):
-            assert required_phrase in markdown
-
-
-def test_colab_notebook_separates_reuse_extract_and_run_cells() -> None:
-    cell_ids = {str(cell.get("id")) for cell in _load_notebook_cells()}
-
-    required_ids = {
-        "runtime-settings-code",
-        "runtime-tools-code",
-        "drive-mount-code",
-        "repo-acquisition-code",
-        "repo-install-code",
-        "shared-helper-code",
-        "dataset-reuse-code",
-        "dataset-extract-code",
-        "dataset-run-code",
-        "modeling-sanity-code",
-        "baseline-prepare-code",
-        "training-reuse-code",
-        "training-extract-code",
-        "training-run-code",
-        "qualitative-reuse-code",
-        "qualitative-extract-code",
-        "qualitative-run-code",
-        "record-reuse-code",
-        "record-extract-code",
-        "record-run-code",
-        "final-inspection-code",
-    }
-    assert required_ids.issubset(cell_ids)
-
-    cells_by_id = {
-        str(cell.get("id")): "".join(cell.get("source", [])) for cell in _load_notebook_cells()
-    }
-    assert "def extract_baseline_archive(" in cells_by_id["shared-helper-code"]
-    assert "def merge_extracted_tree(" in cells_by_id["shared-helper-code"]
-    assert "run_dataset_build(" not in cells_by_id["dataset-extract-code"]
-    assert "run_dataset_build(" in cells_by_id["dataset-run-code"]
-    assert "def extract_baseline_archive(" not in cells_by_id["training-extract-code"]
-    assert "run_baseline_modeling(" not in cells_by_id["training-extract-code"]
-    assert "run_baseline_modeling(" in cells_by_id["training-run-code"]
-    assert "run_baseline_modeling(" not in cells_by_id["qualitative-extract-code"]
-    assert "run_baseline_modeling(" in cells_by_id["qualitative-run-code"]
-    assert "run_baseline_modeling(" not in cells_by_id["record-extract-code"]
-    assert "run_baseline_modeling(" in cells_by_id["record-run-code"]
-
-
-def test_public_workflow_surface_has_one_main_notebook_and_stage_clis() -> None:
-    colab_notebooks = sorted(
-        path.name for path in (PROJECT_ROOT / "notebooks/colab").glob("*.ipynb")
+    forbidden_snippets = (
+        "/content/t2sp-runtime",
+        "/content/text_to_sign_runtime",
+        "raw/how2sign/archives",
+        "artifacts/dataset-build",
+        'DRIVE_PROJECT_ROOT / "artifacts"',
+        'DRIVE_PROJECT_ROOT / "raw"',
     )
-    script_names = sorted(path.name for path in (PROJECT_ROOT / "scripts").glob("*.py"))
-
-    assert colab_notebooks == [NOTEBOOK_NAME]
-    assert "dataset_build.py" in script_names
-    assert "baseline_modeling.py" in script_names
-    assert "train_baseline.py" in script_names
-    assert "export_qualitative_panel.py" in script_names
-    assert "evaluate_baseline.py" in script_names
-    assert "validate_manifest.py" in script_names
-    assert "view_sample.py" in script_names
-
-    removed_scripts = {
-        "prepare_raw.py",
-        "normalize_keypoints.py",
-        "filter_samples.py",
-        "export_training_manifest.py",
-        "stage_colab_inputs.py",
-        "publish_colab_outputs.py",
-        "package_sprint2_outputs.py",
-    }
-    assert removed_scripts.isdisjoint(script_names)
+    for snippet in forbidden_snippets:
+        assert snippet not in source, snippet
 
 
-def test_public_docs_reference_current_notebook_only() -> None:
+def test_public_contract_has_no_test_imports_from_deleted_surfaces() -> None:
+    tests_source = _joined_python_import_lines(PROJECT_ROOT / "tests")
+    forbidden_import_patterns = (
+        re.compile(r"\bfrom\s+scripts\b"),
+        re.compile(r"\bimport\s+scripts\b"),
+        re.compile(r"\bscripts[.]"),
+        re.compile(r"\bworkflows[.]dataset_build\b"),
+        re.compile(r"\bworkflows[.]baseline_modeling\b"),
+        re.compile(r"\bworkflows[.]_baseline_archive_ops\b"),
+    )
+    for pattern in forbidden_import_patterns:
+        assert pattern.search(tests_source) is None, pattern.pattern
+
+
+def test_public_contract_has_no_archive_helper_source_surface() -> None:
+    src_source = _joined_python_sources(PROJECT_ROOT / "src")
+    forbidden_snippets = (
+        "archive_ops",
+        "colab_workflow",
+        "extract_tar_zst",
+        "restore_tar_zst",
+        "create_tar_zst",
+        "copy_archive",
+        "stage_colab_inputs",
+        "package_dataset_build_outputs",
+        "publish_colab_outputs",
+        "restore_processed_visual_debug_inputs",
+        "ensure_bfh_clip_videos",
+    )
+    for snippet in forbidden_snippets:
+        assert snippet not in src_source, snippet
+
+
+def test_public_docs_keep_current_navigation_without_legacy_dataset_build_notebook() -> None:
     for path in _durable_public_text_paths():
         source = path.read_text(encoding="utf-8")
         assert OLD_NOTEBOOK_NAME not in source, path
-
-    docs_expected_to_reference_notebook = ("docs/getting-started.md", "docs/execution.md")
-    for relative_path in docs_expected_to_reference_notebook:
-        assert CURRENT_NOTEBOOK_REFERENCE in _read_repo_file(relative_path), relative_path
 
     docs_expected_to_route_to_execution = {
         "README.md": "[Execution](docs/execution.md)",
@@ -308,13 +232,15 @@ def test_public_docs_reference_current_notebook_only() -> None:
         assert expected_link in source, relative_path
 
 
-def test_active_public_surfaces_reject_stale_governance_framing() -> None:
-    notebook_markdown, notebook_code = _load_notebook_sources()
+def test_public_surfaces_reject_stale_governance_framing_during_transition() -> None:
     sources = {
         relative_path: _read_repo_file(relative_path) for relative_path in ACTIVE_PUBLIC_SURFACES
     }
-    sources[f"notebook markdown: {CURRENT_NOTEBOOK_REFERENCE}"] = notebook_markdown
-    sources[f"notebook code: {CURRENT_NOTEBOOK_REFERENCE}"] = notebook_code
+    for notebook_path in TARGET_NOTEBOOK_PATHS:
+        notebook_markdown, notebook_code = _load_notebook_sources(notebook_path)
+        notebook_reference = f"notebooks/colab/{notebook_path.name}"
+        sources[f"notebook markdown: {notebook_reference}"] = notebook_markdown
+        sources[f"notebook code: {notebook_reference}"] = notebook_code
 
     for surface_name, source in sources.items():
         normalized_source = source.lower()
@@ -325,7 +251,6 @@ def test_active_public_surfaces_reject_stale_governance_framing() -> None:
 def test_public_surfaces_explain_operational_not_stage_status() -> None:
     execution_source = _read_repo_file("docs/execution.md")
     experiments_source = _read_repo_file("docs/experiments/index.md")
-    notebook_markdown, notebook_code = _load_notebook_sources()
 
     assert "Implemented operational surfaces:" in execution_source
     assert "- Dataset Build" in execution_source
@@ -334,10 +259,6 @@ def test_public_surfaces_explain_operational_not_stage_status() -> None:
         "Operational documentation currently covers Dataset Build and Baseline Modeling workflows."
         in experiments_source
     )
-    assert (
-        "Implemented operational surfaces: Dataset Build and Baseline Modeling" in notebook_markdown
-    )
-    assert "Implemented operational surfaces: Dataset Build and Baseline Modeling" in notebook_code
 
 
 def test_public_docs_reference_repository_map_surface() -> None:
@@ -512,3 +433,71 @@ def test_public_docs_use_canonical_experiments_surface() -> None:
     new_template = PROJECT_ROOT / "docs/experiments/template.md"
     assert "# Experiment Records" in new_index.read_text(encoding="utf-8")
     assert "# Experiment Record Template" in new_template.read_text(encoding="utf-8")
+
+
+def test_public_contract_notes_notebook_rewrite_is_no_longer_deferred() -> None:
+    for notebook_path in TARGET_NOTEBOOK_PATHS:
+        notebook = _load_notebook(notebook_path)
+
+        assert notebook["cells"]
+
+    for old_name in OLD_PUBLIC_NOTEBOOK_NAMES:
+        assert not (COLAB_ROOT / old_name).exists(), old_name
+
+
+def _load_notebook_sources(path: Path) -> tuple[str, str]:
+    notebook = _load_notebook(path)
+    markdown_source = "\n".join(
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "markdown"
+    )
+    code_source = "\n".join(
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+    )
+    return markdown_source, code_source
+
+
+def _load_notebook(path: Path) -> dict[str, Any]:
+    loaded = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(loaded, dict):
+        raise TypeError(f"Notebook root must be a JSON object: {path}")
+    return cast(dict[str, Any], loaded)
+
+
+def _read_repo_file(relative_path: str) -> str:
+    return (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+
+
+def _joined_python_sources(root: Path) -> str:
+    return "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted(root.rglob("*.py"))
+        if "__pycache__" not in path.parts
+    )
+
+
+def _joined_python_import_lines(root: Path) -> str:
+    return "\n".join(
+        line
+        for path in sorted(root.rglob("*.py"))
+        if "__pycache__" not in path.parts
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.startswith(("import ", "from "))
+    )
+
+
+def _joined_notebook_code_sources(paths: tuple[Path, ...]) -> str:
+    return "\n".join(_load_notebook_sources(path)[1] for path in paths)
+
+
+@lru_cache(maxsize=1)
+def _durable_public_text_paths() -> list[Path]:
+    return [
+        PROJECT_ROOT / "README.md",
+        PROJECT_ROOT / "mkdocs.yml",
+        *sorted((PROJECT_ROOT / "docs").rglob("*.md")),
+        *sorted((PROJECT_ROOT / "tests/operational").rglob("*.md")),
+    ]

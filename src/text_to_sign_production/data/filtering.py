@@ -9,13 +9,12 @@ from typing import Any
 
 import yaml
 
-from ..ops.progress import iter_with_progress
+from ..core import paths as core_paths
+from ..core.paths import ProjectLayout, repo_relative_path, resolve_repo_path
+from ..core.progress import iter_with_progress
 from .constants import (
     CORE_CHANNELS,
-    FILTERED_MANIFESTS_ROOT,
-    INTERIM_REPORTS_ROOT,
     LEGACY_REQUIRED_CORE_CHANNELS,
-    NORMALIZED_MANIFESTS_ROOT,
     SPLITS,
 )
 from .jsonl import count_jsonl_records, iter_jsonl, write_jsonl
@@ -23,8 +22,6 @@ from .schemas import NormalizedManifestEntry
 from .utils import (
     ensure_directory,
     remove_stale_split_files,
-    repo_relative_path,
-    resolve_repo_path,
     utc_timestamp,
     write_json,
 )
@@ -47,6 +44,17 @@ class FilterConfig:
     minimum_nonzero_frames_per_core_channel: int
     required_all_core_channels: tuple[str, ...]
     required_any_core_channel_groups: tuple[tuple[str, ...], ...]
+
+
+def _layout_from_data_root(data_root: Path | str | None = None) -> ProjectLayout:
+    if data_root is None:
+        return ProjectLayout(core_paths.DEFAULT_REPO_ROOT)
+    resolved_data_root = Path(data_root).expanduser().resolve()
+    if resolved_data_root.name != "data":
+        raise ValueError(
+            f"data_root must point at the project data directory: {resolved_data_root}"
+        )
+    return ProjectLayout(resolved_data_root.parent)
 
 
 def _require_boolean_config_value(payload: dict[str, Any], field_name: str) -> bool:
@@ -250,15 +258,27 @@ def determine_drop_reasons(entry: NormalizedManifestEntry, config: FilterConfig)
 
 
 def filter_split(
-    split: str, config: FilterConfig
+    split: str,
+    config: FilterConfig,
+    *,
+    normalized_manifest_path: Path | str | None = None,
+    filtered_manifest_path: Path | str | None = None,
+    data_root: Path | str | None = None,
 ) -> tuple[list[NormalizedManifestEntry], dict[str, Any]]:
     """Filter one split-specific normalized manifest."""
 
-    input_path = NORMALIZED_MANIFESTS_ROOT / f"normalized_{split}.jsonl"
-    if not input_path.exists():
-        raise FileNotFoundError(f"Normalized manifest not found: {input_path}")
-
-    ensure_directory(FILTERED_MANIFESTS_ROOT)
+    layout = _layout_from_data_root(data_root)
+    input_path = (
+        layout.normalized_manifests_root / f"normalized_{split}.jsonl"
+        if normalized_manifest_path is None
+        else Path(normalized_manifest_path)
+    )
+    output_path = (
+        layout.filtered_manifests_root / f"filtered_{split}.jsonl"
+        if filtered_manifest_path is None
+        else Path(filtered_manifest_path)
+    )
+    ensure_directory(output_path.parent)
 
     kept_entries: list[NormalizedManifestEntry] = []
     drop_reason_counter: Counter[str] = Counter()
@@ -284,7 +304,7 @@ def filter_split(
             continue
         kept_entries.append(entry)
 
-    write_jsonl(FILTERED_MANIFESTS_ROOT / f"filtered_{split}.jsonl", kept_entries)
+    write_jsonl(output_path, kept_entries)
     return kept_entries, {
         "split": split,
         "input_samples": total_entries,
@@ -297,11 +317,33 @@ def filter_split(
     }
 
 
-def filter_all_splits(config_path: Path, *, splits: tuple[str, ...] = SPLITS) -> dict[str, Any]:
+def filter_all_splits(
+    config_path: Path,
+    *,
+    splits: tuple[str, ...] = SPLITS,
+    normalized_manifests_root: Path | str | None = None,
+    filtered_manifests_root: Path | str | None = None,
+    interim_reports_root: Path | str | None = None,
+    data_root: Path | str | None = None,
+) -> dict[str, Any]:
     """Apply structural filtering to every official split."""
 
     config = load_filter_config(config_path)
-    ensure_directory(INTERIM_REPORTS_ROOT)
+    layout = _layout_from_data_root(data_root)
+    resolved_normalized_manifests_root = (
+        layout.normalized_manifests_root
+        if normalized_manifests_root is None
+        else Path(normalized_manifests_root)
+    )
+    resolved_filtered_manifests_root = (
+        layout.filtered_manifests_root
+        if filtered_manifests_root is None
+        else Path(filtered_manifests_root)
+    )
+    resolved_interim_reports_root = (
+        layout.interim_reports_root if interim_reports_root is None else Path(interim_reports_root)
+    )
+    ensure_directory(resolved_interim_reports_root)
     resolved_config_path = resolve_repo_path(config_path)
     try:
         report_config_path = repo_relative_path(resolved_config_path)
@@ -314,14 +356,22 @@ def filter_all_splits(config_path: Path, *, splits: tuple[str, ...] = SPLITS) ->
         "splits": {},
     }
     for split in splits:
-        _, split_report = filter_split(split, config)
+        _, split_report = filter_split(
+            split,
+            config,
+            normalized_manifest_path=(
+                resolved_normalized_manifests_root / f"normalized_{split}.jsonl"
+            ),
+            filtered_manifest_path=resolved_filtered_manifests_root / f"filtered_{split}.jsonl",
+            data_root=data_root,
+        )
         report["splits"][split] = split_report
     remove_stale_split_files(
-        FILTERED_MANIFESTS_ROOT,
+        resolved_filtered_manifests_root,
         filename_template="filtered_{split}.jsonl",
         requested_splits=splits,
         all_splits=SPLITS,
     )
 
-    write_json(INTERIM_REPORTS_ROOT / "filter-report.json", report)
+    write_json(resolved_interim_reports_root / "filter-report.json", report)
     return report

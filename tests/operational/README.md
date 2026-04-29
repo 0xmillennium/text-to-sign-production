@@ -7,8 +7,6 @@ Use this layer for:
 
 - Real Colab notebook execution.
 - Real Google Drive mount validation.
-- Real `.tar.zst` archive copy, extract, local packaging, and fixed Drive publish checks on Colab.
-- Real Sprint 3 baseline archive-aware resume checks on Colab and Drive.
 - Real How2Sign/BFH smoke runs against the private raw data layout.
 - Release-time manual validation that depends on external storage, large files, or runtime speed.
 
@@ -21,33 +19,19 @@ Path placeholders:
   raw inputs and artifacts.
 - `<PROJECT_ARTIFACT_ROOT>` is the artifact root under that Drive project directory.
 
-Operational Dataset Build checks should use the repo default `configs/data/filter-v2.yaml` unless
-the legacy strict `configs/data/filter-v1.yaml` policy is intentionally selected for comparison.
-Successful Colab runs publish this archive set under
-`<PROJECT_ARTIFACT_ROOT>/dataset-build/processed-v1/`:
+## Phase 1.1 Transition Status
 
-- `dataset_build_manifests_reports.tar.zst`
-- `dataset_build_samples_train.tar.zst`
-- `dataset_build_samples_val.tar.zst`
-- `dataset_build_samples_test.tar.zst`
+Phase 1 removed the repository Python archive helper infrastructure. The old operational notes that
+validated Python-driven archive copy, extraction, packaging, publish, and archive-aware resume
+behavior are obsolete pending the notebook rewrite.
 
-Each split sample archive is manifest-driven: `dataset_build_samples_<split>.tar.zst` must contain
-exactly the `.npz` files referenced by `data/processed/v1/manifests/<split>.jsonl`, rather than
-copying the whole split sample directory.
+The checklist files in this directory are retained only as transition placeholders. They should not
+be used as release signoff for archive movement or publish/resume behavior until the post-Phase-1
+notebook architecture is defined. This README intentionally does not define the future notebook
+shell extraction standard.
 
-Operational Sprint 3 Baseline Modeling checks use the main notebook
-`notebooks/colab/text_to_sign_production_colab.ipynb` and the run root:
-
-`<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/`
-
-The expected archive set under each run's `archives/` directory is:
-
-- `baseline_training_outputs.tar.zst`
-- `baseline_qualitative_outputs.tar.zst`
-- `baseline_record_package.tar.zst`
-
-Use `text_to_sign_production_colab_resume_checklist.md` to validate mounted Drive, fresh publish,
-archive-present/extracted-absent extraction, extracted-present reuse, and publish/resume behavior.
+Expected stale archive references remain in notebooks during Phase 1.1 and are deferred to the
+notebook rewrite.
 
 Normal CI runs:
 

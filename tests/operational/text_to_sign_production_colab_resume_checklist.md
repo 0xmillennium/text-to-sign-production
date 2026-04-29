@@ -1,62 +1,23 @@
-# Sprint 3 Baseline Modeling Colab Resume Checklist
+# Baseline Modeling Colab Resume Checklist
 
-Use this checklist before release-time claims about real Sprint 3 Colab and Google Drive resume
-behavior.
+Status: obsolete after Phase 1 archive infrastructure removal; pending notebook rewrite.
 
-## Preconditions
+Do not use this checklist for release signoff. It previously described archive-oriented Baseline
+Modeling publish, extraction, and resume behavior that depended on repository Python archive helper
+infrastructure. That infrastructure has been removed, and the final post-Phase-1 notebook extraction
+standard is not defined here.
 
-- The notebook is `notebooks/colab/text_to_sign_production_colab.ipynb`.
-- Google Drive is mounted at `/content/drive`.
-- Dataset Build processed outputs are present in the Colab worktree after the Dataset Build step:
-  - `data/processed/v1/manifests/train.jsonl`
-  - `data/processed/v1/manifests/val.jsonl`
-  - referenced `data/processed/v1/samples/<split>/<sample_id>.npz` files
-- The Sprint 3 run root is:
-  `<PROJECT_ARTIFACT_ROOT>/baseline-modeling/runs/<run_name>/`.
-- The default run name is `baseline-default` unless intentionally changed in the notebook.
+## Limited Transition Use
 
-## Fresh Publish Scenario
+- Use this file only to record that the Baseline Modeling Colab resume procedure needs a rewrite.
+- Manual operators may still validate basic external conditions such as Colab startup, Drive mount,
+  repository acquisition, processed Dataset Build inputs, and baseline runtime availability.
+- Do not treat the old fresh-publish, archive-present/extracted-absent, or extracted-present reuse
+  scenarios as current requirements.
+- Record any current notebook/runtime mismatch as deferred notebook-rewrite work instead of fixing
+  it by reintroducing Python archive helpers.
 
-1. Remove or rename the existing Drive run root for the selected `<run_name>`.
-2. Run the notebook through the Sprint 3 prepare, training, qualitative export, and package cells.
-3. Confirm the run root contains:
-   - `config/`
-   - `checkpoints/`
-   - `metrics/`
-   - `qualitative/`
-   - `record/`
-   - `archives/`
-4. Confirm `config/baseline.yaml` points `checkpoint.output_dir` at the run's `checkpoints/`
-   directory.
-5. Confirm `config/source_baseline.yaml` preserves the original operator-provided config.
-6. Confirm `archives/` contains:
-   - `baseline_training_outputs.tar.zst`
-   - `baseline_qualitative_outputs.tar.zst`
-   - `baseline_record_package.tar.zst`
-7. Confirm `record/baseline_modeling_package.json` states that the package is runtime-side
-   baseline evidence.
-8. Confirm a formal Sprint 3 baseline experiment record can be authored from the guide and
-   template under `docs/experiments/`.
+## Deferred Rewrite Scope
 
-## Archive-Present, Extracted-Absent Scenario
-
-1. Keep the three archive files under `archives/`.
-2. Remove the extracted `checkpoints/`, `metrics/`, `qualitative/`, and `record/` directories.
-3. Run the Sprint 3 training extract cell and confirm it restores `checkpoints/` and `metrics/`.
-4. Run the Sprint 3 qualitative extract cell and confirm it restores `qualitative/`.
-5. Run the Sprint 3 package extract cell and confirm it restores `record/`.
-6. Confirm `archives/` still exists and still contains all three archive files after extraction.
-
-## Extracted-Present Reuse Scenario
-
-1. Keep extracted `checkpoints/`, `metrics/`, `qualitative/`, and `record/` directories in place.
-2. Re-run the Sprint 3 training reuse cell and confirm extracted outputs are detected.
-3. Re-run the Sprint 3 qualitative reuse cell and confirm extracted outputs are detected.
-4. Re-run the Sprint 3 package reuse cell and confirm extracted outputs are detected.
-5. Confirm no new model training or qualitative export work starts.
-
-## Notes
-
-- Drive mount failures are operational environment failures, not unit-test failures.
-- Hugging Face model availability and Colab accelerator behavior are operational conditions.
-- If a config changes, use a new `BASELINE_RUN_NAME` instead of reusing an existing run root.
+The replacement checklist should be written with the final notebook architecture. It should validate
+only the operational behavior that is actually supported at that point.

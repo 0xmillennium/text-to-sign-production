@@ -4,20 +4,17 @@ from __future__ import annotations
 
 import csv
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ..ops.progress import iter_with_progress
+from ..core import paths as core_paths
+from ..core.paths import ProjectLayout, data_root_relative_path, repo_relative_path
+from ..core.progress import iter_with_progress
 from .constants import (
-    BFH_KEYPOINTS_ROOT,
     EXPECTED_TRANSLATION_COLUMNS,
-    INTERIM_REPORTS_ROOT,
-    RAW_MANIFESTS_ROOT,
-    SPLIT_TO_KEYPOINT_DIR,
-    SPLIT_TO_TRANSLATION_FILE,
     SPLITS,
-    TRANSLATIONS_DIR,
 )
 from .jsonl import write_jsonl
 from .mp4 import read_video_metadata
@@ -26,7 +23,6 @@ from .schemas import RawManifestEntry
 from .utils import (
     ensure_directory,
     remove_stale_split_files,
-    repo_relative_path,
     utc_timestamp,
     write_json,
 )
@@ -46,37 +42,47 @@ class SplitPaths:
     video_root: Path
 
 
-def get_split_paths(split: str) -> SplitPaths:
-    """Resolve canonical split paths under the raw root."""
+def _manifest_data_path(path: Path, *, data_root: Path | str | None = None) -> str:
+    if data_root is None:
+        return repo_relative_path(path)
+    return (Path("data") / data_root_relative_path(path, data_root=data_root)).as_posix()
+
+
+def _layout_from_data_root(data_root: Path | str | None = None) -> ProjectLayout:
+    if data_root is None:
+        return ProjectLayout(core_paths.DEFAULT_REPO_ROOT)
+    resolved_data_root = Path(data_root).expanduser().resolve()
+    if resolved_data_root.name != "data":
+        raise ValueError(
+            f"data_root must point at the project data directory: {resolved_data_root}"
+        )
+    return ProjectLayout(resolved_data_root.parent)
+
+
+def get_split_paths(
+    split: str,
+    *,
+    layout: ProjectLayout | None = None,
+    data_root: Path | str | None = None,
+) -> SplitPaths:
+    """Resolve split paths from a caller-provided project layout."""
 
     if split not in SPLITS:
         raise ValueError(f"Unsupported split: {split}")
 
-    split_dir = BFH_KEYPOINTS_ROOT / SPLIT_TO_KEYPOINT_DIR[split] / "openpose_output"
+    resolved_layout = _layout_from_data_root(data_root) if layout is None else layout
+    split_root = resolved_layout.raw_bfh_keypoints_split_root(split)
     return SplitPaths(
         split=split,
-        translation_path=TRANSLATIONS_DIR / SPLIT_TO_TRANSLATION_FILE[split],
-        keypoints_json_root=split_dir / "json",
-        video_root=split_dir / "video",
+        translation_path=resolved_layout.how2sign_translation_file(split),
+        keypoints_json_root=split_root / "json",
+        video_root=split_root / "video",
     )
-
-
-def _ensure_raw_layout(paths: SplitPaths) -> None:
-    missing_paths = [
-        str(path)
-        for path in (paths.translation_path, paths.keypoints_json_root, paths.video_root)
-        if not path.exists()
-    ]
-    if missing_paths:
-        raise FileNotFoundError(
-            "Missing expected raw split roots: " + ", ".join(sorted(missing_paths))
-        )
 
 
 def read_translation_rows(paths: SplitPaths) -> list[dict[str, str]]:
     """Read and validate one tab-delimited translation file stored with a `.csv` name."""
 
-    _ensure_raw_layout(paths)
     with paths.translation_path.open("r", encoding="utf-8", newline="") as handle:
         first_line = handle.readline().rstrip("\r\n")
         if first_line == "":
@@ -95,22 +101,19 @@ def read_translation_rows(paths: SplitPaths) -> list[dict[str, str]]:
         return [dict(row) for row in reader]
 
 
-def build_raw_manifest_for_split(split: str) -> tuple[list[RawManifestEntry], dict[str, Any]]:
+def build_raw_manifest_for_split(
+    split: str,
+    *,
+    split_paths: SplitPaths | None = None,
+    data_root: Path | str | None = None,
+) -> tuple[list[RawManifestEntry], dict[str, Any]]:
     """Build a raw manifest and schema summary for one split."""
 
-    paths = get_split_paths(split)
+    paths = split_paths if split_paths is not None else get_split_paths(split, data_root=data_root)
     rows = read_translation_rows(paths)
-    translation_path_value = repo_relative_path(paths.translation_path)
-    keypoints_json_root_value = repo_relative_path(paths.keypoints_json_root)
-    video_root_value = repo_relative_path(paths.video_root)
-    if (
-        translation_path_value is None
-        or keypoints_json_root_value is None
-        or video_root_value is None
-    ):
-        raise ValueError(
-            f"Expected canonical raw paths to stay under the repo root for split {split}."
-        )
+    translation_path_value = _manifest_data_path(paths.translation_path, data_root=data_root)
+    keypoints_json_root_value = _manifest_data_path(paths.keypoints_json_root, data_root=data_root)
+    video_root_value = _manifest_data_path(paths.video_root, data_root=data_root)
 
     top_level_key_counter: Counter[str] = Counter()
     person_key_counter: Counter[str] = Counter()
@@ -142,7 +145,11 @@ def build_raw_manifest_for_split(split: str) -> tuple[list[RawManifestEntry], di
         video_fps: float | None = None
         video_metadata_error: str | None = None
 
-        keypoints_dir_value = repo_relative_path(keypoints_dir) if keypoints_dir.is_dir() else None
+        keypoints_dir_value = (
+            _manifest_data_path(keypoints_dir, data_root=data_root)
+            if keypoints_dir.is_dir()
+            else None
+        )
         if keypoints_dir_value is None:
             unmatched_examples.append(sentence_name)
         else:
@@ -191,7 +198,7 @@ def build_raw_manifest_for_split(split: str) -> tuple[list[RawManifestEntry], di
                 source_metadata_path=translation_path_value,
                 has_face=has_face,
                 num_frames=num_frames,
-                source_video_path=repo_relative_path(video_path),
+                source_video_path=_manifest_data_path(video_path, data_root=data_root),
                 video_width=video_width,
                 video_height=video_height,
                 video_fps=video_fps,
@@ -232,14 +239,28 @@ def build_raw_manifest_for_split(split: str) -> tuple[list[RawManifestEntry], di
     return manifest_entries, report
 
 
-def build_raw_manifests(*, splits: tuple[str, ...] = SPLITS) -> dict[str, Any]:
+def build_raw_manifests(
+    *,
+    splits: tuple[str, ...] = SPLITS,
+    split_paths_by_split: Mapping[str, SplitPaths] | None = None,
+    raw_manifests_root: Path | str | None = None,
+    interim_reports_root: Path | str | None = None,
+    raw_root: Path | str | None = None,
+    data_root: Path | str | None = None,
+) -> dict[str, Any]:
     """Build raw manifests and the machine-readable assumption report."""
 
-    ensure_directory(RAW_MANIFESTS_ROOT)
-    ensure_directory(INTERIM_REPORTS_ROOT)
-    raw_root_value = repo_relative_path(BFH_KEYPOINTS_ROOT.parent)
-    if raw_root_value is None:
-        raise ValueError("Expected the canonical raw root to stay under the repo root.")
+    layout = _layout_from_data_root(data_root)
+    resolved_raw_manifests_root = (
+        layout.raw_manifests_root if raw_manifests_root is None else Path(raw_manifests_root)
+    )
+    resolved_interim_reports_root = (
+        layout.interim_reports_root if interim_reports_root is None else Path(interim_reports_root)
+    )
+    resolved_raw_root = layout.how2sign_root if raw_root is None else Path(raw_root)
+    ensure_directory(resolved_raw_manifests_root)
+    ensure_directory(resolved_interim_reports_root)
+    raw_root_value = _manifest_data_path(resolved_raw_root, data_root=data_root)
 
     report: dict[str, Any] = {
         "generated_at": utc_timestamp(),
@@ -251,8 +272,12 @@ def build_raw_manifests(*, splits: tuple[str, ...] = SPLITS) -> dict[str, Any]:
     duplicate_sample_ids: list[str] = []
 
     for split in splits:
-        manifest_entries, split_report = build_raw_manifest_for_split(split)
-        write_jsonl(RAW_MANIFESTS_ROOT / f"raw_{split}.jsonl", manifest_entries)
+        manifest_entries, split_report = build_raw_manifest_for_split(
+            split,
+            split_paths=(None if split_paths_by_split is None else split_paths_by_split[split]),
+            data_root=data_root,
+        )
+        write_jsonl(resolved_raw_manifests_root / f"raw_{split}.jsonl", manifest_entries)
         report["splits"][split] = split_report
         for entry in manifest_entries:
             if entry.sample_id in all_sample_ids:
@@ -260,7 +285,7 @@ def build_raw_manifests(*, splits: tuple[str, ...] = SPLITS) -> dict[str, Any]:
             all_sample_ids.add(entry.sample_id)
 
     remove_stale_split_files(
-        RAW_MANIFESTS_ROOT,
+        resolved_raw_manifests_root,
         filename_template="raw_{split}.jsonl",
         requested_splits=splits,
         all_splits=SPLITS,
@@ -269,5 +294,5 @@ def build_raw_manifests(*, splits: tuple[str, ...] = SPLITS) -> dict[str, Any]:
         "sample_id_overlap_detected": bool(duplicate_sample_ids),
         "duplicate_sample_ids": duplicate_sample_ids[:20],
     }
-    write_json(INTERIM_REPORTS_ROOT / "assumption-report.json", report)
+    write_json(resolved_interim_reports_root / "assumption-report.json", report)
     return report

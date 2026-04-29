@@ -69,7 +69,10 @@ def test_load_baseline_training_config_resolves_repo_relative_paths(
     assert config.training.persistent_workers is False
     assert config.training.prefetch_factor is None
     assert config.training.non_blocking_transfers is False
-    assert config.checkpoint.output_dir == (tmp_path / "outputs/modeling/baseline-test").resolve()
+    assert (
+        config.checkpoint.output_dir
+        == (tmp_path / "data/artifacts/base/baseline-test/checkpoints").resolve()
+    )
 
 
 def test_load_baseline_training_config_rejects_missing_required_field(

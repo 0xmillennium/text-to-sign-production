@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-import text_to_sign_production.data.utils as utils_mod
+import text_to_sign_production.core.paths as paths_mod
 from tests.support.builders.manifests import processed_record
 from tests.support.builders.samples import write_processed_sample_npz
 from text_to_sign_production.data.validate import (
@@ -106,7 +106,7 @@ def test_validate_processed_records_resolves_repo_relative_sample_paths(
     root = tmp_path / "repo"
     sample_path = root / "data/processed/v1/samples/train/sample.npz"
     write_processed_sample_npz(sample_path)
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", root)
 
     outside_dir = tmp_path / "outside"
     outside_dir.mkdir()
@@ -177,15 +177,20 @@ def test_validate_processed_records_rejects_directory_sample_paths(
     root = tmp_path / "repo"
     sample_dir = root / "data/processed/v1/samples/train/sample_dir.npz"
     sample_dir.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", root)
 
     issues = validate_processed_records(
         Path("processed.jsonl"),
-        [processed_record("data/processed/v1/samples/train/sample_dir.npz")],
+        [
+            processed_record(
+                "data/processed/v1/samples/train/sample_dir.npz",
+                sample_id="sample_dir",
+            )
+        ],
     )
 
-    issue = next(issue for issue in issues if issue.code == "invalid_sample_path")
-    assert "resolve to a file" in issue.message
+    issue = next(issue for issue in issues if issue.code == "missing_sample_file")
+    assert "is a directory" in issue.message
 
 
 def test_validate_processed_records_rejects_in_repo_npz_outside_processed_samples_root(
@@ -195,7 +200,7 @@ def test_validate_processed_records_rejects_in_repo_npz_outside_processed_sample
     root = tmp_path / "repo"
     sample_path = root / "data/interim/sample.npz"
     write_processed_sample_npz(sample_path)
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", root)
 
     issues = validate_processed_records(
         Path("processed.jsonl"),
@@ -213,7 +218,7 @@ def test_validate_processed_records_rejects_processed_sample_path_with_wrong_spl
     root = tmp_path / "repo"
     sample_path = root / "data/processed/v1/samples/val/sample.npz"
     write_processed_sample_npz(sample_path)
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", root)
 
     issues = validate_processed_records(
         Path("processed.jsonl"),
@@ -231,7 +236,7 @@ def test_validate_processed_records_rejects_processed_sample_path_with_wrong_fil
     root = tmp_path / "repo"
     sample_path = root / "data/processed/v1/samples/train/other_sample.npz"
     write_processed_sample_npz(sample_path)
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", root)
 
     issues = validate_processed_records(
         Path("processed.jsonl"),
@@ -250,7 +255,7 @@ def test_validate_processed_records_rejects_unreadable_npz_payload(
     sample_path = root / "data/processed/v1/samples/train/sample.npz"
     sample_path.parent.mkdir(parents=True, exist_ok=True)
     sample_path.write_text("not-an-npz", encoding="utf-8")
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", root)
 
     issues = validate_processed_records(
         Path("processed.jsonl"),
@@ -269,7 +274,7 @@ def test_validate_processed_records_rejects_missing_required_sample_arrays(
     root = tmp_path / "repo"
     sample_path = root / "data/processed/v1/samples/train/sample.npz"
     write_processed_sample_npz(sample_path, drop_keys=("face", "frame_valid_mask"))
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", root)
 
     issues = validate_processed_records(
         Path("processed.jsonl"),
@@ -292,7 +297,7 @@ def test_validate_processed_records_rejects_unexpected_sample_payload_schema_ver
         sample_path,
         overrides={"processed_schema_version": np.asarray("t2sp-processed-v999")},
     )
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", root)
 
     issues = validate_processed_records(
         Path("processed.jsonl"),
@@ -314,7 +319,7 @@ def test_validate_processed_records_rejects_invalid_sample_array_shapes(
         sample_path,
         overrides={"body": np.zeros((3, 25, 2), dtype=np.float32)},
     )
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", root)
 
     issues = validate_processed_records(
         Path("processed.jsonl"),
@@ -337,7 +342,7 @@ def test_validate_processed_records_rejects_unexpected_sample_selected_person_in
         sample_path,
         overrides={"selected_person_index": np.asarray(1, dtype=np.int16)},
     )
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", root)
 
     issues = validate_processed_records(
         Path("processed.jsonl"),
@@ -361,7 +366,7 @@ def test_validate_processed_records_allows_matching_nonzero_selected_person_inde
         sample_path,
         overrides={"selected_person_index": np.asarray(1, dtype=np.int16)},
     )
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", root)
 
     issues = validate_processed_records(
         Path("processed.jsonl"),
@@ -388,7 +393,7 @@ def test_validate_processed_records_rejects_frame_valid_count_mismatch(
         sample_path,
         overrides={"frame_valid_mask": np.asarray([True, False], dtype=np.bool_)},
     )
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", root)
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", root)
 
     issues = validate_processed_records(
         Path("processed.jsonl"),

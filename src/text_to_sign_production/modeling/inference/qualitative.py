@@ -12,8 +12,10 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 import numpy.typing as npt
 
+from text_to_sign_production.core.paths import resolve_repo_path
+from text_to_sign_production.core.progress import iter_with_progress
 from text_to_sign_production.data.jsonl import write_jsonl
-from text_to_sign_production.data.utils import resolve_repo_path, write_json
+from text_to_sign_production.data.utils import write_json
 from text_to_sign_production.modeling.data import (
     SPRINT3_TARGET_CHANNEL_SHAPES,
     SPRINT3_TARGET_CHANNELS,
@@ -24,7 +26,6 @@ from text_to_sign_production.modeling.data import (
     read_processed_modeling_manifest,
 )
 from text_to_sign_production.modeling.training.config import load_baseline_training_config
-from text_to_sign_production.ops.progress import iter_with_progress
 
 from .evidence import write_baseline_evidence_bundle
 from .paths import portable_path
@@ -182,11 +183,12 @@ def export_qualitative_panel(
     panel_definition_path: Path | str | None = None,
     run_summary_path: Path | str | None = None,
     panel_size: int = DEFAULT_QUALITATIVE_PANEL_SIZE,
+    repo_root: Path | str | None = None,
 ) -> QualitativeExportResult:
     """Export the fixed qualitative validation panel for a Sprint 3 baseline checkpoint."""
 
     load_baseline_predictor, predict_baseline_batch = _load_prediction_helpers()
-    config = load_baseline_training_config(config_path)
+    config = load_baseline_training_config(config_path, repo_root=repo_root)
     if config.data.val_split != QUALITATIVE_PANEL_SPLIT:
         raise QualitativeExportError(
             "Qualitative export requires data.val_split to be 'val'; "

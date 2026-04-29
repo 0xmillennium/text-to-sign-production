@@ -11,14 +11,20 @@ from zipfile import BadZipFile
 
 import numpy as np
 
-from .constants import OPENPOSE_CHANNEL_SPECS, PROCESSED_SCHEMA_VERSION, SPLITS
+from ..core import paths as core_paths
+from ..core.files import require_file
+from ..core.paths import ProjectLayout, resolve_manifest_path
+from .constants import (
+    OPENPOSE_CHANNEL_SPECS,
+    PROCESSED_SCHEMA_VERSION,
+    SPLITS,
+)
 from .schemas import (
     NormalizedManifestEntry,
     ProcessedManifestEntry,
     RawManifestEntry,
     ValidationIssue,
 )
-from .utils import resolve_repo_path
 
 RAW_REQUIRED_FIELDS = frozenset(
     {
@@ -58,12 +64,29 @@ PROCESSED_SAMPLE_REQUIRED_KEYS = frozenset(
 )
 
 
-def _processed_samples_root() -> Path:
-    return resolve_repo_path("data/processed/v1/samples").resolve()
+def _processed_samples_root(
+    data_root: Path | str | None = None,
+    processed_samples_root: Path | str | None = None,
+) -> Path:
+    if processed_samples_root is not None:
+        return Path(processed_samples_root).expanduser().resolve()
+    if data_root is None:
+        return ProjectLayout(core_paths.DEFAULT_REPO_ROOT).processed_v1_samples_root
+    resolved_data_root = Path(data_root).expanduser().resolve()
+    if resolved_data_root.name != "data":
+        raise ValueError(
+            f"data_root must point at the project data directory: {resolved_data_root}"
+        )
+    return ProjectLayout(resolved_data_root.parent).processed_v1_samples_root
 
 
-def resolve_processed_sample_path(path: Path | str) -> Path:
-    """Resolve and validate a processed sample path stored in a manifest."""
+def resolve_processed_sample_path(
+    path: Path | str,
+    *,
+    data_root: Path | str | None = None,
+    processed_samples_root: Path | str | None = None,
+) -> Path:
+    """Resolve and validate the shape of a processed sample path stored in a manifest."""
 
     raw_value = str(path)
     normalized_value = raw_value.strip()
@@ -76,14 +99,22 @@ def resolve_processed_sample_path(path: Path | str) -> Path:
     if candidate.suffix != ".npz":
         raise ValueError(f"Processed sample_path must end with .npz: {normalized_value}")
 
-    processed_samples_root = _processed_samples_root()
-    resolved = resolve_repo_path(candidate)
-    if not resolved.is_relative_to(processed_samples_root):
-        raise ValueError(
-            f"Processed sample_path must stay under data/processed/v1/samples: {normalized_value}"
-        )
+    resolved_processed_samples_root = _processed_samples_root(
+        data_root,
+        processed_samples_root,
+    )
+    effective_data_root = data_root
+    if effective_data_root is None and processed_samples_root is not None:
+        effective_data_root = resolved_processed_samples_root.parents[2]
+    resolved = resolve_manifest_path(
+        candidate,
+        data_root=effective_data_root,
+        allowed_root=resolved_processed_samples_root,
+        allow_absolute=False,
+        allow_repo_prefix=True,
+    )
 
-    relative_path = resolved.relative_to(processed_samples_root)
+    relative_path = resolved.relative_to(resolved_processed_samples_root)
     if len(relative_path.parts) != 2:
         raise ValueError(
             "Processed sample_path must follow "
@@ -91,8 +122,6 @@ def resolve_processed_sample_path(path: Path | str) -> Path:
             f"{normalized_value}"
         )
 
-    if resolved.exists() and not resolved.is_file():
-        raise ValueError(f"Processed sample_path must resolve to a file: {normalized_value}")
     return resolved
 
 
@@ -101,11 +130,21 @@ def validate_processed_sample_path(
     *,
     split: str,
     sample_id: str,
+    data_root: Path | str | None = None,
+    processed_samples_root: Path | str | None = None,
 ) -> Path:
-    """Resolve and validate a processed sample path against its manifest identity."""
+    """Resolve and validate sample path schema against its manifest identity."""
 
-    resolved = resolve_processed_sample_path(path)
-    relative_path = resolved.relative_to(_processed_samples_root())
+    resolved_processed_samples_root = _processed_samples_root(
+        data_root,
+        processed_samples_root,
+    )
+    resolved = resolve_processed_sample_path(
+        path,
+        data_root=data_root,
+        processed_samples_root=resolved_processed_samples_root,
+    )
+    relative_path = resolved.relative_to(resolved_processed_samples_root)
     relative_split, filename = relative_path.parts
 
     if relative_split != split:
@@ -307,7 +346,12 @@ def _iter_validation_records(
             yield payload, None
 
 
-def validate_manifest(path: Path, kind: str) -> list[ValidationIssue]:
+def validate_manifest(
+    path: Path,
+    kind: str,
+    *,
+    data_root: Path | str | None = None,
+) -> list[ValidationIssue]:
     """Validate a manifest and return structural errors plus auditable warnings."""
 
     issues: list[ValidationIssue] = []
@@ -327,7 +371,7 @@ def validate_manifest(path: Path, kind: str) -> list[ValidationIssue]:
         issues.extend(validate_normalized_records(path, _records()))
         return issues
     if kind == "processed":
-        issues.extend(validate_processed_records(path, _records()))
+        issues.extend(validate_processed_records(path, _records(), data_root=data_root))
         return issues
     raise ValueError(f"Unsupported manifest kind: {kind}")
 
@@ -498,7 +542,10 @@ def validate_normalized_records(
 
 
 def validate_processed_records(
-    path: Path, records: Iterable[dict[str, Any]]
+    path: Path,
+    records: Iterable[dict[str, Any]],
+    *,
+    data_root: Path | str | None = None,
 ) -> list[ValidationIssue]:
     """Validate final processed manifests."""
 
@@ -600,6 +647,7 @@ def validate_processed_records(
                 sample_path_value,
                 split=entry.split,
                 sample_id=entry.sample_id,
+                data_root=data_root,
             )
         except ValueError as exc:
             issues.append(
@@ -613,12 +661,14 @@ def validate_processed_records(
                 )
             )
             continue
-        if not sample_path.exists():
+        try:
+            sample_path = require_file(sample_path, label="Processed sample file")
+        except (FileNotFoundError, IsADirectoryError, ValueError) as exc:
             issues.append(
                 ValidationIssue(
                     severity="error",
                     code="missing_sample_file",
-                    message=f"Processed sample file does not exist: {entry.sample_path}",
+                    message=str(exc),
                     sample_id=entry.sample_id,
                     split=entry.split,
                     path=sample_path.as_posix(),

@@ -8,7 +8,7 @@ from typing import Any, cast
 
 import yaml
 
-from text_to_sign_production.data.utils import resolve_repo_path
+from text_to_sign_production.core.paths import resolve_repo_path
 from text_to_sign_production.modeling.config import DEFAULT_BASELINE_CONFIG_PATH
 
 SUPPORTED_OPTIMIZERS = frozenset({"adamw"})
@@ -97,10 +97,11 @@ def load_baseline_training_config(
     *,
     validate_paths: bool = True,
     checkpoint_output_dir: Path | str | None = None,
+    repo_root: Path | str | None = None,
 ) -> BaselineTrainingConfig:
     """Load, validate, and resolve a Sprint 3 baseline training config."""
 
-    config_path = Path(path)
+    config_path = resolve_repo_path(path, repo_root=repo_root)
     try:
         loaded = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     except OSError as exc:
@@ -120,16 +121,16 @@ def load_baseline_training_config(
     optimizer_section = _required_mapping(raw_config, "optimizer")
     checkpoint_section = _required_mapping(raw_config, "checkpoint")
 
-    train_manifest = _required_path(data_section, "data.train_manifest")
-    val_manifest = _required_path(data_section, "data.val_manifest")
+    train_manifest = _required_path(data_section, "data.train_manifest", repo_root=repo_root)
+    val_manifest = _required_path(data_section, "data.val_manifest", repo_root=repo_root)
     if validate_paths:
         _require_existing_file(train_manifest, "data.train_manifest")
         _require_existing_file(val_manifest, "data.val_manifest")
 
     checkpoint_dir = (
-        resolve_repo_path(checkpoint_output_dir)
+        resolve_repo_path(checkpoint_output_dir, repo_root=repo_root)
         if checkpoint_output_dir is not None
-        else _required_path(checkpoint_section, "checkpoint.output_dir")
+        else _required_path(checkpoint_section, "checkpoint.output_dir", repo_root=repo_root)
     )
 
     optimizer_name = _required_str(optimizer_section, "optimizer.name").lower()
@@ -338,8 +339,13 @@ def _required_non_negative_float(config: dict[str, Any], field_path: str) -> flo
     return resolved
 
 
-def _required_path(config: dict[str, Any], field_path: str) -> Path:
-    return resolve_repo_path(_required_str(config, field_path))
+def _required_path(
+    config: dict[str, Any],
+    field_path: str,
+    *,
+    repo_root: Path | str | None = None,
+) -> Path:
+    return resolve_repo_path(_required_str(config, field_path), repo_root=repo_root)
 
 
 def _require_existing_file(path: Path, field_path: str) -> None:

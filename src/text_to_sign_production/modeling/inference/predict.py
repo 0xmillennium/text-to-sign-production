@@ -10,7 +10,7 @@ from typing import Any, cast
 import torch
 from torch import nn
 
-from text_to_sign_production.data.utils import resolve_repo_path
+from text_to_sign_production.core.paths import resolve_repo_path
 from text_to_sign_production.modeling.data import SPRINT3_TARGET_CHANNELS, ProcessedPoseBatch
 from text_to_sign_production.modeling.models import BaselinePoseOutput
 from text_to_sign_production.modeling.training.checkpointing import load_training_checkpoint

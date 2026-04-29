@@ -3,13 +3,27 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from pathlib import Path
 from typing import Any, TypeVar
 
-from .constants import PROCESSED_REPORTS_ROOT, SPLITS
+from ..core import paths as core_paths
+from ..core.paths import ProjectLayout
+from .constants import SPLITS
 from .schemas import ProcessedManifestEntry, RawManifestEntry
 from .utils import summarize_numbers
 
 T = TypeVar("T")
+
+
+def _resolve_reports_root(data_root: Path | str | None = None) -> Path:
+    if data_root is None:
+        return ProjectLayout(core_paths.DEFAULT_REPO_ROOT).processed_v1_reports_root
+    resolved_data_root = Path(data_root).expanduser().resolve()
+    if resolved_data_root.name != "data":
+        raise ValueError(
+            f"data_root must point at the project data directory: {resolved_data_root}"
+        )
+    return ProjectLayout(resolved_data_root.parent).processed_v1_reports_root
 
 
 def _records_for_split(
@@ -203,9 +217,16 @@ def write_markdown_reports(
     split_report: Mapping[str, Any],
     *,
     splits: tuple[str, ...] = SPLITS,
+    processed_reports_root: Path | str | None = None,
+    data_root: Path | str | None = None,
 ) -> None:
     """Write human-readable Markdown reports under the processed reports root."""
 
+    resolved_processed_reports_root = (
+        _resolve_reports_root(data_root)
+        if processed_reports_root is None
+        else Path(processed_reports_root)
+    )
     assumption_lines = [
         "# Assumption Report",
         "",
@@ -231,7 +252,7 @@ def write_markdown_reports(
                 "",
             ]
         )
-    (PROCESSED_REPORTS_ROOT / "assumption-report.md").write_text(
+    (resolved_processed_reports_root / "assumption-report.md").write_text(
         "\n".join(assumption_lines), encoding="utf-8"
     )
 
@@ -266,7 +287,7 @@ def write_markdown_reports(
                 "",
             ]
         )
-    (PROCESSED_REPORTS_ROOT / "data-quality-report.md").write_text(
+    (resolved_processed_reports_root / "data-quality-report.md").write_text(
         "\n".join(quality_lines), encoding="utf-8"
     )
 
@@ -296,6 +317,6 @@ def write_markdown_reports(
                 "",
             ]
         )
-    (PROCESSED_REPORTS_ROOT / "split-report.md").write_text(
+    (resolved_processed_reports_root / "split-report.md").write_text(
         "\n".join(split_lines), encoding="utf-8"
     )

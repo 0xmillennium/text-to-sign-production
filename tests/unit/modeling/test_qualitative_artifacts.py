@@ -87,9 +87,9 @@ def test_write_baseline_evidence_bundle_ties_runtime_outputs_to_run_summary(
     run_summary_path.write_text(
         json.dumps(
             {
-                "checkpoint_output_path": "outputs/modeling/baseline",
-                "last_checkpoint_path": "outputs/modeling/baseline/last.pt",
-                "best_checkpoint_path": "outputs/modeling/baseline/best.pt",
+                "checkpoint_output_path": "data/artifacts/base/baseline/checkpoints",
+                "last_checkpoint_path": "data/artifacts/base/baseline/checkpoints/last.pt",
+                "best_checkpoint_path": "data/artifacts/base/baseline/checkpoints/best.pt",
             }
         ),
         encoding="utf-8",
@@ -146,7 +146,7 @@ def test_export_qualitative_panel_writes_panel_artifacts_with_dummy_model(
         val_sample_ids=("sample-z", "sample-a"),
     )
     config_path = workspace.config_path
-    checkpoint_dir = tmp_path / "outputs/modeling/baseline-test"
+    checkpoint_dir = tmp_path / "data/artifacts/base/baseline-test/checkpoints"
     checkpoint_dir.mkdir(parents=True)
     run_summary_path = checkpoint_dir / "run_summary.json"
     run_summary_path.write_text(
@@ -202,13 +202,19 @@ def test_export_qualitative_panel_writes_panel_artifacts_with_dummy_model(
     summary = json.loads(result.panel_summary_path.read_text(encoding="utf-8"))
     assert summary["panel_definition_path"] == "exports/panel_definition.json"
     assert summary["records_path"] == "exports/records.jsonl"
-    assert summary["checkpoint_path"] == "outputs/modeling/baseline-test/best.pt"
+    assert summary["checkpoint_path"] == "data/artifacts/base/baseline-test/checkpoints/best.pt"
     assert summary["sample_count"] == 1
     assert summary["sample_ids"] == ["sample-a"]
     evidence = json.loads(result.evidence_bundle_path.read_text(encoding="utf-8"))
     assert evidence["config_path"] == "baseline.yaml"
-    assert evidence["run_summary_path"] == "outputs/modeling/baseline-test/run_summary.json"
-    assert evidence["export_checkpoint"]["path"] == "outputs/modeling/baseline-test/best.pt"
+    assert (
+        evidence["run_summary_path"]
+        == "data/artifacts/base/baseline-test/checkpoints/run_summary.json"
+    )
+    assert (
+        evidence["export_checkpoint"]["path"]
+        == "data/artifacts/base/baseline-test/checkpoints/best.pt"
+    )
     assert evidence["qualitative_panel"]["panel_definition_path"] == "exports/panel_definition.json"
     assert evidence["qualitative_panel"]["panel_summary_path"] == "exports/panel_summary.json"
     assert evidence["qualitative_panel"]["records_path"] == "exports/records.jsonl"

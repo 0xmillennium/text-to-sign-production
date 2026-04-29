@@ -163,7 +163,9 @@ def test_run_baseline_training_writes_runtime_provenance_summary(
     assert summary["config"]["backbone"]["name"] == "dummy"
     assert summary["backbone_name"] == "dummy"
     assert summary["seed"] == 5
-    assert summary["checkpoint_output_path"].endswith("outputs/modeling/baseline-test")
+    assert summary["checkpoint_output_path"].endswith(
+        "data/artifacts/base/baseline-test/checkpoints"
+    )
     assert summary["last_checkpoint_path"].endswith("last.pt")
     assert summary["best_checkpoint_path"].endswith("best.pt")
     assert isinstance(summary["final_train_loss"], float)

@@ -28,30 +28,28 @@ def test_smoke_check_returns_expected_sentinel() -> None:
 
 
 def test_repo_root_respects_env_override(tmp_path: Path, monkeypatch: Any) -> None:
-    import text_to_sign_production.data.constants as constants_mod
-    import text_to_sign_production.data.utils as utils_mod
+    import text_to_sign_production.core.paths as paths_mod
 
     original_repo_root = os.environ.get("T2SP_REPO_ROOT")
     monkeypatch.setenv("T2SP_REPO_ROOT", str(tmp_path))
-    reload(constants_mod)
-    reload(utils_mod)
+    reload(paths_mod)
     try:
-        assert constants_mod.REPO_ROOT == tmp_path.resolve()
-        assert utils_mod.resolve_repo_path("data/example.txt") == tmp_path / "data/example.txt"
-        assert utils_mod.repo_relative_path(tmp_path / "data/example.txt") == "data/example.txt"
+        assert paths_mod.DEFAULT_REPO_ROOT == tmp_path.resolve()
+        assert paths_mod.ProjectLayout(tmp_path).how2sign_root == tmp_path / "data/raw/how2sign"
+        assert paths_mod.resolve_repo_path("data/example.txt") == tmp_path / "data/example.txt"
+        assert paths_mod.repo_relative_path(tmp_path / "data/example.txt") == "data/example.txt"
     finally:
         if original_repo_root is None:
             monkeypatch.delenv("T2SP_REPO_ROOT", raising=False)
         else:
             monkeypatch.setenv("T2SP_REPO_ROOT", original_repo_root)
-        reload(constants_mod)
-        reload(utils_mod)
+        reload(paths_mod)
 
 
 def test_resolve_repo_path_rejects_relative_escape(tmp_path: Path, monkeypatch: Any) -> None:
-    import text_to_sign_production.data.utils as utils_mod
+    import text_to_sign_production.core.paths as paths_mod
 
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", tmp_path.resolve())
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", tmp_path.resolve())
 
-    with pytest.raises(ValueError, match="escapes repo root"):
-        utils_mod.resolve_repo_path("../../outside.txt")
+    with pytest.raises(ValueError, match="must stay under"):
+        paths_mod.resolve_repo_path("../../outside.txt")

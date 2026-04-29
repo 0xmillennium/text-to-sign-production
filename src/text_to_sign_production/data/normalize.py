@@ -3,24 +3,46 @@
 from __future__ import annotations
 
 from collections import Counter
+from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
 
-from ..ops.progress import iter_with_progress
+from ..core import paths as core_paths
+from ..core.paths import (
+    ProjectLayout,
+    data_root_relative_path,
+    repo_relative_path,
+    resolve_manifest_path,
+)
+from ..core.progress import iter_with_progress
 from .constants import (
     CORE_CHANNELS,
-    NORMALIZED_MANIFESTS_ROOT,
     OPENPOSE_CHANNEL_SPECS,
-    PROCESSED_SAMPLES_ROOT,
     PROCESSED_SCHEMA_VERSION,
-    RAW_MANIFESTS_ROOT,
     SPLITS,
 )
 from .jsonl import count_jsonl_records, iter_jsonl, write_jsonl
 from .openpose import parse_frame
 from .schemas import NormalizedManifestEntry, RawManifestEntry
-from .utils import ensure_directory, remove_stale_split_files, repo_relative_path, resolve_repo_path
+from .utils import ensure_directory, remove_stale_split_files
+
+
+def _manifest_data_path(path: Path, *, data_root: Path | str | None = None) -> str:
+    if data_root is None:
+        return repo_relative_path(path)
+    return (Path("data") / data_root_relative_path(path, data_root=data_root)).as_posix()
+
+
+def _layout_from_data_root(data_root: Path | str | None = None) -> ProjectLayout:
+    if data_root is None:
+        return ProjectLayout(core_paths.DEFAULT_REPO_ROOT)
+    resolved_data_root = Path(data_root).expanduser().resolve()
+    if resolved_data_root.name != "data":
+        raise ValueError(
+            f"data_root must point at the project data directory: {resolved_data_root}"
+        )
+    return ProjectLayout(resolved_data_root.parent)
 
 
 def _empty_channel_tensor(
@@ -34,45 +56,105 @@ def _empty_channel_tensor(
     )
 
 
-def normalize_split(split: str) -> list[NormalizedManifestEntry]:
+def normalize_split(
+    split: str,
+    *,
+    raw_manifest_path: Path | str | None = None,
+    normalized_manifest_path: Path | str | None = None,
+    processed_samples_split_root: Path | str | None = None,
+    data_root: Path | str | None = None,
+) -> list[NormalizedManifestEntry]:
     """Normalize all raw-manifest rows for one split."""
 
-    raw_manifest_path = RAW_MANIFESTS_ROOT / f"raw_{split}.jsonl"
-    if not raw_manifest_path.exists():
-        raise FileNotFoundError(f"Raw manifest not found: {raw_manifest_path}")
+    layout = _layout_from_data_root(data_root)
+    resolved_raw_manifest_path = (
+        layout.raw_manifests_root / f"raw_{split}.jsonl"
+        if raw_manifest_path is None
+        else Path(raw_manifest_path)
+    )
+    resolved_normalized_manifest_path = (
+        layout.normalized_manifests_root / f"normalized_{split}.jsonl"
+        if normalized_manifest_path is None
+        else Path(normalized_manifest_path)
+    )
+    resolved_processed_samples_split_root = (
+        layout.processed_samples_split_root(split)
+        if processed_samples_split_root is None
+        else Path(processed_samples_split_root)
+    )
 
-    ensure_directory(NORMALIZED_MANIFESTS_ROOT)
-    ensure_directory(PROCESSED_SAMPLES_ROOT / split)
+    ensure_directory(resolved_normalized_manifest_path.parent)
+    ensure_directory(resolved_processed_samples_split_root)
 
-    total_records = count_jsonl_records(raw_manifest_path)
+    total_records = count_jsonl_records(resolved_raw_manifest_path)
     normalized_entries: list[NormalizedManifestEntry] = []
     for record in iter_with_progress(
-        iter_jsonl(raw_manifest_path),
+        iter_jsonl(resolved_raw_manifest_path),
         total=total_records,
         desc=f"Normalize {split}",
         unit="samples",
     ):
         raw_entry = RawManifestEntry.from_record(record)
-        normalized_entries.append(normalize_sample(raw_entry))
+        normalized_entries.append(
+            normalize_sample(
+                raw_entry,
+                processed_samples_split_root=resolved_processed_samples_split_root,
+                data_root=data_root,
+            )
+        )
 
-    write_jsonl(NORMALIZED_MANIFESTS_ROOT / f"normalized_{split}.jsonl", normalized_entries)
+    write_jsonl(resolved_normalized_manifest_path, normalized_entries)
     return normalized_entries
 
 
-def normalize_all_splits(*, splits: tuple[str, ...] = SPLITS) -> None:
+def normalize_all_splits(
+    *,
+    splits: tuple[str, ...] = SPLITS,
+    raw_manifests_root: Path | str | None = None,
+    normalized_manifests_root: Path | str | None = None,
+    processed_samples_root: Path | str | None = None,
+    data_root: Path | str | None = None,
+) -> None:
     """Normalize every official split."""
 
+    layout = _layout_from_data_root(data_root)
+    resolved_raw_manifests_root = (
+        layout.raw_manifests_root if raw_manifests_root is None else Path(raw_manifests_root)
+    )
+    resolved_normalized_manifests_root = (
+        layout.normalized_manifests_root
+        if normalized_manifests_root is None
+        else Path(normalized_manifests_root)
+    )
+    resolved_processed_samples_root = (
+        layout.processed_v1_samples_root
+        if processed_samples_root is None
+        else Path(processed_samples_root)
+    )
     for split in splits:
-        normalize_split(split)
+        normalize_split(
+            split,
+            raw_manifest_path=resolved_raw_manifests_root / f"raw_{split}.jsonl",
+            normalized_manifest_path=(
+                resolved_normalized_manifests_root / f"normalized_{split}.jsonl"
+            ),
+            processed_samples_split_root=resolved_processed_samples_root / split,
+            data_root=data_root,
+        )
     remove_stale_split_files(
-        NORMALIZED_MANIFESTS_ROOT,
+        resolved_normalized_manifests_root,
         filename_template="normalized_{split}.jsonl",
         requested_splits=splits,
         all_splits=SPLITS,
     )
 
 
-def normalize_sample(raw_entry: RawManifestEntry) -> NormalizedManifestEntry:
+def normalize_sample(
+    raw_entry: RawManifestEntry,
+    *,
+    processed_samples_split_root: Path | str | None = None,
+    data_root: Path | str | None = None,
+) -> NormalizedManifestEntry:
     """Normalize one raw sample and export a compressed `.npz` when possible."""
 
     if raw_entry.keypoints_dir is None:
@@ -108,7 +190,7 @@ def normalize_sample(raw_entry: RawManifestEntry) -> NormalizedManifestEntry:
             sample_parse_error=None,
         )
 
-    keypoints_dir = resolve_repo_path(raw_entry.keypoints_dir)
+    keypoints_dir = resolve_manifest_path(raw_entry.keypoints_dir, data_root=data_root)
     frame_paths = sorted(keypoints_dir.glob("*.json"))
     if not frame_paths:
         return NormalizedManifestEntry(
@@ -216,9 +298,13 @@ def normalize_sample(raw_entry: RawManifestEntry) -> NormalizedManifestEntry:
         channel: int(np.count_nonzero(np.any(confidence_tensors[channel] > 0.0, axis=1)))
         for channel in CORE_CHANNELS
     }
+    layout = _layout_from_data_root(data_root)
     sample_output_path = (
-        PROCESSED_SAMPLES_ROOT / raw_entry.source_split / f"{raw_entry.sample_id}.npz"
-    )
+        layout.processed_samples_split_root(raw_entry.source_split)
+        if processed_samples_split_root is None
+        else Path(processed_samples_split_root)
+    ) / f"{raw_entry.sample_id}.npz"
+    ensure_directory(sample_output_path.parent)
     np.savez_compressed(
         sample_output_path,
         processed_schema_version=np.asarray(PROCESSED_SCHEMA_VERSION),
@@ -244,7 +330,7 @@ def normalize_sample(raw_entry: RawManifestEntry) -> NormalizedManifestEntry:
         start_time=raw_entry.start_time,
         end_time=raw_entry.end_time,
         num_frames=num_frames,
-        sample_path=repo_relative_path(sample_output_path),
+        sample_path=_manifest_data_path(sample_output_path, data_root=data_root),
         source_video_id=raw_entry.video_id,
         source_sentence_id=raw_entry.sentence_id,
         source_sentence_name=raw_entry.sentence_name,

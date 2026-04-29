@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
-from ..ops.progress import iter_with_progress
+from ..core import paths as core_paths
+from ..core.paths import ProjectLayout
+from ..core.progress import iter_with_progress
 from .constants import (
-    FILTERED_MANIFESTS_ROOT,
-    PROCESSED_MANIFESTS_ROOT,
-    PROCESSED_REPORTS_ROOT,
-    RAW_MANIFESTS_ROOT,
     SPLITS,
 )
 from .jsonl import read_jsonl, write_jsonl
@@ -24,21 +23,47 @@ from .utils import (
 from .validate import validate_processed_sample_path
 
 
-def _load_raw_records(split: str) -> list[RawManifestEntry]:
+def _layout_from_data_root(data_root: Path | str | None = None) -> ProjectLayout:
+    if data_root is None:
+        return ProjectLayout(core_paths.DEFAULT_REPO_ROOT)
+    resolved_data_root = Path(data_root).expanduser().resolve()
+    if resolved_data_root.name != "data":
+        raise ValueError(
+            f"data_root must point at the project data directory: {resolved_data_root}"
+        )
+    return ProjectLayout(resolved_data_root.parent)
+
+
+def _load_raw_records(
+    split: str,
+    *,
+    raw_manifests_root: Path,
+    data_root: Path | str | None = None,
+) -> list[RawManifestEntry]:
     return [
         RawManifestEntry.from_record(record)
-        for record in read_jsonl(RAW_MANIFESTS_ROOT / f"raw_{split}.jsonl")
+        for record in read_jsonl(raw_manifests_root / f"raw_{split}.jsonl")
     ]
 
 
-def _load_filtered_records(split: str) -> list[NormalizedManifestEntry]:
+def _load_filtered_records(
+    split: str,
+    *,
+    filtered_manifests_root: Path,
+    data_root: Path | str | None = None,
+) -> list[NormalizedManifestEntry]:
     return [
         NormalizedManifestEntry.from_record(record)
-        for record in read_jsonl(FILTERED_MANIFESTS_ROOT / f"filtered_{split}.jsonl")
+        for record in read_jsonl(filtered_manifests_root / f"filtered_{split}.jsonl")
     ]
 
 
-def _build_processed_manifest_entry(entry: NormalizedManifestEntry) -> ProcessedManifestEntry:
+def _build_processed_manifest_entry(
+    entry: NormalizedManifestEntry,
+    *,
+    processed_samples_root: Path,
+    data_root: Path | str | None = None,
+) -> ProcessedManifestEntry:
     if entry.sample_path is None:
         raise ValueError(f"Filtered entry {entry.sample_id} is missing sample_path.")
     if entry.source_keypoints_dir is None:
@@ -47,6 +72,8 @@ def _build_processed_manifest_entry(entry: NormalizedManifestEntry) -> Processed
         entry.sample_path,
         split=entry.split,
         sample_id=entry.sample_id,
+        processed_samples_root=processed_samples_root,
+        data_root=data_root,
     )
 
     return ProcessedManifestEntry(
@@ -92,11 +119,15 @@ def _validate_report_splits(
         raise ValueError(f"{report_name} is missing requested splits: {missing_display}")
 
 
-def _remove_stale_manifest_files(requested_splits: tuple[str, ...]) -> None:
+def _remove_stale_manifest_files(
+    requested_splits: tuple[str, ...],
+    *,
+    processed_manifests_root: Path,
+) -> None:
     for split in SPLITS:
         if split in requested_splits:
             continue
-        manifest_path = PROCESSED_MANIFESTS_ROOT / f"{split}.jsonl"
+        manifest_path = processed_manifests_root / f"{split}.jsonl"
         if not manifest_path.exists():
             continue
         if not manifest_path.is_file():
@@ -109,11 +140,41 @@ def export_final_manifests(
     filter_report: Mapping[str, Any],
     *,
     splits: tuple[str, ...] = SPLITS,
+    raw_manifests_root: Path | str | None = None,
+    filtered_manifests_root: Path | str | None = None,
+    processed_manifests_root: Path | str | None = None,
+    processed_samples_root: Path | str | None = None,
+    processed_reports_root: Path | str | None = None,
+    data_root: Path | str | None = None,
 ) -> dict[str, Any]:
     """Build final processed manifests plus JSON and Markdown reports."""
 
-    ensure_directory(PROCESSED_MANIFESTS_ROOT)
-    ensure_directory(PROCESSED_REPORTS_ROOT)
+    layout = _layout_from_data_root(data_root)
+    resolved_raw_manifests_root = (
+        layout.raw_manifests_root if raw_manifests_root is None else Path(raw_manifests_root)
+    )
+    resolved_filtered_manifests_root = (
+        layout.filtered_manifests_root
+        if filtered_manifests_root is None
+        else Path(filtered_manifests_root)
+    )
+    resolved_processed_manifests_root = (
+        layout.processed_v1_manifests_root
+        if processed_manifests_root is None
+        else Path(processed_manifests_root)
+    )
+    resolved_processed_samples_root = (
+        layout.processed_v1_samples_root
+        if processed_samples_root is None
+        else Path(processed_samples_root)
+    )
+    resolved_processed_reports_root = (
+        layout.processed_v1_reports_root
+        if processed_reports_root is None
+        else Path(processed_reports_root)
+    )
+    ensure_directory(resolved_processed_manifests_root)
+    ensure_directory(resolved_processed_reports_root)
 
     requested_splits = tuple(splits)
     _validate_report_splits("assumption_report", assumption_report, requested_splits)
@@ -123,10 +184,22 @@ def export_final_manifests(
     final_records_by_split: dict[str, list[ProcessedManifestEntry]] = {}
     generated_at = utc_timestamp()
     for split in requested_splits:
-        raw_records_by_split[split] = _load_raw_records(split)
-        filtered_entries = _load_filtered_records(split)
+        raw_records_by_split[split] = _load_raw_records(
+            split,
+            raw_manifests_root=resolved_raw_manifests_root,
+            data_root=data_root,
+        )
+        filtered_entries = _load_filtered_records(
+            split,
+            filtered_manifests_root=resolved_filtered_manifests_root,
+            data_root=data_root,
+        )
         final_records_by_split[split] = [
-            _build_processed_manifest_entry(entry)
+            _build_processed_manifest_entry(
+                entry,
+                processed_samples_root=resolved_processed_samples_root,
+                data_root=data_root,
+            )
             for entry in iter_with_progress(
                 filtered_entries,
                 total=len(filtered_entries),
@@ -135,9 +208,12 @@ def export_final_manifests(
             )
         ]
 
-    _remove_stale_manifest_files(requested_splits)
+    _remove_stale_manifest_files(
+        requested_splits,
+        processed_manifests_root=resolved_processed_manifests_root,
+    )
     for split, final_records in final_records_by_split.items():
-        write_jsonl(PROCESSED_MANIFESTS_ROOT / f"{split}.jsonl", final_records)
+        write_jsonl(resolved_processed_manifests_root / f"{split}.jsonl", final_records)
 
     quality_report = build_quality_report(
         final_records_by_split=final_records_by_split,
@@ -152,13 +228,15 @@ def export_final_manifests(
         splits=requested_splits,
     )
 
-    write_json(PROCESSED_REPORTS_ROOT / "data-quality-report.json", quality_report)
-    write_json(PROCESSED_REPORTS_ROOT / "split-report.json", split_report)
+    write_json(resolved_processed_reports_root / "data-quality-report.json", quality_report)
+    write_json(resolved_processed_reports_root / "split-report.json", split_report)
     write_markdown_reports(
         assumption_report=assumption_report,
         quality_report=quality_report,
         split_report=split_report,
         splits=requested_splits,
+        processed_reports_root=resolved_processed_reports_root,
+        data_root=data_root,
     )
     return {
         "quality_report": quality_report,

@@ -15,6 +15,7 @@ from torch import nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
+from text_to_sign_production.core.progress import iter_with_progress
 from text_to_sign_production.modeling.backbones import FlanT5TextBackbone
 from text_to_sign_production.modeling.data import (
     SPRINT3_TARGET_CHANNELS,
@@ -23,7 +24,6 @@ from text_to_sign_production.modeling.data import (
     collate_processed_pose_samples,
 )
 from text_to_sign_production.modeling.models import BaselineTextToPoseModel
-from text_to_sign_production.ops.progress import iter_with_progress
 
 from .checkpointing import (
     RUN_SUMMARY_FILENAME,
@@ -211,12 +211,14 @@ def run_baseline_training(
     config_path: Path | str,
     *,
     checkpoint_output_dir: Path | str | None = None,
+    repo_root: Path | str | None = None,
 ) -> BaselineTrainingRunResult:
     """Run a config-driven Sprint 3 baseline train/val experiment."""
 
     config = load_baseline_training_config(
         config_path,
         checkpoint_output_dir=checkpoint_output_dir,
+        repo_root=repo_root,
     )
     set_reproducibility_seed(config.training.seed)
     device = resolve_training_device(config.training.device)

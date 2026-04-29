@@ -8,8 +8,8 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
+from text_to_sign_production.core.progress import iter_with_progress
 from text_to_sign_production.modeling.data import ProcessedPoseBatch
-from text_to_sign_production.ops.progress import iter_with_progress
 
 from .losses import masked_pose_mse_loss
 from .masking import build_effective_frame_mask

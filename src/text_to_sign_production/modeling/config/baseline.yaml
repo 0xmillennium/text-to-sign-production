@@ -32,4 +32,4 @@ optimizer:
   weight_decay: 0.0
 
 checkpoint:
-  output_dir: outputs/modeling/baseline
+  output_dir: data/artifacts/base/base_run/checkpoints

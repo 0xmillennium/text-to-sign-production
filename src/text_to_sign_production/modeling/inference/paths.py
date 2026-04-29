@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from text_to_sign_production.data.utils import repo_relative_path
+from text_to_sign_production.core.paths import repo_relative_path
 
 
 def portable_path(path: Path) -> str:

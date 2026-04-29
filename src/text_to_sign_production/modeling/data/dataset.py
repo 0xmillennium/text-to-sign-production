@@ -46,6 +46,7 @@ def _processed_manifest_record_from_entry(
     *,
     manifest_path: Path,
     expected_split: str | None,
+    data_root: Path,
 ) -> ProcessedModelingManifestRecord:
     sample_id = entry.sample_id.strip()
     if not sample_id:
@@ -79,6 +80,7 @@ def _processed_manifest_record_from_entry(
             entry.sample_path,
             split=entry.split,
             sample_id=sample_id,
+            data_root=data_root,
         )
     except ValueError as exc:
         raise ProcessedModelingDataError(
@@ -145,12 +147,18 @@ def read_processed_modeling_manifest(
     manifest_path: Path | str,
     *,
     split: str | None = None,
+    data_root: Path | str | None = None,
 ) -> list[ProcessedModelingManifestRecord]:
     """Read and validate a processed manifest for Sprint 3 modeling use."""
 
     path = Path(manifest_path)
     if split is not None:
         _validate_split(split, context="Requested modeling manifest split")
+    resolved_data_root = (
+        _infer_data_root_from_manifest(path)
+        if data_root is None
+        else Path(data_root).expanduser().resolve()
+    )
 
     records: list[ProcessedModelingManifestRecord] = []
     seen_sample_ids: set[str] = set()
@@ -164,6 +172,7 @@ def read_processed_modeling_manifest(
             entry,
             manifest_path=path,
             expected_split=split,
+            data_root=resolved_data_root,
         )
         if manifest_record.sample_id in seen_sample_ids:
             raise ProcessedModelingDataError(
@@ -173,6 +182,16 @@ def read_processed_modeling_manifest(
         records.append(manifest_record)
 
     return records
+
+
+def _infer_data_root_from_manifest(path: Path) -> Path:
+    resolved = path.expanduser().resolve()
+    for parent in resolved.parents:
+        if parent.name == "data":
+            return parent
+    raise ProcessedModelingDataError(
+        f"Could not infer project data root from processed manifest path: {path}"
+    )
 
 
 def _sample_array(
@@ -304,12 +323,19 @@ def load_processed_pose_sample(
 class ProcessedPoseDataset:
     """Dataset over processed manifest records and their processed `.npz` payloads."""
 
-    def __init__(self, manifest_path: Path | str, *, split: str | None = None) -> None:
+    def __init__(
+        self,
+        manifest_path: Path | str,
+        *,
+        split: str | None = None,
+        data_root: Path | str | None = None,
+    ) -> None:
         self.manifest_path = Path(manifest_path)
         self.records = tuple(
             read_processed_modeling_manifest(
                 self.manifest_path,
                 split=split,
+                data_root=data_root,
             )
         )
 

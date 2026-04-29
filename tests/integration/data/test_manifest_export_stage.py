@@ -30,12 +30,14 @@ def test_export_final_manifests_supports_subset_splits(
     monkeypatch.setattr(
         manifests_mod,
         "_load_raw_records",
-        lambda split: [raw_manifest_entry(split=split)] if split == "train" else [],
+        lambda split, **kwargs: [raw_manifest_entry(split=split)] if split == "train" else [],
     )
     monkeypatch.setattr(
         manifests_mod,
         "_load_filtered_records",
-        lambda split: [normalized_manifest_entry(split=split)] if split == "train" else [],
+        lambda split, **kwargs: (
+            [normalized_manifest_entry(split=split)] if split == "train" else []
+        ),
     )
 
     result = manifests_mod.export_final_manifests(
