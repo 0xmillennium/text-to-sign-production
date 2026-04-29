@@ -1,4 +1,4 @@
-"""Processed-dataset modeling input contracts for Sprint 3 baseline modeling."""
+"""Processed-v1 full-BFH modeling input contracts for the M0 baseline."""
 
 from .collate import collate_processed_pose_samples
 from .dataset import (
@@ -8,8 +8,14 @@ from .dataset import (
     read_processed_modeling_manifest,
 )
 from .schemas import (
-    SPRINT3_TARGET_CHANNEL_SHAPES,
-    SPRINT3_TARGET_CHANNELS,
+    M0_CHANNEL_POLICY,
+    M0_CONFIDENCE_CHANNELS,
+    M0_TARGET_CHANNEL_SHAPES,
+    M0_TARGET_CHANNELS,
+    ConfidenceArray,
+    IntegerArray,
+    MaskArray,
+    PoseArray,
     ProcessedModelingManifestRecord,
     ProcessedPoseBatch,
     ProcessedPoseItem,
@@ -23,8 +29,14 @@ __all__ = [
     "ProcessedPoseDataset",
     "ProcessedPoseItem",
     "ProcessedPoseSample",
-    "SPRINT3_TARGET_CHANNELS",
-    "SPRINT3_TARGET_CHANNEL_SHAPES",
+    "M0_CHANNEL_POLICY",
+    "M0_CONFIDENCE_CHANNELS",
+    "M0_TARGET_CHANNELS",
+    "M0_TARGET_CHANNEL_SHAPES",
+    "ConfidenceArray",
+    "IntegerArray",
+    "MaskArray",
+    "PoseArray",
     "collate_processed_pose_samples",
     "load_processed_pose_sample",
     "read_processed_modeling_manifest",

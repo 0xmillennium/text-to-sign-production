@@ -131,12 +131,29 @@ def assumption_report_for_splits(splits: tuple[str, ...]) -> dict[str, Any]:
         "generated_at": "2026-04-07T00:00:00+00:00",
         "splits": {
             split: {
+                "generated_at": "2026-04-07T00:00:00+00:00",
+                "raw_root": "data/raw/how2sign",
+                "translation_columns": [],
                 "translation_row_count": 1,
                 "matched_sample_count": 1,
                 "unmatched_sample_count": 0,
-                "video_metadata": {"readable_count": 1, "unreadable_count": 0},
+                "unmatched_examples": [],
+                "video_metadata": {
+                    "readable_count": 1,
+                    "unreadable_count": 0,
+                    "dimension_counts": {"1280x720": 1},
+                    "fps_counts": {"24.0": 1},
+                },
                 "first_frame_people_counter": {"1": 1},
-                "openpose_schema": {"deviation_counts": {}},
+                "openpose_schema": {
+                    "channel_lengths": {
+                        "face_keypoints_2d": {"210": 1},
+                        "hand_left_keypoints_2d": {"63": 1},
+                        "hand_right_keypoints_2d": {"63": 1},
+                        "pose_keypoints_2d": {"75": 1},
+                    },
+                    "deviation_counts": {},
+                },
             }
             for split in splits
         },

@@ -3,24 +3,30 @@
 from __future__ import annotations
 
 from collections import Counter
+from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
 
-from ..ops.progress import iter_with_progress
 from .constants import (
     CORE_CHANNELS,
-    NORMALIZED_MANIFESTS_ROOT,
     OPENPOSE_CHANNEL_SPECS,
-    PROCESSED_SAMPLES_ROOT,
     PROCESSED_SCHEMA_VERSION,
-    RAW_MANIFESTS_ROOT,
-    SPLITS,
 )
 from .jsonl import count_jsonl_records, iter_jsonl, write_jsonl
 from .openpose import parse_frame
 from .schemas import NormalizedManifestEntry, RawManifestEntry
-from .utils import ensure_directory, remove_stale_split_files, repo_relative_path, resolve_repo_path
+from .utils import (
+    ensure_directory,
+    iter_with_progress,
+    manifest_data_path,
+    resolve_data_root,
+    resolve_manifest_path,
+)
+
+
+def _manifest_data_path(path: Path, *, data_root: Path | str) -> str:
+    return manifest_data_path(path, data_root=data_root)
 
 
 def _empty_channel_tensor(
@@ -34,45 +40,77 @@ def _empty_channel_tensor(
     )
 
 
-def normalize_split(split: str) -> list[NormalizedManifestEntry]:
+def normalize_split(
+    split: str,
+    *,
+    raw_manifest_path: Path | str,
+    normalized_manifest_path: Path | str,
+    processed_samples_split_root: Path | str,
+    data_root: Path | str,
+) -> list[NormalizedManifestEntry]:
     """Normalize all raw-manifest rows for one split."""
 
-    raw_manifest_path = RAW_MANIFESTS_ROOT / f"raw_{split}.jsonl"
-    if not raw_manifest_path.exists():
-        raise FileNotFoundError(f"Raw manifest not found: {raw_manifest_path}")
+    resolve_data_root(data_root)
+    resolved_raw_manifest_path = Path(raw_manifest_path)
+    resolved_normalized_manifest_path = Path(normalized_manifest_path)
+    resolved_processed_samples_split_root = Path(processed_samples_split_root)
 
-    ensure_directory(NORMALIZED_MANIFESTS_ROOT)
-    ensure_directory(PROCESSED_SAMPLES_ROOT / split)
+    ensure_directory(resolved_normalized_manifest_path.parent)
+    ensure_directory(resolved_processed_samples_split_root)
 
-    total_records = count_jsonl_records(raw_manifest_path)
+    total_records = count_jsonl_records(resolved_raw_manifest_path)
     normalized_entries: list[NormalizedManifestEntry] = []
     for record in iter_with_progress(
-        iter_jsonl(raw_manifest_path),
+        iter_jsonl(resolved_raw_manifest_path),
         total=total_records,
         desc=f"Normalize {split}",
         unit="samples",
     ):
         raw_entry = RawManifestEntry.from_record(record)
-        normalized_entries.append(normalize_sample(raw_entry))
+        normalized_entries.append(
+            normalize_sample(
+                raw_entry,
+                processed_samples_split_root=resolved_processed_samples_split_root,
+                data_root=data_root,
+            )
+        )
 
-    write_jsonl(NORMALIZED_MANIFESTS_ROOT / f"normalized_{split}.jsonl", normalized_entries)
+    write_jsonl(resolved_normalized_manifest_path, normalized_entries)
     return normalized_entries
 
 
-def normalize_all_splits(*, splits: tuple[str, ...] = SPLITS) -> None:
+def normalize_all_splits(
+    *,
+    splits: tuple[str, ...],
+    raw_manifests_root: Path | str,
+    normalized_manifests_root: Path | str,
+    processed_samples_root: Path | str,
+    data_root: Path | str,
+) -> None:
     """Normalize every official split."""
 
+    resolve_data_root(data_root)
+    resolved_raw_manifests_root = Path(raw_manifests_root)
+    resolved_normalized_manifests_root = Path(normalized_manifests_root)
+    resolved_processed_samples_root = Path(processed_samples_root)
     for split in splits:
-        normalize_split(split)
-    remove_stale_split_files(
-        NORMALIZED_MANIFESTS_ROOT,
-        filename_template="normalized_{split}.jsonl",
-        requested_splits=splits,
-        all_splits=SPLITS,
-    )
+        normalize_split(
+            split,
+            raw_manifest_path=resolved_raw_manifests_root / f"raw_{split}.jsonl",
+            normalized_manifest_path=(
+                resolved_normalized_manifests_root / f"normalized_{split}.jsonl"
+            ),
+            processed_samples_split_root=resolved_processed_samples_root / split,
+            data_root=data_root,
+        )
 
 
-def normalize_sample(raw_entry: RawManifestEntry) -> NormalizedManifestEntry:
+def normalize_sample(
+    raw_entry: RawManifestEntry,
+    *,
+    processed_samples_split_root: Path | str,
+    data_root: Path | str,
+) -> NormalizedManifestEntry:
     """Normalize one raw sample and export a compressed `.npz` when possible."""
 
     if raw_entry.keypoints_dir is None:
@@ -108,7 +146,7 @@ def normalize_sample(raw_entry: RawManifestEntry) -> NormalizedManifestEntry:
             sample_parse_error=None,
         )
 
-    keypoints_dir = resolve_repo_path(raw_entry.keypoints_dir)
+    keypoints_dir = resolve_manifest_path(raw_entry.keypoints_dir, data_root=data_root)
     frame_paths = sorted(keypoints_dir.glob("*.json"))
     if not frame_paths:
         return NormalizedManifestEntry(
@@ -216,9 +254,9 @@ def normalize_sample(raw_entry: RawManifestEntry) -> NormalizedManifestEntry:
         channel: int(np.count_nonzero(np.any(confidence_tensors[channel] > 0.0, axis=1)))
         for channel in CORE_CHANNELS
     }
-    sample_output_path = (
-        PROCESSED_SAMPLES_ROOT / raw_entry.source_split / f"{raw_entry.sample_id}.npz"
-    )
+    resolve_data_root(data_root)
+    sample_output_path = Path(processed_samples_split_root) / f"{raw_entry.sample_id}.npz"
+    ensure_directory(sample_output_path.parent)
     np.savez_compressed(
         sample_output_path,
         processed_schema_version=np.asarray(PROCESSED_SCHEMA_VERSION),
@@ -244,7 +282,7 @@ def normalize_sample(raw_entry: RawManifestEntry) -> NormalizedManifestEntry:
         start_time=raw_entry.start_time,
         end_time=raw_entry.end_time,
         num_frames=num_frames,
-        sample_path=repo_relative_path(sample_output_path),
+        sample_path=_manifest_data_path(sample_output_path, data_root=data_root),
         source_video_id=raw_entry.video_id,
         source_sentence_id=raw_entry.sentence_id,
         source_sentence_name=raw_entry.sentence_name,

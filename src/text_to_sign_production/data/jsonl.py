@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
 
@@ -35,18 +36,33 @@ def count_jsonl_records(path: Path) -> int:
         return sum(1 for line in handle if line.strip())
 
 
-def iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
-    """Yield JSON objects from a JSONL file."""
+def iter_jsonl_with_line_numbers(path: Path) -> Iterator[tuple[int, dict[str, Any]]]:
+    """Yield JSON object records with their 1-based source line numbers."""
 
     with path.open("r", encoding="utf-8") as handle:
-        for line in handle:
+        for line_number, line in enumerate(handle, start=1):
             stripped = line.strip()
             if not stripped:
                 continue
-            payload = json.loads(stripped)
+            try:
+                payload = json.loads(stripped)
+            except JSONDecodeError as exc:
+                raise ValueError(
+                    f"JSONL record in {path} line {line_number} is not valid JSON: {exc.msg}"
+                ) from exc
             if not isinstance(payload, dict):
-                raise ValueError(f"Expected object record in {path}, got {type(payload).__name__}.")
-            yield payload
+                raise ValueError(
+                    f"Expected object record in {path} line {line_number}, "
+                    f"got {type(payload).__name__}."
+                )
+            yield line_number, payload
+
+
+def iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
+    """Yield JSON objects from a JSONL file."""
+
+    for _, payload in iter_jsonl_with_line_numbers(path):
+        yield payload
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:

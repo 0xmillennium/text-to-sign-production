@@ -1,4 +1,4 @@
-"""Text backbone interfaces and lazy Sprint 3 backbone exports."""
+"""Text backbone interfaces and lazy M0 backbone exports."""
 
 from __future__ import annotations
 

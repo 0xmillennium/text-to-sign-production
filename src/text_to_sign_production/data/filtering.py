@@ -9,24 +9,18 @@ from typing import Any
 
 import yaml
 
-from ..ops.progress import iter_with_progress
 from .constants import (
     CORE_CHANNELS,
-    FILTERED_MANIFESTS_ROOT,
-    INTERIM_REPORTS_ROOT,
     LEGACY_REQUIRED_CORE_CHANNELS,
-    NORMALIZED_MANIFESTS_ROOT,
-    SPLITS,
 )
 from .jsonl import count_jsonl_records, iter_jsonl, write_jsonl
 from .schemas import NormalizedManifestEntry
 from .utils import (
     ensure_directory,
-    remove_stale_split_files,
+    iter_with_progress,
     repo_relative_path,
-    resolve_repo_path,
+    resolve_data_root,
     utc_timestamp,
-    write_json,
 )
 
 FILTER_CONFIG_SCHEMA_VERSION = 2
@@ -250,19 +244,22 @@ def determine_drop_reasons(entry: NormalizedManifestEntry, config: FilterConfig)
 
 
 def filter_split(
-    split: str, config: FilterConfig
+    split: str,
+    config: FilterConfig,
+    *,
+    normalized_manifest_path: Path | str,
+    filtered_manifest_path: Path | str,
 ) -> tuple[list[NormalizedManifestEntry], dict[str, Any]]:
     """Filter one split-specific normalized manifest."""
 
-    input_path = NORMALIZED_MANIFESTS_ROOT / f"normalized_{split}.jsonl"
-    if not input_path.exists():
-        raise FileNotFoundError(f"Normalized manifest not found: {input_path}")
-
-    ensure_directory(FILTERED_MANIFESTS_ROOT)
+    input_path = Path(normalized_manifest_path)
+    output_path = Path(filtered_manifest_path)
+    ensure_directory(output_path.parent)
 
     kept_entries: list[NormalizedManifestEntry] = []
     drop_reason_counter: Counter[str] = Counter()
     dropped_examples: list[dict[str, Any]] = []
+    dropped_records: list[dict[str, Any]] = []
     total_entries = 0
     input_total = count_jsonl_records(input_path)
 
@@ -277,6 +274,13 @@ def filter_split(
         drop_reasons = determine_drop_reasons(entry, config)
         if drop_reasons:
             drop_reason_counter.update(drop_reasons)
+            dropped_records.append(
+                {
+                    **entry.to_record(),
+                    "drop_reasons": list(drop_reasons),
+                    "quality_tier": "dropped",
+                }
+            )
             if len(dropped_examples) < 20:
                 dropped_examples.append(
                     {"sample_id": entry.sample_id, "drop_reasons": drop_reasons}
@@ -284,7 +288,7 @@ def filter_split(
             continue
         kept_entries.append(entry)
 
-    write_jsonl(FILTERED_MANIFESTS_ROOT / f"filtered_{split}.jsonl", kept_entries)
+    write_jsonl(output_path, kept_entries)
     return kept_entries, {
         "split": split,
         "input_samples": total_entries,
@@ -294,34 +298,49 @@ def filter_split(
             key: drop_reason_counter[key] for key in sorted(drop_reason_counter)
         },
         "dropped_examples": dropped_examples,
+        "dropped_records": dropped_records,
     }
 
 
-def filter_all_splits(config_path: Path, *, splits: tuple[str, ...] = SPLITS) -> dict[str, Any]:
-    """Apply structural filtering to every official split."""
+def filter_all_splits(
+    config_path: Path,
+    *,
+    splits: tuple[str, ...],
+    normalized_manifests_root: Path | str,
+    filtered_manifests_root: Path | str,
+    data_root: Path | str,
+) -> dict[str, Any]:
+    """Apply structural filtering to every official split and return filter facts."""
 
     config = load_filter_config(config_path)
-    ensure_directory(INTERIM_REPORTS_ROOT)
-    resolved_config_path = resolve_repo_path(config_path)
+    resolved_data_root = resolve_data_root(data_root)
+    resolved_normalized_manifests_root = Path(normalized_manifests_root)
+    resolved_filtered_manifests_root = Path(filtered_manifests_root)
+    resolved_config_path = Path(config_path).expanduser().resolve()
     try:
-        report_config_path = repo_relative_path(resolved_config_path)
+        report_config_path = repo_relative_path(resolved_config_path, data_root=resolved_data_root)
     except ValueError:
         report_config_path = config_path.name
 
+    generated_at = utc_timestamp()
     report: dict[str, Any] = {
-        "generated_at": utc_timestamp(),
+        "generated_at": generated_at,
         "config_path": report_config_path,
         "splits": {},
     }
     for split in splits:
-        _, split_report = filter_split(split, config)
-        report["splits"][split] = split_report
-    remove_stale_split_files(
-        FILTERED_MANIFESTS_ROOT,
-        filename_template="filtered_{split}.jsonl",
-        requested_splits=splits,
-        all_splits=SPLITS,
-    )
+        _, split_report = filter_split(
+            split,
+            config,
+            normalized_manifest_path=(
+                resolved_normalized_manifests_root / f"normalized_{split}.jsonl"
+            ),
+            filtered_manifest_path=resolved_filtered_manifests_root / f"filtered_{split}.jsonl",
+        )
+        report["splits"][split] = {
+            "generated_at": generated_at,
+            "config_path": report_config_path,
+            **split_report,
+        }
 
-    write_json(INTERIM_REPORTS_ROOT / "filter-report.json", report)
     return report

@@ -1,10 +1,10 @@
-"""Qualitative validation-panel export for Sprint 3 baseline runs."""
+"""Qualitative validation-panel export for M0 baseline runs."""
 
 from __future__ import annotations
 
 import json
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -12,11 +12,9 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 import numpy.typing as npt
 
-from text_to_sign_production.data.jsonl import write_jsonl
-from text_to_sign_production.data.utils import resolve_repo_path, write_json
 from text_to_sign_production.modeling.data import (
-    SPRINT3_TARGET_CHANNEL_SHAPES,
-    SPRINT3_TARGET_CHANNELS,
+    M0_TARGET_CHANNEL_SHAPES,
+    M0_TARGET_CHANNELS,
     ProcessedModelingManifestRecord,
     ProcessedPoseItem,
     collate_processed_pose_samples,
@@ -24,10 +22,13 @@ from text_to_sign_production.modeling.data import (
     read_processed_modeling_manifest,
 )
 from text_to_sign_production.modeling.training.config import load_baseline_training_config
-from text_to_sign_production.ops.progress import iter_with_progress
 
 from .evidence import write_baseline_evidence_bundle
 from .paths import portable_path
+from .schemas import (
+    build_prediction_sample_payload,
+    prediction_sample_policy_metadata,
+)
 
 if TYPE_CHECKING:
     from text_to_sign_production.modeling.models import BaselinePoseOutput
@@ -36,7 +37,6 @@ QUALITATIVE_PANEL_SCHEMA_VERSION = "t2sp-qualitative-panel-v1"
 QUALITATIVE_EXPORT_SCHEMA_VERSION = "t2sp-qualitative-export-v1"
 DEFAULT_QUALITATIVE_PANEL_SIZE = 8
 QUALITATIVE_PANEL_SPLIT = "val"
-RUN_SUMMARY_FILENAME = "run_summary.json"
 PANEL_DEFINITION_FILENAME = "panel_definition.json"
 QUALITATIVE_RECORDS_FILENAME = "records.jsonl"
 PANEL_SUMMARY_FILENAME = "panel_summary.json"
@@ -51,7 +51,7 @@ class QualitativeExportError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class QualitativePanelDefinition:
-    """Fixed validation-panel definition for Sprint 3 qualitative export."""
+    """Fixed validation-panel definition for M0 qualitative export."""
 
     split: str
     sample_ids: tuple[str, ...]
@@ -125,7 +125,7 @@ def generate_validation_panel_definition(
 def load_panel_definition(path: Path | str) -> QualitativePanelDefinition:
     """Load and validate a qualitative panel definition JSON file."""
 
-    resolved_path = _resolve_optional_repo_path(path)
+    resolved_path = _resolve_path(path)
     try:
         loaded = json.loads(resolved_path.read_text(encoding="utf-8"))
     except OSError as exc:
@@ -143,7 +143,7 @@ def load_panel_definition(path: Path | str) -> QualitativePanelDefinition:
 def write_panel_definition(path: Path, panel: QualitativePanelDefinition) -> Path:
     """Write a normalized qualitative panel definition JSON artifact."""
 
-    write_json(path, panel.to_dict())
+    _write_json_existing_parent(path, panel.to_dict())
     return path
 
 
@@ -178,29 +178,35 @@ def export_qualitative_panel(
     config_path: Path | str,
     *,
     output_dir: Path | str,
+    training_summary_path: Path | str,
+    run_summary_path: Path | str,
     checkpoint_path: Path | str | None = None,
+    checkpoint_output_dir: Path | str | None = None,
     panel_definition_path: Path | str | None = None,
-    run_summary_path: Path | str | None = None,
     panel_size: int = DEFAULT_QUALITATIVE_PANEL_SIZE,
+    repo_root: Path | str | None = None,
+    path_formatter: Callable[[Path], str],
+    progress_reporter: Any | None = None,
 ) -> QualitativeExportResult:
-    """Export the fixed qualitative validation panel for a Sprint 3 baseline checkpoint."""
+    """Export the fixed qualitative validation panel for an M0 baseline checkpoint."""
 
     load_baseline_predictor, predict_baseline_batch = _load_prediction_helpers()
-    config = load_baseline_training_config(config_path)
+    config = load_baseline_training_config(
+        config_path,
+        checkpoint_output_dir=checkpoint_output_dir,
+        repo_root=repo_root,
+    )
     if config.data.val_split != QUALITATIVE_PANEL_SPLIT:
         raise QualitativeExportError(
             "Qualitative export requires data.val_split to be 'val'; "
             f"got {config.data.val_split!r}."
         )
 
-    resolved_run_summary_path = (
-        _resolve_optional_repo_path(run_summary_path)
-        if run_summary_path is not None
-        else (config.checkpoint.output_dir / RUN_SUMMARY_FILENAME).resolve()
-    )
-    if not resolved_run_summary_path.is_file():
+    resolved_training_summary_path = _resolve_path(training_summary_path, repo_root=repo_root)
+    resolved_run_summary_path = _resolve_path(run_summary_path, repo_root=repo_root)
+    if not resolved_training_summary_path.is_file():
         raise FileNotFoundError(
-            f"Baseline run_summary.json does not exist: {resolved_run_summary_path}"
+            f"Baseline training summary does not exist: {resolved_training_summary_path}"
         )
 
     validation_records = read_processed_modeling_manifest(
@@ -211,26 +217,35 @@ def export_qualitative_panel(
         panel_definition_path=panel_definition_path,
         validation_records=validation_records,
         panel_size=panel_size,
+        repo_root=repo_root,
     )
     selected_records = select_panel_records(panel, validation_records)
-    predictor = load_baseline_predictor(config, checkpoint_path=checkpoint_path)
+    predictor = load_baseline_predictor(
+        config,
+        checkpoint_path=checkpoint_path,
+        repo_root=repo_root,
+    )
 
     artifact_paths = _qualitative_artifact_paths(output_dir)
-    artifact_paths.output_dir.mkdir(parents=True, exist_ok=True)
+    _require_qualitative_output_dirs(artifact_paths.output_dir)
     write_panel_definition(artifact_paths.panel_definition_path, panel)
     artifact_records = _export_qualitative_sample_artifacts(
         selected_records=selected_records,
         output_dir=artifact_paths.output_dir,
         predictor=predictor,
         predict_baseline_batch=predict_baseline_batch,
+        path_formatter=path_formatter,
+        progress_reporter=progress_reporter,
     )
     _write_qualitative_export_manifests(
         artifact_paths=artifact_paths,
         panel=panel,
         config_path=config.source_path,
+        training_summary_path=resolved_training_summary_path,
         run_summary_path=resolved_run_summary_path,
         predictor=predictor,
         artifact_records=artifact_records,
+        path_formatter=path_formatter,
     )
 
     return QualitativeExportResult(
@@ -261,9 +276,13 @@ def _resolve_export_panel_definition(
     panel_definition_path: Path | str | None,
     validation_records: Sequence[ProcessedModelingManifestRecord],
     panel_size: int,
+    repo_root: Path | str | None,
 ) -> QualitativePanelDefinition:
     if panel_definition_path is not None:
-        return load_panel_definition(panel_definition_path)
+        return _load_panel_definition(
+            panel_definition_path,
+            repo_root=repo_root,
+        )
     return generate_validation_panel_definition(validation_records, panel_size=panel_size)
 
 
@@ -273,16 +292,23 @@ def _export_qualitative_sample_artifacts(
     output_dir: Path,
     predictor: Any,
     predict_baseline_batch: Any,
+    path_formatter: Callable[[Path], str],
+    progress_reporter: Any | None = None,
 ) -> list[dict[str, object]]:
+    from text_to_sign_production.core.progress import (
+        ItemProgress,
+        NoOpProgressReporter,
+    )
+
+    progress = ItemProgress(
+        label="qualitative panel",
+        total=len(selected_records),
+        unit="sample",
+        reporter=progress_reporter if progress_reporter is not None else NoOpProgressReporter(),
+        interval=1,
+    )
     artifact_records: list[dict[str, object]] = []
-    for index, record in enumerate(
-        iter_with_progress(
-            selected_records,
-            total=len(selected_records),
-            desc="[baseline qualitative] Export validation panel",
-            unit="sample",
-        )
-    ):
+    for index, record in enumerate(selected_records):
         pose_sample = load_processed_pose_sample(record)
         item = ProcessedPoseItem.from_manifest_and_sample(record, pose_sample)
         batch = collate_processed_pose_samples([item])
@@ -297,8 +323,11 @@ def _export_qualitative_sample_artifacts(
                 index=index,
                 item=item,
                 prediction=prediction,
+                path_formatter=path_formatter,
             )
         )
+        progress.advance(sample_id=record.sample_id)
+    progress.finish()
     return artifact_records
 
 
@@ -307,23 +336,27 @@ def _write_qualitative_export_manifests(
     artifact_paths: _QualitativeArtifactPaths,
     panel: QualitativePanelDefinition,
     config_path: Path,
+    training_summary_path: Path,
     run_summary_path: Path,
     predictor: Any,
     artifact_records: list[dict[str, object]],
+    path_formatter: Callable[[Path], str],
 ) -> None:
-    write_jsonl(artifact_paths.records_path, artifact_records)
+    _write_jsonl_existing_parent(artifact_paths.records_path, artifact_records)
     panel_summary = _panel_summary_payload(
         panel=panel,
         records_path=artifact_paths.records_path,
         panel_definition_path=artifact_paths.panel_definition_path,
         checkpoint_path=predictor.checkpoint_path,
         artifact_records=artifact_records,
+        path_formatter=path_formatter,
     )
-    write_json(artifact_paths.panel_summary_path, panel_summary)
+    _write_json_existing_parent(artifact_paths.panel_summary_path, panel_summary)
 
     write_baseline_evidence_bundle(
         artifact_paths.evidence_bundle_path,
         config_path=config_path,
+        training_summary_path=training_summary_path,
         run_summary_path=run_summary_path,
         checkpoint_path=predictor.checkpoint_path,
         checkpoint_payload=predictor.checkpoint_payload,
@@ -331,7 +364,8 @@ def _write_qualitative_export_manifests(
         panel_summary_path=artifact_paths.panel_summary_path,
         records_path=artifact_paths.records_path,
         sample_ids=panel.sample_ids,
-        target_channels=SPRINT3_TARGET_CHANNELS,
+        target_channels=M0_TARGET_CHANNELS,
+        path_formatter=path_formatter,
     )
 
 
@@ -341,6 +375,7 @@ def write_qualitative_sample_artifacts(
     index: int,
     item: ProcessedPoseItem,
     prediction: BaselinePoseOutput,
+    path_formatter: Callable[[Path], str],
 ) -> dict[str, object]:
     """Write one reference/prediction pair and return its metadata record."""
 
@@ -350,15 +385,26 @@ def write_qualitative_sample_artifacts(
     filename = f"{index:04d}__{_sanitize_sample_id(item.sample_id)}.npz"
     reference_path = output_dir / REFERENCE_ARTIFACTS_DIRNAME / filename
     prediction_path = output_dir / PREDICTION_ARTIFACTS_DIRNAME / filename
-    reference_path.parent.mkdir(parents=True, exist_ok=True)
-    prediction_path.parent.mkdir(parents=True, exist_ok=True)
+    _require_existing_dir(reference_path.parent, label="Qualitative reference artifact directory")
+    _require_existing_dir(
+        prediction_path.parent,
+        label="Qualitative prediction artifact directory",
+    )
 
     np.savez_compressed(
         reference_path,
+        processed_schema_version=np.asarray(item.processed_schema_version),
         body=item.body.astype(np.float32, copy=False),
+        body_confidence=item.body_confidence.astype(np.float32, copy=False),
         left_hand=item.left_hand.astype(np.float32, copy=False),
+        left_hand_confidence=item.left_hand_confidence.astype(np.float32, copy=False),
         right_hand=item.right_hand.astype(np.float32, copy=False),
+        right_hand_confidence=item.right_hand_confidence.astype(np.float32, copy=False),
+        face=item.face.astype(np.float32, copy=False),
+        face_confidence=item.face_confidence.astype(np.float32, copy=False),
         frame_valid_mask=item.frame_valid_mask.astype(np.bool_, copy=False),
+        people_per_frame=item.people_per_frame,
+        selected_person_index=np.asarray(item.selected_person_index, dtype=np.int16),
     )
     prediction_arrays = {
         channel: _prediction_channel_array(
@@ -366,16 +412,20 @@ def write_qualitative_sample_artifacts(
             channel=channel,
             expected_length=item.length,
         )
-        for channel in SPRINT3_TARGET_CHANNELS
+        for channel in M0_TARGET_CHANNELS
     }
+    prediction_payload = build_prediction_sample_payload(
+        prediction_arrays,
+        frame_valid_mask=item.frame_valid_mask,
+        selected_person_index=item.selected_person_index,
+        source_processed_schema_version=item.processed_schema_version,
+    )
     np.savez_compressed(
         prediction_path,
-        body=prediction_arrays["body"],
-        left_hand=prediction_arrays["left_hand"],
-        right_hand=prediction_arrays["right_hand"],
-        frame_valid_mask=item.frame_valid_mask.astype(np.bool_, copy=False),
+        **cast(dict[str, Any], prediction_payload),
     )
 
+    policy_metadata = prediction_sample_policy_metadata()
     return {
         "sample_id": item.sample_id,
         "split": item.split,
@@ -383,10 +433,13 @@ def write_qualitative_sample_artifacts(
         "fps": item.fps,
         "num_frames": item.num_frames,
         "frame_valid_count": int(np.count_nonzero(item.frame_valid_mask)),
-        "reference_artifact": portable_path(reference_path),
-        "prediction_artifact": portable_path(prediction_path),
+        "reference_artifact": portable_path(reference_path, path_formatter=path_formatter),
+        "prediction_artifact": portable_path(prediction_path, path_formatter=path_formatter),
         "source_processed_sample_path": item.sample_path_value,
-        "target_channels": list(SPRINT3_TARGET_CHANNELS),
+        "source_processed_schema_version": item.processed_schema_version,
+        "target_channels": list(M0_TARGET_CHANNELS),
+        "prediction_schema_version": str(prediction_payload["prediction_schema_version"].item()),
+        **policy_metadata,
     }
 
 
@@ -485,7 +538,7 @@ def _prediction_channel_array(
     tensor = getattr(prediction, channel)
     if not isinstance(tensor, torch.Tensor):
         raise QualitativeExportError(f"Prediction channel {channel!r} must be a tensor.")
-    expected_shape = (1, expected_length, *SPRINT3_TARGET_CHANNEL_SHAPES[channel])
+    expected_shape = (1, expected_length, *M0_TARGET_CHANNEL_SHAPES[channel])
     if tuple(tensor.shape) != expected_shape:
         raise QualitativeExportError(
             f"Prediction channel {channel!r} has shape {tuple(tensor.shape)}; "
@@ -502,17 +555,21 @@ def _panel_summary_payload(
     panel_definition_path: Path,
     checkpoint_path: Path,
     artifact_records: Sequence[Mapping[str, object]],
+    path_formatter: Callable[[Path], str],
 ) -> dict[str, object]:
     return {
         "schema_version": QUALITATIVE_EXPORT_SCHEMA_VERSION,
-        "panel_definition_path": portable_path(panel_definition_path),
-        "records_path": portable_path(records_path),
-        "checkpoint_path": portable_path(checkpoint_path),
+        "panel_definition_path": portable_path(
+            panel_definition_path,
+            path_formatter=path_formatter,
+        ),
+        "records_path": portable_path(records_path, path_formatter=path_formatter),
+        "checkpoint_path": portable_path(checkpoint_path, path_formatter=path_formatter),
         "sample_count": len(artifact_records),
         "sample_ids": list(panel.sample_ids),
         "selection_rule": panel.selection_rule,
         "split": panel.split,
-        "target_channels": list(SPRINT3_TARGET_CHANNELS),
+        "target_channels": list(M0_TARGET_CHANNELS),
         "artifacts": list(artifact_records),
     }
 
@@ -522,8 +579,66 @@ def _sanitize_sample_id(sample_id: str) -> str:
     return sanitized or "sample"
 
 
-def _resolve_optional_repo_path(path: Path | str) -> Path:
-    return resolve_repo_path(path)
+def _load_panel_definition(
+    path: Path | str,
+    *,
+    repo_root: Path | str | None,
+) -> QualitativePanelDefinition:
+    resolved_path = _resolve_path(path, repo_root=repo_root)
+    return load_panel_definition(resolved_path)
+
+
+def _resolve_path(path: Path | str, *, repo_root: Path | str | None = None) -> Path:
+    candidate = Path(path).expanduser()
+    if candidate.is_absolute():
+        return candidate.resolve()
+
+    if repo_root is not None:
+        root = Path(repo_root).expanduser().resolve()
+        resolved = (root / candidate).resolve()
+        if not resolved.is_relative_to(root):
+            raise QualitativeExportError(f"Path must stay under {root}: {path}")
+        return resolved
+
+    raise QualitativeExportError(
+        f"Relative path requires explicit repo_root in qualitative export: {path}"
+    )
+
+
+def _require_qualitative_output_dirs(output_dir: Path) -> None:
+    _require_existing_dir(output_dir, label="Qualitative output directory")
+    _require_existing_dir(
+        output_dir / REFERENCE_ARTIFACTS_DIRNAME,
+        label="Qualitative reference artifact directory",
+    )
+    _require_existing_dir(
+        output_dir / PREDICTION_ARTIFACTS_DIRNAME,
+        label="Qualitative prediction artifact directory",
+    )
+
+
+def _require_existing_dir(path: Path, *, label: str) -> None:
+    if not path.exists():
+        raise QualitativeExportError(f"{label} does not exist: {path}")
+    if not path.is_dir():
+        raise QualitativeExportError(f"{label} is not a directory: {path}")
+
+
+def _write_json_existing_parent(path: Path, payload: object) -> None:
+    if not path.parent.is_dir():
+        raise QualitativeExportError(f"JSON parent directory does not exist: {path.parent}")
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
+        handle.write("\n")
+
+
+def _write_jsonl_existing_parent(path: Path, records: Sequence[Mapping[str, object]]) -> None:
+    if not path.parent.is_dir():
+        raise QualitativeExportError(f"JSONL parent directory does not exist: {path.parent}")
+    with path.open("w", encoding="utf-8") as handle:
+        for record in records:
+            handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True))
+            handle.write("\n")
 
 
 def _load_prediction_helpers() -> tuple[Any, Any]:
@@ -532,7 +647,7 @@ def _load_prediction_helpers() -> tuple[Any, Any]:
     except ModuleNotFoundError as exc:
         if exc.name == "torch":
             raise RuntimeError(
-                "Sprint 3 qualitative export requires torch. "
+                "M0 qualitative export requires torch. "
                 "Install the modeling extra or run inside the configured modeling environment."
             ) from exc
         raise
@@ -546,7 +661,7 @@ def _load_torch() -> Any:
     except ModuleNotFoundError as exc:
         if exc.name == "torch":
             raise RuntimeError(
-                "Sprint 3 qualitative prediction artifact writing requires torch. "
+                "M0 qualitative prediction artifact writing requires torch. "
                 "Install the modeling extra or run inside the configured modeling environment."
             ) from exc
         raise

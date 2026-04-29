@@ -1,4 +1,4 @@
-"""Conservative Sprint 3 baseline text-to-pose model surface."""
+"""Conservative M0 direct text-to-full-BFH pose model surface."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import torch
 from torch import nn
 
 from text_to_sign_production.modeling.backbones.base import TextBackbone
-from text_to_sign_production.modeling.data import SPRINT3_TARGET_CHANNEL_SHAPES
+from text_to_sign_production.modeling.data import M0_TARGET_CHANNEL_SHAPES
 
 from .decoder import SimplePoseDecoder
 from .heads import PoseChannelHead
@@ -27,6 +27,7 @@ class BaselinePoseOutput:
     body: torch.Tensor
     left_hand: torch.Tensor
     right_hand: torch.Tensor
+    face: torch.Tensor
 
     def as_dict(self) -> dict[str, torch.Tensor]:
         """Return the public channel-separated output contract."""
@@ -35,56 +36,63 @@ class BaselinePoseOutput:
             "body": self.body,
             "left_hand": self.left_hand,
             "right_hand": self.right_hand,
+            "face": self.face,
         }
 
 
 class BaselineTextToPoseModel(nn.Module):
-    """Minimal baseline model from raw English text to continuous pose channels."""
+    """M0 baseline model from transcript text directly to continuous full-BFH channels."""
 
     def __init__(
         self,
         backbone: TextBackbone,
         *,
         decoder_hidden_dim: int = 256,
-        latent_dim: int = 256,
+        decoder_layers: int = 2,
+        decoder_dropout: float = 0.0,
+        frame_position_encoding_dim: int = 0,
     ) -> None:
         super().__init__()
         if backbone.output_dim <= 0:
             raise ValueError("backbone.output_dim must be positive.")
         if decoder_hidden_dim <= 0:
             raise ValueError("decoder_hidden_dim must be positive.")
-        if latent_dim <= 0:
-            raise ValueError("latent_dim must be positive.")
 
         self.backbone: TextBackbone = backbone
         self.decoder = SimplePoseDecoder(
             text_embedding_dim=backbone.output_dim,
             hidden_dim=decoder_hidden_dim,
-            output_dim=latent_dim,
+            num_layers=decoder_layers,
+            dropout=decoder_dropout,
+            frame_position_encoding_dim=frame_position_encoding_dim,
         )
-        body_keypoints, body_coordinate_dim = SPRINT3_TARGET_CHANNEL_SHAPES["body"]
-        left_hand_keypoints, left_hand_coordinate_dim = SPRINT3_TARGET_CHANNEL_SHAPES["left_hand"]
-        right_hand_keypoints, right_hand_coordinate_dim = SPRINT3_TARGET_CHANNEL_SHAPES[
-            "right_hand"
-        ]
+        body_keypoints, body_coordinate_dim = M0_TARGET_CHANNEL_SHAPES["body"]
+        left_hand_keypoints, left_hand_coordinate_dim = M0_TARGET_CHANNEL_SHAPES["left_hand"]
+        right_hand_keypoints, right_hand_coordinate_dim = M0_TARGET_CHANNEL_SHAPES["right_hand"]
+        face_keypoints, face_coordinate_dim = M0_TARGET_CHANNEL_SHAPES["face"]
         self.body_head = PoseChannelHead(
-            latent_dim=latent_dim,
+            input_dim=decoder_hidden_dim,
             keypoints=body_keypoints,
             coordinate_dim=body_coordinate_dim,
         )
         self.left_hand_head = PoseChannelHead(
-            latent_dim=latent_dim,
+            input_dim=decoder_hidden_dim,
             keypoints=left_hand_keypoints,
             coordinate_dim=left_hand_coordinate_dim,
         )
         self.right_hand_head = PoseChannelHead(
-            latent_dim=latent_dim,
+            input_dim=decoder_hidden_dim,
             keypoints=right_hand_keypoints,
             coordinate_dim=right_hand_coordinate_dim,
         )
+        self.face_head = PoseChannelHead(
+            input_dim=decoder_hidden_dim,
+            keypoints=face_keypoints,
+            coordinate_dim=face_coordinate_dim,
+        )
 
     def forward(self, batch: Any) -> BaselinePoseOutput:
-        """Predict channel-separated pose tensors from a Phase 2-style batch surface.
+        """Predict channel-separated full-BFH pose tensors from a processed batch surface.
 
         ``frame_valid_mask`` is validated when present so later masked training can trust the
         batch contract, but it remains on the input batch rather than the prediction output.
@@ -116,20 +124,25 @@ class BaselineTextToPoseModel(nn.Module):
 
         model_lengths = lengths.to(device=model_device)
         model_padding_mask = padding_mask.to(device=model_device)
-        temporal_latents = self.decoder(
+        decoder_features = self.decoder(
             pooled_embedding,
             lengths=model_lengths,
             target_frames=padding_mask.shape[1],
         )
 
-        body = _zero_padded_frames(self.body_head(temporal_latents), model_padding_mask)
-        left_hand = _zero_padded_frames(self.left_hand_head(temporal_latents), model_padding_mask)
-        right_hand = _zero_padded_frames(self.right_hand_head(temporal_latents), model_padding_mask)
+        body = _zero_padded_frames(self.body_head(decoder_features), model_padding_mask)
+        left_hand = _zero_padded_frames(self.left_hand_head(decoder_features), model_padding_mask)
+        right_hand = _zero_padded_frames(
+            self.right_hand_head(decoder_features),
+            model_padding_mask,
+        )
+        face = _zero_padded_frames(self.face_head(decoder_features), model_padding_mask)
 
         return BaselinePoseOutput(
             body=body,
             left_hand=left_hand,
             right_hand=right_hand,
+            face=face,
         )
 
 

@@ -25,6 +25,7 @@ classifiers = [
 ]
 dependencies = [
   "numpy>=2.4.4,<3",
+  "opencv-python-headless>=4.11,<4.12",
   "PyYAML>=6.0,<7",
   "tqdm>=4.67,<5",
 ]
@@ -33,6 +34,7 @@ dependencies = [
 dev = [
   "cryptography>=46.0.7,<47",
   "mypy>=1.12,<2",
+  "nbformat>=5.10,<6",
   "pip-audit>=2.8,<3",
   "pre-commit>=4.0,<5",
   "pytest>=9.0.3,<10",
@@ -89,6 +91,7 @@ markers = [
 python_version = "3.11"
 strict = true
 files = ["src", "tests"]
+mypy_path = "src"
 
 [[tool.mypy.overrides]]
 module = ["torch", "torch.*"]

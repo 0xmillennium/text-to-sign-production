@@ -1,4 +1,4 @@
-"""Mask construction utilities for Sprint 3 baseline numeric surfaces."""
+"""Mask construction utilities for M0 baseline numeric surfaces."""
 
 from __future__ import annotations
 

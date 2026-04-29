@@ -1,4 +1,4 @@
-"""Processed-manifest and `.npz` loading for Sprint 3 baseline modeling."""
+"""Processed-v1 manifest and `.npz` loading for M0 full-BFH baseline modeling."""
 
 from __future__ import annotations
 
@@ -20,7 +20,9 @@ from text_to_sign_production.data.schemas import ProcessedManifestEntry
 from text_to_sign_production.data.validate import validate_processed_sample_path
 
 from .schemas import (
-    SPRINT3_TARGET_CHANNELS,
+    M0_TARGET_CHANNELS,
+    ConfidenceArray,
+    IntegerArray,
     MaskArray,
     PoseArray,
     ProcessedModelingManifestRecord,
@@ -30,7 +32,7 @@ from .schemas import (
 
 
 class ProcessedModelingDataError(ValueError):
-    """Raised when processed modeling data violates the Sprint 3 contract."""
+    """Raised when processed modeling data violates the M0 full-BFH contract."""
 
 
 def _validate_split(split: str, *, context: str) -> None:
@@ -46,6 +48,7 @@ def _processed_manifest_record_from_entry(
     *,
     manifest_path: Path,
     expected_split: str | None,
+    data_root: Path,
 ) -> ProcessedModelingManifestRecord:
     sample_id = entry.sample_id.strip()
     if not sample_id:
@@ -79,6 +82,7 @@ def _processed_manifest_record_from_entry(
             entry.sample_path,
             split=entry.split,
             sample_id=sample_id,
+            data_root=data_root,
         )
     except ValueError as exc:
         raise ProcessedModelingDataError(
@@ -100,6 +104,8 @@ def _processed_manifest_record_from_entry(
         sample_path_value=entry.sample_path,
         processed_schema_version=entry.processed_schema_version,
         selected_person_index=entry.selected_person_index,
+        multi_person_frame_count=entry.multi_person_frame_count,
+        max_people_per_frame=entry.max_people_per_frame,
         frame_valid_count=entry.frame_valid_count,
         frame_invalid_count=entry.frame_invalid_count,
     )
@@ -145,12 +151,18 @@ def read_processed_modeling_manifest(
     manifest_path: Path | str,
     *,
     split: str | None = None,
+    data_root: Path | str | None = None,
 ) -> list[ProcessedModelingManifestRecord]:
-    """Read and validate a processed manifest for Sprint 3 modeling use."""
+    """Read and validate a processed manifest for M0 modeling use."""
 
     path = Path(manifest_path)
     if split is not None:
         _validate_split(split, context="Requested modeling manifest split")
+    resolved_data_root = (
+        _infer_data_root_from_manifest(path)
+        if data_root is None
+        else Path(data_root).expanduser().resolve()
+    )
 
     records: list[ProcessedModelingManifestRecord] = []
     seen_sample_ids: set[str] = set()
@@ -164,6 +176,7 @@ def read_processed_modeling_manifest(
             entry,
             manifest_path=path,
             expected_split=split,
+            data_root=resolved_data_root,
         )
         if manifest_record.sample_id in seen_sample_ids:
             raise ProcessedModelingDataError(
@@ -173,6 +186,16 @@ def read_processed_modeling_manifest(
         records.append(manifest_record)
 
     return records
+
+
+def _infer_data_root_from_manifest(path: Path) -> Path:
+    resolved = path.expanduser().resolve()
+    for parent in resolved.parents:
+        if parent.name == "data":
+            return parent
+    raise ProcessedModelingDataError(
+        f"Could not infer project data root from processed manifest path: {path}"
+    )
 
 
 def _sample_array(
@@ -215,6 +238,45 @@ def _load_pose_channel(
     return cast(PoseArray, np.asarray(array, dtype=np.float32))
 
 
+def _load_confidence_channel(
+    sample: Any,
+    channel: str,
+    *,
+    record: ProcessedModelingManifestRecord,
+) -> ConfidenceArray:
+    confidence_key = f"{channel}_confidence"
+    array = _sample_array(sample, confidence_key, sample_path=record.sample_path)
+    expected_shape = (record.num_frames, OPENPOSE_CHANNEL_SPECS[channel][1])
+    observed_shape = tuple(array.shape)
+    if observed_shape != expected_shape:
+        raise ProcessedModelingDataError(
+            f"Processed sample array {confidence_key!r} for {record.sample_id!r} has shape "
+            f"{observed_shape}; expected {expected_shape}."
+        )
+    return cast(ConfidenceArray, np.asarray(array, dtype=np.float32))
+
+
+def _load_people_per_frame(
+    sample: Any,
+    *,
+    record: ProcessedModelingManifestRecord,
+) -> IntegerArray:
+    array = _sample_array(sample, "people_per_frame", sample_path=record.sample_path)
+    expected_shape = (record.num_frames,)
+    observed_shape = tuple(array.shape)
+    if observed_shape != expected_shape:
+        raise ProcessedModelingDataError(
+            f"Processed sample array 'people_per_frame' for {record.sample_id!r} has shape "
+            f"{observed_shape}; expected {expected_shape}."
+        )
+    if not np.issubdtype(array.dtype, np.integer):
+        raise ProcessedModelingDataError(
+            f"Processed sample array 'people_per_frame' for {record.sample_id!r} has dtype "
+            f"{array.dtype}; expected an integer dtype."
+        )
+    return cast(IntegerArray, np.asarray(array))
+
+
 def load_processed_pose_sample(
     record: ProcessedModelingManifestRecord,
 ) -> ProcessedPoseSample:
@@ -251,8 +313,13 @@ def load_processed_pose_sample(
 
             channel_arrays = {
                 channel: _load_pose_channel(sample, channel, record=record)
-                for channel in SPRINT3_TARGET_CHANNELS
+                for channel in M0_TARGET_CHANNELS
             }
+            confidence_arrays = {
+                channel: _load_confidence_channel(sample, channel, record=record)
+                for channel in M0_TARGET_CHANNELS
+            }
+            people_per_frame = _load_people_per_frame(sample, record=record)
 
             frame_valid_mask = _sample_array(
                 sample,
@@ -294,22 +361,37 @@ def load_processed_pose_sample(
         ) from exc
 
     return ProcessedPoseSample(
+        processed_schema_version=payload_schema_version,
         body=channel_arrays["body"],
+        body_confidence=confidence_arrays["body"],
         left_hand=channel_arrays["left_hand"],
+        left_hand_confidence=confidence_arrays["left_hand"],
         right_hand=channel_arrays["right_hand"],
+        right_hand_confidence=confidence_arrays["right_hand"],
+        face=channel_arrays["face"],
+        face_confidence=confidence_arrays["face"],
         frame_valid_mask=frame_valid_array,
+        people_per_frame=people_per_frame,
+        selected_person_index=record.selected_person_index,
     )
 
 
 class ProcessedPoseDataset:
     """Dataset over processed manifest records and their processed `.npz` payloads."""
 
-    def __init__(self, manifest_path: Path | str, *, split: str | None = None) -> None:
+    def __init__(
+        self,
+        manifest_path: Path | str,
+        *,
+        split: str | None = None,
+        data_root: Path | str | None = None,
+    ) -> None:
         self.manifest_path = Path(manifest_path)
         self.records = tuple(
             read_processed_modeling_manifest(
                 self.manifest_path,
                 split=split,
+                data_root=data_root,
             )
         )
 

@@ -1,0 +1,23 @@
+schema_version: 1
+
+quality:
+  minimum_sequence_length: 8
+  maximum_sequence_length: null
+  minimum_text_length: 2
+  valid_frame_ratio_min: 0.50
+  at_least_one_hand_coverage_min: 0.40
+  both_hands_preferred_coverage_min: 0.25
+  severe_out_of_bounds_ratio_max: 0.35
+  missingness_ratio_max: 0.90
+
+  coverage_min:
+    body: 0.65
+    left_hand: 0.15
+    right_hand: 0.15
+    face: 0.10
+
+  confidence_mean_min:
+    body: 0.05
+    left_hand: 0.02
+    right_hand: 0.02
+    face: 0.01

@@ -1,35 +1,81 @@
+baseline:
+  id: m0-direct-text-to-full-bfh
+  name: M0 Direct Text-to-Full-BFH Baseline
+  role: m0_comparison_floor
+  channels:
+    - body
+    - left_hand
+    - right_hand
+    - face
+  channel_policy: full_bfh
+  length_policy: reference_length
+  confidence_policy: synthetic_validity_not_model_uncertainty
+  prediction_schema_version: t2sp-baseline-prediction-v1
+  prediction_manifest_schema_version: t2sp-baseline-prediction-manifest-v1
+
 data:
   train_manifest: data/processed/v1/manifests/train.jsonl
   val_manifest: data/processed/v1/manifests/val.jsonl
   train_split: train
   val_split: val
+  prediction_splits:
+    - val
 
-backbone:
-  name: google/flan-t5-base
+text_encoder:
+  model_name: google/flan-t5-base
+  revision: main
   max_length: 128
   local_files_only: false
-  freeze: true
+  trainable: true
+  freeze_strategy: none
+  encoder_learning_rate: 0.00002
 
 model:
-  decoder_hidden_dim: 256
-  latent_dim: 256
+  decoder_hidden_dim: 512
+  decoder_layers: 4
+  decoder_dropout: 0.10
+  frame_position_encoding_dim: 32
+
+loss:
+  channel_weights:
+    body: 1.0
+    left_hand: 1.5
+    right_hand: 1.5
+    face: 1.25
 
 training:
-  epochs: 1
+  epochs: 50
+  min_epochs: 10
+  early_stopping_patience: 8
+  early_stopping_metric: validation_masked_l2_mean
+  early_stopping_mode: min
+  validate_every_epochs: 1
   batch_size: 2
   shuffle_train: true
-  num_workers: 0
-  pin_memory: false
-  persistent_workers: false
-  prefetch_factor: null
-  non_blocking_transfers: false
+  num_workers: 2
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  non_blocking_transfers: true
   seed: 13
   device: auto
+  gradient_accumulation_steps: 8
+  max_grad_norm: 1.0
+  mixed_precision: auto
+  progress_interval_batches: 100
+  length_bucketed_batching: true
 
 optimizer:
   name: adamw
-  learning_rate: 0.0001
-  weight_decay: 0.0
+  decoder_learning_rate: 0.0001
+  weight_decay: 0.01
 
-checkpoint:
-  output_dir: outputs/modeling/baseline
+scheduler:
+  name: cosine_with_warmup
+  warmup_ratio: 0.05
+
+target_standardization:
+  enabled: true
+  epsilon: 0.000001
+
+checkpoint: {}

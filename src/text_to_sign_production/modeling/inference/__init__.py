@@ -1,1 +1,1 @@
-"""Inference helpers for Sprint 3 baseline qualitative export."""
+"""Inference helpers for M0 baseline prediction and qualitative export."""

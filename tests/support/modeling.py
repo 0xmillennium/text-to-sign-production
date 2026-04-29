@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -12,21 +11,32 @@ import numpy as np
 import numpy.typing as npt
 import yaml
 
-import text_to_sign_production.data.utils as utils_mod
+import text_to_sign_production.core.paths as paths_mod
 from tests.support.builders.manifests import processed_record, write_jsonl_records
 from tests.support.builders.samples import write_processed_sample_npz
+from text_to_sign_production.modeling.contracts import (
+    BASELINE_ID,
+    BASELINE_NAME,
+    BASELINE_ROLE,
+    CONFIDENCE_POLICY,
+    DEFAULT_CHANNEL_WEIGHTS,
+    LENGTH_POLICY,
+    PREDICTION_MANIFEST_SCHEMA_VERSION,
+    PREDICTION_SCHEMA_VERSION,
+)
+from text_to_sign_production.modeling.data import M0_CHANNEL_POLICY, M0_TARGET_CHANNELS
 from text_to_sign_production.modeling.training.config import (
     BaselineBackboneConfig,
     BaselineCheckpointConfig,
     BaselineDataConfig,
+    BaselineIdentityConfig,
     BaselineLoopConfig,
+    BaselineLossConfig,
     BaselineModelConfig,
     BaselineOptimizerConfig,
+    BaselineSchedulerConfig,
+    BaselineTargetStandardizationConfig,
     BaselineTrainingConfig,
-)
-from text_to_sign_production.workflows.baseline_modeling import (
-    BaselineRunLayout,
-    resolve_baseline_run_layout,
 )
 
 
@@ -41,18 +51,12 @@ class ModelingWorkspace:
     artifact_runs_root: Path
     run_name: str = "baseline-test"
 
-    @property
-    def layout(self) -> BaselineRunLayout:
-        return resolve_baseline_run_layout(
-            run_name=self.run_name,
-            artifact_runs_root=self.artifact_runs_root,
-        )
-
 
 def patch_modeling_repo_root(monkeypatch: Any, root: Path) -> None:
     """Patch the repo-root boundary used by repo-relative Sprint 3 test paths."""
 
-    monkeypatch.setattr(utils_mod, "REPO_ROOT", root.resolve())
+    monkeypatch.setattr(paths_mod, "DEFAULT_REPO_ROOT", root.resolve())
+    monkeypatch.setattr(paths_mod, "DEFAULT_DATA_ROOT", (root / "data").resolve())
 
 
 def processed_sample_relative_path(split: str = "train", sample_id: str = "sample") -> str:
@@ -63,30 +67,55 @@ def processed_sample_relative_path(split: str = "train", sample_id: str = "sampl
 
 def baseline_config_payload(
     *,
-    checkpoint_output_dir: str = "outputs/modeling/baseline-test",
+    checkpoint_output_dir: str = ("runs/base/m0-direct-text-to-full-bfh/baseline-test/checkpoints"),
     backbone_name: str = "dummy",
 ) -> dict[str, Any]:
     """Return the default tiny Sprint 3 baseline config payload for tests."""
 
     return {
+        "baseline": {
+            "id": BASELINE_ID,
+            "name": BASELINE_NAME,
+            "role": BASELINE_ROLE,
+            "channels": list(M0_TARGET_CHANNELS),
+            "channel_policy": M0_CHANNEL_POLICY,
+            "length_policy": LENGTH_POLICY,
+            "confidence_policy": CONFIDENCE_POLICY,
+            "prediction_schema_version": PREDICTION_SCHEMA_VERSION,
+            "prediction_manifest_schema_version": PREDICTION_MANIFEST_SCHEMA_VERSION,
+        },
         "data": {
             "train_manifest": "data/processed/v1/manifests/train.jsonl",
             "val_manifest": "data/processed/v1/manifests/val.jsonl",
             "train_split": "train",
             "val_split": "val",
+            "prediction_splits": ["val"],
         },
         "backbone": {
             "name": backbone_name,
+            "revision": "main",
             "max_length": 8,
             "local_files_only": True,
-            "freeze": True,
+            "trainable": False,
+            "freeze_strategy": "none",
+            "encoder_learning_rate": 0.0,
         },
         "model": {
             "decoder_hidden_dim": 8,
-            "latent_dim": 6,
+            "decoder_layers": 1,
+            "decoder_dropout": 0.0,
+            "frame_position_encoding_dim": 8,
+        },
+        "loss": {
+            "channel_weights": dict(DEFAULT_CHANNEL_WEIGHTS),
         },
         "training": {
             "epochs": 1,
+            "min_epochs": 1,
+            "early_stopping_patience": 5,
+            "early_stopping_metric": "val_loss",
+            "early_stopping_mode": "min",
+            "validate_every_epochs": 1,
             "batch_size": 1,
             "shuffle_train": False,
             "num_workers": 0,
@@ -96,11 +125,24 @@ def baseline_config_payload(
             "non_blocking_transfers": False,
             "seed": 5,
             "device": "cpu",
+            "gradient_accumulation_steps": 1,
+            "max_grad_norm": 1.0,
+            "mixed_precision": "no",
+            "progress_interval_batches": 1,
+            "length_bucketed_batching": False,
         },
         "optimizer": {
             "name": "adamw",
-            "learning_rate": 0.001,
+            "decoder_learning_rate": 0.001,
             "weight_decay": 0.0,
+        },
+        "scheduler": {
+            "name": "constant",
+            "warmup_ratio": 0.0,
+        },
+        "target_standardization": {
+            "enabled": False,
+            "epsilon": 1e-6,
         },
         "checkpoint": {
             "output_dir": checkpoint_output_dir,
@@ -172,7 +214,7 @@ def write_processed_modeling_sample(
 def write_baseline_modeling_config(
     root: Path,
     *,
-    checkpoint_output_dir: str = "outputs/modeling/baseline-test",
+    checkpoint_output_dir: str = ("runs/base/m0-direct-text-to-full-bfh/baseline-test/checkpoints"),
     backbone_name: str = "dummy",
 ) -> Path:
     """Write a tiny baseline config that points at processed Dataset Build manifests."""
@@ -210,24 +252,49 @@ def baseline_training_config(
     return BaselineTrainingConfig(
         source_path=root / "baseline.yaml",
         raw_config={},
+        baseline=BaselineIdentityConfig(
+            baseline_id=BASELINE_ID,
+            name=BASELINE_NAME,
+            role=BASELINE_ROLE,
+            channels=M0_TARGET_CHANNELS,
+            channel_policy=M0_CHANNEL_POLICY,
+            length_policy=LENGTH_POLICY,
+            confidence_policy=CONFIDENCE_POLICY,
+            prediction_schema_version=PREDICTION_SCHEMA_VERSION,
+            prediction_manifest_schema_version=PREDICTION_MANIFEST_SCHEMA_VERSION,
+        ),
         data=BaselineDataConfig(
             train_manifest=root / "train.jsonl",
             val_manifest=root / "val.jsonl",
             train_split="train",
             val_split="val",
+            prediction_splits=("val",),
         ),
         backbone=BaselineBackboneConfig(
             name="dummy",
+            revision="main",
             max_length=8,
             local_files_only=True,
-            freeze=True,
+            trainable=False,
+            freeze_strategy="none",
+            encoder_learning_rate=0.0,
         ),
         model=BaselineModelConfig(
             decoder_hidden_dim=8,
-            latent_dim=6,
+            decoder_layers=1,
+            decoder_dropout=0.0,
+            frame_position_encoding_dim=8,
+        ),
+        loss=BaselineLossConfig(
+            channel_weights=dict(DEFAULT_CHANNEL_WEIGHTS),
         ),
         training=BaselineLoopConfig(
             epochs=1,
+            min_epochs=1,
+            early_stopping_patience=5,
+            early_stopping_metric="val_loss",
+            early_stopping_mode="min",
+            validate_every_epochs=1,
             batch_size=1,
             shuffle_train=False,
             num_workers=0,
@@ -237,11 +304,24 @@ def baseline_training_config(
             non_blocking_transfers=False,
             seed=5,
             device="cpu",
+            gradient_accumulation_steps=1,
+            max_grad_norm=1.0,
+            mixed_precision="no",
+            progress_interval_batches=1,
+            length_bucketed_batching=False,
         ),
         optimizer=BaselineOptimizerConfig(
             name="adamw",
-            learning_rate=0.001,
+            decoder_learning_rate=0.001,
             weight_decay=0.0,
+        ),
+        scheduler=BaselineSchedulerConfig(
+            name="constant",
+            warmup_ratio=0.0,
+        ),
+        target_standardization=BaselineTargetStandardizationConfig(
+            enabled=False,
+            epsilon=1e-6,
         ),
         checkpoint=BaselineCheckpointConfig(output_dir=resolved_checkpoint_dir),
     )
@@ -253,7 +333,7 @@ def write_tiny_baseline_modeling_workspace(
     train_sample_ids: tuple[str, ...] = ("train-sample",),
     val_sample_ids: tuple[str, ...] = ("val-sample",),
     run_name: str = "baseline-test",
-    checkpoint_output_dir: str = "outputs/modeling/baseline-test",
+    checkpoint_output_dir: str = ("runs/base/m0-direct-text-to-full-bfh/baseline-test/checkpoints"),
     backbone_name: str = "dummy",
 ) -> ModelingWorkspace:
     """Write tiny processed train/val inputs plus a baseline config."""
@@ -321,70 +401,9 @@ def write_fake_qualitative_outputs(output_dir: Path) -> None:
     )
 
 
-def write_fake_record_outputs(layout: BaselineRunLayout) -> None:
-    """Write the minimal runtime package surface used by resume tests."""
-
-    layout.record_dir.mkdir(parents=True, exist_ok=True)
-    (layout.package_manifest_path).write_text(
-        json.dumps({"schema_version": "t2sp-baseline-modeling-package-v1"}),
-        encoding="utf-8",
-    )
-    (layout.record_evidence_bundle_path).write_text(
-        json.dumps({"schema_version": "t2sp-baseline-evidence-v1"}),
-        encoding="utf-8",
-    )
-    (layout.record_run_summary_path).write_text(
-        json.dumps({"backbone_name": "dummy"}),
-        encoding="utf-8",
-    )
-
-
 def touch_file(path: Path, content: str = "x") -> Path:
     """Create a small text file and return its path."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return path
-
-
-def fake_create_archive(
-    *,
-    archive_path: Path,
-    members: tuple[Path, ...],
-    cwd: Path,
-    label: str,
-    snapshot_parent: Path | None = None,
-    artifact_description: str | None = None,
-) -> Path:
-    """Boundary fake for archive creation in CI-safe workflow tests."""
-
-    del members, cwd, label, snapshot_parent, artifact_description
-    archive_path.parent.mkdir(parents=True, exist_ok=True)
-    archive_path.write_bytes(b"archive")
-    return archive_path
-
-
-def raise_dataset_build_archive_error(
-    *,
-    archive_path: Path,
-    members: tuple[Path, ...],
-    cwd: Path,
-    label: str,
-    snapshot_parent: Path | None = None,
-) -> Path:
-    """Archive fake that preserves the historical Dataset Build wording regression."""
-
-    del archive_path, members, cwd, label, snapshot_parent
-    raise FileNotFoundError("Missing required Dataset Build outputs:\n- stale")
-
-
-def fake_extract_archive_with(
-    build_extracted_tree: Callable[[Path], None],
-) -> Callable[..., None]:
-    """Return an extraction fake that writes a tiny extracted member tree."""
-
-    def fake_extract(archive: Path, destination: Path, *, label: str) -> None:
-        del archive, label
-        build_extracted_tree(destination)
-
-    return fake_extract

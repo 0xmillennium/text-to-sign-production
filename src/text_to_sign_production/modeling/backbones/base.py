@@ -1,4 +1,4 @@
-"""Dependency-light text backbone contracts for Sprint 3 baseline modeling."""
+"""Dependency-light text backbone contracts for M0 baseline modeling."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Baseline checkpoint loading and prediction helpers for qualitative export."""
+"""Baseline checkpoint loading and prediction helpers for M0 export."""
 
 from __future__ import annotations
 
@@ -10,12 +10,14 @@ from typing import Any, cast
 import torch
 from torch import nn
 
-from text_to_sign_production.data.utils import resolve_repo_path
-from text_to_sign_production.modeling.data import SPRINT3_TARGET_CHANNELS, ProcessedPoseBatch
+from text_to_sign_production.modeling.data import M0_TARGET_CHANNELS, ProcessedPoseBatch
 from text_to_sign_production.modeling.models import BaselinePoseOutput
 from text_to_sign_production.modeling.training.checkpointing import load_training_checkpoint
 from text_to_sign_production.modeling.training.config import BaselineTrainingConfig
 from text_to_sign_production.modeling.training.evaluate import move_batch_to_device
+from text_to_sign_production.modeling.training.standardization import (
+    inverse_standardize_predictions,
+)
 from text_to_sign_production.modeling.training.train import (
     build_baseline_model,
     resolve_training_device,
@@ -28,7 +30,7 @@ class BaselinePredictionError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class LoadedBaselinePredictor:
-    """A baseline model loaded from a Phase 5 checkpoint for inference-only use."""
+    """A baseline model loaded from a checkpoint for inference-only use."""
 
     model: nn.Module
     device: torch.device
@@ -39,15 +41,17 @@ class LoadedBaselinePredictor:
 def resolve_baseline_checkpoint_path(
     config: BaselineTrainingConfig,
     checkpoint_path: Path | str | None,
+    *,
+    repo_root: Path | str | None = None,
 ) -> Path:
     """Resolve the checkpoint path used for qualitative export.
 
-    An explicit checkpoint path wins. If omitted, Phase 6 uses the Phase 5 best-checkpoint
-    convention: ``checkpoint.output_dir / "best.pt"``.
+    An explicit checkpoint path wins. If omitted, inference uses the best-checkpoint convention:
+    ``checkpoint.output_dir / "best.pt"``.
     """
 
     resolved = (
-        resolve_repo_path(checkpoint_path)
+        _resolve_path(checkpoint_path, repo_root=repo_root)
         if checkpoint_path is not None
         else (config.checkpoint.output_dir / "best.pt").resolve()
     )
@@ -60,10 +64,15 @@ def load_baseline_predictor(
     config: BaselineTrainingConfig,
     *,
     checkpoint_path: Path | str | None = None,
+    repo_root: Path | str | None = None,
 ) -> LoadedBaselinePredictor:
     """Build the configured baseline model and load a strict Phase 5 checkpoint."""
 
-    resolved_checkpoint_path = resolve_baseline_checkpoint_path(config, checkpoint_path)
+    resolved_checkpoint_path = resolve_baseline_checkpoint_path(
+        config,
+        checkpoint_path,
+        repo_root=repo_root,
+    )
     device = resolve_training_device(config.training.device)
     try:
         checkpoint_payload = load_training_checkpoint(
@@ -100,6 +109,9 @@ def load_baseline_predictor(
         )
 
     model.to(device=device)
+    target_standardization = checkpoint_payload.get("target_standardization")
+    if isinstance(target_standardization, Mapping):
+        model._target_standardization = dict(target_standardization)  # type: ignore[assignment]
     model.eval()
     return LoadedBaselinePredictor(
         model=model,
@@ -121,12 +133,22 @@ def predict_baseline_batch(
     device_batch = move_batch_to_device(batch, device)
     with torch.no_grad():
         raw_predictions = model(device_batch)
+    predictions = inverse_standardize_predictions(
+        raw_predictions,
+        checkpoint_transform(model),
+    )
 
     return BaselinePoseOutput(
-        body=_prediction_tensor(raw_predictions, "body"),
-        left_hand=_prediction_tensor(raw_predictions, "left_hand"),
-        right_hand=_prediction_tensor(raw_predictions, "right_hand"),
+        body=_prediction_tensor(predictions, "body"),
+        left_hand=_prediction_tensor(predictions, "left_hand"),
+        right_hand=_prediction_tensor(predictions, "right_hand"),
+        face=_prediction_tensor(predictions, "face"),
     )
+
+
+def checkpoint_transform(model: nn.Module) -> Mapping[str, Any] | None:
+    value = getattr(model, "_target_standardization", None)
+    return value if isinstance(value, Mapping) else None
 
 
 def _validate_prediction_checkpoint(
@@ -139,10 +161,10 @@ def _validate_prediction_checkpoint(
         raise BaselinePredictionError(
             f"Checkpoint target_channels must be a sequence: {checkpoint_path}"
         )
-    if tuple(target_channels) != SPRINT3_TARGET_CHANNELS:
+    if tuple(target_channels) != M0_TARGET_CHANNELS:
         raise BaselinePredictionError(
-            "Checkpoint target_channels are incompatible with Sprint 3 qualitative export: "
-            f"expected {SPRINT3_TARGET_CHANNELS!r}, got {tuple(target_channels)!r}."
+            "Checkpoint target_channels are incompatible with M0 full-BFH export: "
+            f"expected {M0_TARGET_CHANNELS!r}, got {tuple(target_channels)!r}."
         )
 
     model_state_dict = checkpoint_payload["model_state_dict"]
@@ -159,3 +181,18 @@ def _prediction_tensor(predictions: object, channel: str) -> torch.Tensor:
     if not isinstance(value, torch.Tensor):
         raise BaselinePredictionError(f"Baseline prediction channel {channel!r} must be a tensor.")
     return value.detach().cpu()
+
+
+def _resolve_path(path: Path | str, *, repo_root: Path | str | None) -> Path:
+    candidate = Path(path).expanduser()
+    if candidate.is_absolute():
+        return candidate.resolve()
+
+    if repo_root is not None:
+        root = Path(repo_root).expanduser().resolve()
+        resolved = (root / candidate).resolve()
+        if not resolved.is_relative_to(root):
+            raise BaselinePredictionError(f"Checkpoint path must stay under {root}: {path}")
+        return resolved
+
+    raise BaselinePredictionError(f"Relative checkpoint path requires explicit repo_root: {path}")

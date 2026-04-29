@@ -1,4 +1,4 @@
-"""Lazy exports for Sprint 3 baseline model components."""
+"""Lazy exports for M0 baseline model components."""
 
 from __future__ import annotations
 

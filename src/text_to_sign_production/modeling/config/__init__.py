@@ -1,4 +1,4 @@
-"""Configuration files for Sprint 3 baseline modeling."""
+"""Configuration files for M0 baseline modeling."""
 
 from __future__ import annotations
 

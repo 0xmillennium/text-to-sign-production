@@ -1,4 +1,4 @@
-"""Shared assertions for manifests, archives, samples, and reports."""
+"""Shared assertions for manifests, samples, and reports."""
 
 from __future__ import annotations
 
@@ -42,11 +42,6 @@ def assert_processed_sample_payload(path: Path, *, expected_num_frames: int = 2)
         assert set(sample.files) >= REQUIRED_PROCESSED_SAMPLE_KEYS
         assert str(sample["processed_schema_version"]) == PROCESSED_SCHEMA_VERSION
         assert sample["body"].shape == (expected_num_frames, 25, 2)
-
-
-def assert_archive_listing_contains(listing: str, expected_members: set[str]) -> None:
-    for expected_member in expected_members:
-        assert expected_member in listing
 
 
 def assert_report_exists(root: Path, relative_path: str) -> None:

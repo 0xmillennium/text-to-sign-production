@@ -1,7 +1,8 @@
-"""FLAN-T5 text backbone wrapper for the Sprint 3 baseline path."""
+"""FLAN-T5 text backbone wrapper for the M0 baseline path."""
 
 from __future__ import annotations
 
+import os
 from collections.abc import Sequence
 from importlib import import_module
 from typing import Any
@@ -79,40 +80,51 @@ def _devices_match(*, requested: torch.device, encoder_device: torch.device) -> 
 
 
 class FlanT5TextBackbone(nn.Module):
-    """Default modular text backbone for Sprint 3 baseline modeling."""
+    """Default modular text backbone for M0 baseline modeling."""
 
     def __init__(
         self,
         model_name: str = DEFAULT_FLAN_T5_MODEL_NAME,
         *,
+        revision: str = "main",
         max_length: int = 128,
         local_files_only: bool = False,
-        freeze: bool = True,
+        trainable: bool = False,
+        freeze_strategy: str = "frozen",
     ) -> None:
         super().__init__()
         if not model_name:
             raise ValueError("model_name must not be blank.")
         if max_length <= 0:
             raise ValueError("max_length must be positive.")
+        if freeze_strategy not in {"none", "partial", "frozen"}:
+            raise ValueError("freeze_strategy must be one of: none, partial, frozen.")
 
         tokenizer_cls, encoder_cls = _load_transformers_classes()
         self.model_name = model_name
+        self.revision = revision
         self.max_length = max_length
-        self._freeze = freeze
+        self.local_files_only = local_files_only
+        self._freeze = (not trainable) or freeze_strategy == "frozen"
+        self.freeze_strategy = freeze_strategy
         self.tokenizer = tokenizer_cls.from_pretrained(
             model_name,
+            revision=revision,
             local_files_only=local_files_only,
         )
         self.encoder = encoder_cls.from_pretrained(
             model_name,
+            revision=revision,
             local_files_only=local_files_only,
         )
         self._output_dim = self._infer_output_dim()
 
-        if freeze:
+        if self._freeze:
             for parameter in self.encoder.parameters():
                 parameter.requires_grad_(False)
             self.encoder.eval()
+        elif freeze_strategy == "partial":
+            self._apply_partial_freeze()
 
     @property
     def output_dim(self) -> int:
@@ -168,6 +180,23 @@ class FlanT5TextBackbone(nn.Module):
             self.encoder.eval()
         return self
 
+    def metadata(self) -> dict[str, object]:
+        """Return non-secret Hugging Face model/cache metadata for run reports."""
+
+        config = getattr(self.encoder, "config", None)
+        resolved_revision = getattr(config, "_commit_hash", None)
+        name_or_path = getattr(config, "_name_or_path", None)
+        return {
+            "model_id": self.model_name,
+            "requested_revision": self.revision,
+            "resolved_revision": resolved_revision,
+            "cache_name_or_path": name_or_path,
+            "local_files_only": self.local_files_only,
+            "authenticated_token_present": _hf_token_present(),
+            "trainable": not self._freeze,
+            "freeze_strategy": self.freeze_strategy,
+        }
+
     def _infer_output_dim(self) -> int:
         config = getattr(self.encoder, "config", None)
         output_dim = getattr(config, "d_model", None)
@@ -176,3 +205,18 @@ class FlanT5TextBackbone(nn.Module):
         if not isinstance(output_dim, int) or output_dim <= 0:
             raise RuntimeError("Could not infer a positive FLAN-T5 encoder output dimension.")
         return output_dim
+
+    def _apply_partial_freeze(self) -> None:
+        for parameter in self.encoder.parameters():
+            parameter.requires_grad_(False)
+        block = getattr(self.encoder, "block", None)
+        if isinstance(block, Sequence) and block:
+            for parameter in block[-1].parameters():
+                parameter.requires_grad_(True)
+            return
+        for parameter in self.encoder.parameters():
+            parameter.requires_grad_(True)
+
+
+def _hf_token_present() -> bool:
+    return any(os.environ.get(name) for name in ("HF_TOKEN", "HUGGINGFACE_HUB_TOKEN"))

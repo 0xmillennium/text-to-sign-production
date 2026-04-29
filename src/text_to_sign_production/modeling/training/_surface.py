@@ -1,4 +1,4 @@
-"""Internal channel-surface validation shared by Sprint 3 numeric utilities."""
+"""Internal full-BFH channel-surface validation shared by M0 numeric utilities."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from typing import Any
 import torch
 
 from text_to_sign_production.modeling.data import (
-    SPRINT3_TARGET_CHANNEL_SHAPES,
-    SPRINT3_TARGET_CHANNELS,
+    M0_TARGET_CHANNEL_SHAPES,
+    M0_TARGET_CHANNELS,
 )
 
 
@@ -20,9 +20,9 @@ def iter_validated_pose_channels(
     mask_shape: tuple[int, int],
     mask_device: torch.device,
 ) -> Iterator[tuple[str, torch.Tensor, torch.Tensor]]:
-    """Yield validated default Sprint 3 prediction/target channel pairs."""
+    """Yield validated M0 full-BFH prediction/target channel pairs."""
 
-    for channel in SPRINT3_TARGET_CHANNELS:
+    for channel in M0_TARGET_CHANNELS:
         prediction = _extract_channel_tensor(
             predictions,
             channel=channel,
@@ -57,7 +57,7 @@ def valid_frame_count(effective_frame_mask: torch.Tensor) -> torch.Tensor:
 
 
 def floating_point_accumulation_dtype(value: torch.Tensor) -> torch.dtype:
-    """Return a stable accumulation dtype for Sprint 3 scalar reductions."""
+    """Return a stable accumulation dtype for M0 scalar reductions."""
 
     if value.dtype == torch.float64:
         return torch.float64
@@ -96,7 +96,7 @@ def _validate_pose_tensor(
         raise ValueError(
             f"{surface_name} channel {channel!r} batch/time shape must match the masks."
         )
-    expected_shape = SPRINT3_TARGET_CHANNEL_SHAPES[channel]
+    expected_shape = M0_TARGET_CHANNEL_SHAPES[channel]
     if tuple(tensor.shape[2:]) != expected_shape:
         raise ValueError(
             f"{surface_name} channel {channel!r} has pose shape {tuple(tensor.shape[2:])}; "
