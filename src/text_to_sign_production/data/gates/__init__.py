@@ -1,0 +1,1 @@
+"""Structural usability decisions only."""

@@ -1,0 +1,5 @@
+# Structural usability decisions
+# Defines the absolute gating rules that reject corrupted or structurally unusable data
+# (e.g., missing video, corrupted metadata)
+
+enabled_gates: []

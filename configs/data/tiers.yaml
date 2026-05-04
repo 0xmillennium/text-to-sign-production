@@ -1,0 +1,4 @@
+# YAML-driven dataset surface decisions
+# Defines which thresholds and rules form specific dataset tiers
+
+tiers: {}

@@ -1,0 +1,4 @@
+# Metric-family threshold levels
+# Defines quantitative thresholds for policy-free measurements
+
+thresholds: {}
