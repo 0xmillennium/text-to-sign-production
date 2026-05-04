@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Callable
 
 import numpy as np
 
 from text_to_sign_production.data.pose.parser import parse_frame
 from text_to_sign_production.data.pose.people import (
     build_person_metadata,
-    resolve_target_person_index,
+    resolve_person_selection,
 )
 from text_to_sign_production.data.pose.schema import (
     CANONICAL_POSE_CHANNELS,
@@ -27,6 +28,8 @@ from text_to_sign_production.data.samples.types import (
     PoseChannelPayload,
 )
 
+PoseProgressCallback = Callable[..., None]
+
 
 def _empty_channel_tensor(
     num_frames: int,
@@ -39,7 +42,11 @@ def _empty_channel_tensor(
     )
 
 
-def build_pose_tensors(build_input: PoseBuildInput) -> PoseBuildOutput:
+def build_pose_tensors(
+    build_input: PoseBuildInput,
+    *,
+    progress_callback: PoseProgressCallback | None = None,
+) -> PoseBuildOutput:
     """Build pose tensors and facts for a candidate."""
 
     candidate = build_input.candidate
@@ -63,16 +70,32 @@ def build_pose_tensors(build_input: PoseBuildInput) -> PoseBuildOutput:
     multi_person_frame_count = 0
     max_people_per_frame = 0
 
-    parse_error: str | None = None
+    unrecoverable_error: str | None = None
     parsed_frames: list[ParsedFrameResult] = []
+    progress_count = 0
 
-    try:
-        for frame_path in frames.files:
+    for frame_path in frames.files:
+        try:
             parsed_frames.append(parse_frame(frame_path))
-    except Exception as exc:
-        parse_error = f"{exc.__class__.__name__}:{exc}"
+        except OSError as exc:
+            unrecoverable_error = f"{exc.__class__.__name__}:{exc}"
+            issue_counter["unrecoverable_frame_read_error"] += 1
+            break
+        finally:
+            progress_count += 1
+            if progress_callback is not None:
+                progress_callback(
+                    sample_id=candidate.sample_id,
+                    phase="parse",
+                    completed=progress_count,
+                    total=2 * num_frames,
+                )
 
-    target_person_index = resolve_target_person_index(parsed_frames)
+    person_selection = resolve_person_selection(
+        parsed_frames,
+        build_input.person_selection_policy,
+    )
+    target_person_index = person_selection.target_index
 
     for index, parsed in enumerate(parsed_frames):
         people_count = len(parsed.people)
@@ -86,6 +109,15 @@ def build_pose_tensors(build_input: PoseBuildInput) -> PoseBuildOutput:
         if target_person_index >= people_count:
             frame_valid_mask[index] = False
             issue_counter["target_person_missing"] += 1
+            progress_count += 1
+            if progress_callback is not None:
+                progress_callback(
+                    sample_id=candidate.sample_id,
+                    phase="tensors",
+                    completed=progress_count,
+                    total=2 * num_frames,
+                    people=people_count,
+                )
             continue
 
         person = parsed.people[target_person_index]
@@ -102,6 +134,16 @@ def build_pose_tensors(build_input: PoseBuildInput) -> PoseBuildOutput:
         for channel in OPENPOSE_CHANNEL_SPECS:
             coord_tensors[channel][index] = person.coords[channel]
             confidence_tensors[channel][index] = person.confidences[channel]
+
+        progress_count += 1
+        if progress_callback is not None:
+            progress_callback(
+                sample_id=candidate.sample_id,
+                phase="tensors",
+                completed=progress_count,
+                total=2 * num_frames,
+                people=people_count,
+            )
 
     channel_nonzero_frames = {
         channel: int(np.count_nonzero(np.any(confidence_tensors[channel] > 0.0, axis=1)))
@@ -120,7 +162,7 @@ def build_pose_tensors(build_input: PoseBuildInput) -> PoseBuildOutput:
         invalid_frame_count=num_frames - frame_valid_count,
         face_missing_frame_count=face_missing_frame_count,
         out_of_bounds_coordinate_count=out_of_bounds_coordinate_count,
-        frames_with_any_zeroed_required_joint=frames_with_any_zeroed_canonical_joint,
+        frames_with_any_zeroed_canonical_joint=frames_with_any_zeroed_canonical_joint,
         frame_issue_counts={str(key): int(value) for key, value in sorted(issue_counter.items())},
         channel_nonzero_frames=channel_nonzero_frames,
     )
@@ -140,11 +182,19 @@ def build_pose_tensors(build_input: PoseBuildInput) -> PoseBuildOutput:
         ),
     )
 
-    diagnostics = PoseBuildDiagnostics(parse_error=parse_error)
+    diagnostics = PoseBuildDiagnostics(
+        person_selection_policy=build_input.person_selection_policy,
+        person_selection_fallback_used=person_selection.fallback_used,
+        person_selection_fallback_reason=person_selection.fallback_reason,
+        person_selection_candidate_scores=person_selection.candidate_scores,
+        unrecoverable_error=unrecoverable_error,
+    )
 
     return PoseBuildOutput(
         pose=pose_payload,
         frame_quality=frame_quality,
         selected_person=selected_person,
+        people_per_frame=people_per_frame,
+        frame_valid_mask=frame_valid_mask,
         diagnostics=diagnostics,
     )

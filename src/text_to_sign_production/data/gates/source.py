@@ -15,6 +15,6 @@ def evaluate_source_gate(candidate: SourceCandidate) -> GateResult:
     issues = validate_candidate(candidate)
 
     if issues:
-        return GateResult(status=GateStatus.DROPPED, reasons=issues)
+        return GateResult(status=GateStatus.DROPPED, reasons=tuple(issue.code for issue in issues))
 
     return GateResult(status=GateStatus.PASSED)

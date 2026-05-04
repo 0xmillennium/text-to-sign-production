@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Final
 
-from text_to_sign_production.data.constants import PROCESSED_SCHEMA_VERSION
+from text_to_sign_production.data.samples.schema import PROCESSED_SCHEMA_VERSION
 from text_to_sign_production.modeling.data.schemas import (
     M0_CHANNEL_POLICY,
     M0_TARGET_CHANNEL_SHAPES,

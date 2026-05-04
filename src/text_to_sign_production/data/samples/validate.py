@@ -7,12 +7,11 @@ from collections.abc import Mapping, Sequence
 from numbers import Integral, Real
 from typing import Any
 
+from text_to_sign_production.data._shared.identities import VALID_SAMPLE_SPLITS
+from text_to_sign_production.data.samples._shared.validation import ValidationSeverity
 from text_to_sign_production.data.samples.schema import (
-    CANONICAL_POSE_CHANNELS,
     DROPPED_ONLY_MANIFEST_KEYS,
     PASSED_ONLY_MANIFEST_KEYS,
-    POSE_CHANNEL_JOINT_COUNTS,
-    POSE_COORDINATE_DIMENSIONS,
     PROCESSED_SCHEMA_VERSION,
     REQUIRED_DROPPED_MANIFEST_KEYS,
     REQUIRED_FRAME_QUALITY_KEYS,
@@ -20,20 +19,19 @@ from text_to_sign_production.data.samples.schema import (
     REQUIRED_PAYLOAD_KEYS,
     REQUIRED_POSE_CHANNEL_KEYS,
     REQUIRED_SELECTED_PERSON_KEYS,
-    VALID_SAMPLE_SPLITS,
 )
 from text_to_sign_production.data.samples.types import (
     DroppedManifestEntry,
     PassedManifestEntry,
     ProcessedSamplePayload,
     SampleStatus,
-    ValidationIssue,
+    SampleValidationIssue,
 )
 
 
-def validate_payload_record(record: Mapping[str, Any]) -> list[ValidationIssue]:
+def validate_payload_record(record: Mapping[str, Any]) -> list[SampleValidationIssue]:
     """Validate a raw payload dictionary representation."""
-    issues: list[ValidationIssue] = []
+    issues: list[SampleValidationIssue] = []
     _validate_required_keys(
         issues,
         record=record,
@@ -82,14 +80,14 @@ def validate_payload_record(record: Mapping[str, Any]) -> list[ValidationIssue]:
     return issues
 
 
-def validate_payload(payload: ProcessedSamplePayload) -> list[ValidationIssue]:
+def validate_payload(payload: ProcessedSamplePayload) -> list[SampleValidationIssue]:
     """Validate a typed processed sample payload."""
     return validate_payload_record(payload.to_record())
 
 
-def validate_manifest_record(record: Mapping[str, Any]) -> list[ValidationIssue]:
+def validate_manifest_record(record: Mapping[str, Any]) -> list[SampleValidationIssue]:
     """Validate a raw manifest entry dictionary before parsing."""
-    issues: list[ValidationIssue] = []
+    issues: list[SampleValidationIssue] = []
     status = record.get("status")
 
     if status == SampleStatus.PASSED.value:
@@ -107,7 +105,7 @@ def validate_manifest_record(record: Mapping[str, Any]) -> list[ValidationIssue]
     return issues
 
 
-def validate_passed_entry(entry: PassedManifestEntry) -> list[ValidationIssue]:
+def validate_passed_entry(entry: PassedManifestEntry) -> list[SampleValidationIssue]:
     """Validate domain invariants of a parsed passed manifest entry."""
     issues = validate_manifest_record(entry.to_record())
     if entry.status != SampleStatus.PASSED:
@@ -119,7 +117,7 @@ def validate_passed_entry(entry: PassedManifestEntry) -> list[ValidationIssue]:
     return issues
 
 
-def validate_dropped_entry(entry: DroppedManifestEntry) -> list[ValidationIssue]:
+def validate_dropped_entry(entry: DroppedManifestEntry) -> list[SampleValidationIssue]:
     """Validate domain invariants of a parsed dropped manifest entry."""
     issues = validate_manifest_record(entry.to_record())
     if entry.status != SampleStatus.DROPPED:
@@ -131,7 +129,7 @@ def validate_dropped_entry(entry: DroppedManifestEntry) -> list[ValidationIssue]
     return issues
 
 
-def _validate_passed_record(issues: list[ValidationIssue], record: Mapping[str, Any]) -> None:
+def _validate_passed_record(issues: list[SampleValidationIssue], record: Mapping[str, Any]) -> None:
     _validate_required_keys(
         issues,
         record=record,
@@ -195,7 +193,10 @@ def _validate_passed_record(issues: list[ValidationIssue], record: Mapping[str, 
     )
 
 
-def _validate_dropped_record(issues: list[ValidationIssue], record: Mapping[str, Any]) -> None:
+def _validate_dropped_record(
+    issues: list[SampleValidationIssue],
+    record: Mapping[str, Any],
+) -> None:
     _validate_required_keys(
         issues,
         record=record,
@@ -296,7 +297,7 @@ def _validate_dropped_record(issues: list[ValidationIssue], record: Mapping[str,
 
 
 def _validate_required_keys(
-    issues: list[ValidationIssue],
+    issues: list[SampleValidationIssue],
     *,
     record: Mapping[str, Any],
     required_keys: frozenset[str],
@@ -313,7 +314,7 @@ def _validate_required_keys(
 
 
 def _validate_schema_version(
-    issues: list[ValidationIssue],
+    issues: list[SampleValidationIssue],
     *,
     record: Mapping[str, Any],
     label: str,
@@ -330,7 +331,7 @@ def _validate_schema_version(
 
 
 def _validate_required_text_field(
-    issues: list[ValidationIssue],
+    issues: list[SampleValidationIssue],
     record: Mapping[str, Any],
     field_name: str,
     *,
@@ -342,7 +343,7 @@ def _validate_required_text_field(
 
 
 def _validate_optional_text_value(
-    issues: list[ValidationIssue],
+    issues: list[SampleValidationIssue],
     value: object,
     *,
     label: str,
@@ -351,7 +352,7 @@ def _validate_optional_text_value(
         _add_issue(issues, "invalid_text_field", f"{label} must be a non-empty string.")
 
 
-def _validate_split(issues: list[ValidationIssue], value: object, *, label: str) -> None:
+def _validate_split(issues: list[SampleValidationIssue], value: object, *, label: str) -> None:
     if not isinstance(value, str) or value not in VALID_SAMPLE_SPLITS:
         _add_issue(
             issues,
@@ -361,7 +362,7 @@ def _validate_split(issues: list[ValidationIssue], value: object, *, label: str)
 
 
 def _validate_frame_count(
-    issues: list[ValidationIssue],
+    issues: list[SampleValidationIssue],
     value: object,
     *,
     label: str,
@@ -382,7 +383,7 @@ def _validate_frame_count(
 
 
 def _validate_fps(
-    issues: list[ValidationIssue],
+    issues: list[SampleValidationIssue],
     value: object,
     *,
     label: str,
@@ -402,7 +403,7 @@ def _validate_fps(
 
 
 def _validate_selected_person_record(
-    issues: list[ValidationIssue],
+    issues: list[SampleValidationIssue],
     value: object,
     *,
     num_frames: int | None,
@@ -464,7 +465,7 @@ def _validate_selected_person_record(
 
 
 def _validate_frame_quality_record(
-    issues: list[ValidationIssue],
+    issues: list[SampleValidationIssue],
     value: object,
     *,
     num_frames: int | None,
@@ -499,7 +500,7 @@ def _validate_frame_quality_record(
     zeroed_count = _validate_count_field(
         issues,
         value,
-        "frames_with_any_zeroed_required_joint",
+        "frames_with_any_zeroed_canonical_joint",
         label=label,
     )
 
@@ -517,7 +518,7 @@ def _validate_frame_quality_record(
 
     for field_name, count in (
         ("face_missing_frame_count", face_missing_frame_count),
-        ("frames_with_any_zeroed_required_joint", zeroed_count),
+        ("frames_with_any_zeroed_canonical_joint", zeroed_count),
     ):
         if count is not None and num_frames is not None and count > num_frames:
             _add_issue(
@@ -536,14 +537,14 @@ def _validate_frame_quality_record(
     _validate_count_mapping(
         issues,
         value.get("channel_nonzero_frames"),
-        required_keys=CANONICAL_POSE_CHANNELS,
+        required_keys=_canonical_pose_channels(),
         num_frames=num_frames,
         label=f"{label}.channel_nonzero_frames",
     )
 
 
 def _validate_pose_record(
-    issues: list[ValidationIssue],
+    issues: list[SampleValidationIssue],
     value: object,
     *,
     num_frames: int | None,
@@ -554,8 +555,9 @@ def _validate_pose_record(
         return
 
     observed_channels = set(value)
-    missing_channels = set(CANONICAL_POSE_CHANNELS) - observed_channels
-    extra_channels = observed_channels - set(CANONICAL_POSE_CHANNELS)
+    canonical_channels = _canonical_pose_channels()
+    missing_channels = set(canonical_channels) - observed_channels
+    extra_channels = observed_channels - set(canonical_channels)
     if missing_channels:
         _add_issue(
             issues,
@@ -569,7 +571,7 @@ def _validate_pose_record(
             f"{label} has non-canonical channels: {_format_keys(extra_channels)}.",
         )
 
-    for channel_name in CANONICAL_POSE_CHANNELS:
+    for channel_name in canonical_channels:
         channel_record = value.get(channel_name)
         _validate_pose_channel_record(
             issues,
@@ -581,7 +583,7 @@ def _validate_pose_record(
 
 
 def _validate_pose_channel_record(
-    issues: list[ValidationIssue],
+    issues: list[SampleValidationIssue],
     value: object,
     *,
     channel_name: str,
@@ -600,7 +602,7 @@ def _validate_pose_channel_record(
         label=label,
     )
 
-    expected_joint_count = POSE_CHANNEL_JOINT_COUNTS[channel_name]
+    expected_joint_count = _pose_channel_joint_counts()[channel_name]
 
     coordinates = value.get("coordinates")
     confidence = value.get("confidence")
@@ -614,7 +616,7 @@ def _validate_pose_channel_record(
         expected_coordinates_shape = (
             num_frames,
             expected_joint_count,
-            POSE_COORDINATE_DIMENSIONS,
+            _pose_coordinate_dimensions(),
         )
         if coordinates_shape != expected_coordinates_shape:
             _add_issue(
@@ -637,7 +639,7 @@ def _validate_pose_channel_record(
 
 
 def _validate_count_field(
-    issues: list[ValidationIssue],
+    issues: list[SampleValidationIssue],
     record: Mapping[str, Any],
     field_name: str,
     *,
@@ -663,7 +665,7 @@ def _validate_count_field(
 
 
 def _validate_count_mapping(
-    issues: list[ValidationIssue],
+    issues: list[SampleValidationIssue],
     value: object,
     *,
     required_keys: Sequence[str] | None,
@@ -702,7 +704,7 @@ def _validate_count_mapping(
             )
 
 
-def _validate_drop_reasons(issues: list[ValidationIssue], value: object) -> None:
+def _validate_drop_reasons(issues: list[SampleValidationIssue], value: object) -> None:
     if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
         _add_issue(
             issues,
@@ -718,7 +720,7 @@ def _validate_drop_reasons(issues: list[ValidationIssue], value: object) -> None
         )
         return
 
-    normalized_reasons: list[str] = []
+    normalized_reasons = []
     for reason in value:
         if not isinstance(reason, str) or not reason.strip():
             _add_issue(
@@ -737,7 +739,7 @@ def _validate_drop_reasons(issues: list[ValidationIssue], value: object) -> None
         )
 
 
-def _validate_debug_only(issues: list[ValidationIssue], value: object) -> bool | None:
+def _validate_debug_only(issues: list[SampleValidationIssue], value: object) -> bool | None:
     if not isinstance(value, bool):
         _add_issue(
             issues,
@@ -748,7 +750,7 @@ def _validate_debug_only(issues: list[ValidationIssue], value: object) -> bool |
     return value
 
 
-def _validate_drop_details(issues: list[ValidationIssue], value: object) -> None:
+def _validate_drop_details(issues: list[SampleValidationIssue], value: object) -> None:
     if value is None:
         return
     if not isinstance(value, Mapping):
@@ -807,9 +809,33 @@ def _shape_of(value: object) -> tuple[int, ...] | None:
         return None
 
 
-def _add_issue(issues: list[ValidationIssue], code: str, message: str) -> None:
-    issues.append(ValidationIssue(severity="error", code=code, message=message))
+def _add_issue(issues: list[SampleValidationIssue], code: str, message: str) -> None:
+    issues.append(
+        SampleValidationIssue(
+            severity=ValidationSeverity.ERROR,
+            code=code,
+            message=message,
+        )
+    )
 
 
 def _format_keys(keys: Sequence[str] | set[str] | frozenset[str]) -> str:
     return ", ".join(sorted(keys))
+
+
+def _canonical_pose_channels() -> tuple[str, ...]:
+    from text_to_sign_production.data.pose.schema import CANONICAL_POSE_CHANNELS
+
+    return CANONICAL_POSE_CHANNELS
+
+
+def _pose_channel_joint_counts() -> dict[str, int]:
+    from text_to_sign_production.data.pose.schema import POSE_CHANNEL_JOINT_COUNTS
+
+    return POSE_CHANNEL_JOINT_COUNTS
+
+
+def _pose_coordinate_dimensions() -> int:
+    from text_to_sign_production.data.pose.schema import POSE_COORDINATE_DIMENSIONS
+
+    return POSE_COORDINATE_DIMENSIONS

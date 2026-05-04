@@ -64,6 +64,12 @@ def parse_frame(
             frame_valid=False,
             issue_codes=["json_decode_error"],
         )
+    except UnicodeDecodeError:
+        return ParsedFrameResult(
+            people=[],
+            frame_valid=False,
+            issue_codes=["unicode_decode_error"],
+        )
 
     if not isinstance(payload, dict):
         return ParsedFrameResult(
@@ -134,9 +140,16 @@ def parse_frame(
                 confidences[channel] = zero_confidence(channel)
                 continue
 
-            raw_array, parsed_coords, parsed_confidence = _reshape_flat_keypoints(
-                raw_values, expected_points
-            )
+            try:
+                raw_array, parsed_coords, parsed_confidence = _reshape_flat_keypoints(
+                    raw_values, expected_points
+                )
+            except (TypeError, ValueError):
+                person_issues.append(f"channel_non_numeric:{raw_key}")
+                person_valid = False
+                coords[channel] = zero_coords(channel)
+                confidences[channel] = zero_confidence(channel)
+                continue
             parsed_coords[:, 0] = parsed_coords[:, 0] / np.float32(canvas_width)
             parsed_coords[:, 1] = parsed_coords[:, 1] / np.float32(canvas_height)
 

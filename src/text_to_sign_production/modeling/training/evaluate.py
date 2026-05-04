@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from text_to_sign_production.core.progress import (
+from text_to_sign_production.foundation.progress import (
     BatchProgress,
     NoOpProgressReporter,
     ProgressReporter,
@@ -355,7 +355,6 @@ def _progress(
         total=total,
         unit="batches",
         reporter=reporter if reporter is not None else NoOpProgressReporter(),
-        interval=interval,
     )
 
 

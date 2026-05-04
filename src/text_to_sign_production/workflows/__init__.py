@@ -1,3 +1,3 @@
-"""Notebook-facing workflow modules for text-to-sign-production."""
+"""Workflow package."""
 
-__all__ = ["base", "dataset", "visualization"]
+__all__: list[str] = []

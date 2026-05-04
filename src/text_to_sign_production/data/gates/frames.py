@@ -12,15 +12,15 @@ def evaluate_frames_gate(
     listing: FrameFileListing, candidate: SourceCandidate, config: GatesConfig
 ) -> GateResult:
     """Evaluate if sufficient frames were discovered and counts match source candidate."""
-    reasons: list[str] = []
+    reasons = []
 
     if listing.missing:
         reasons.append("frame_directory_missing")
-        return GateResult(status=GateStatus.DROPPED, reasons=reasons)
+        return GateResult(status=GateStatus.DROPPED, reasons=tuple(reasons))
 
     if not listing.files:
         reasons.append("no_frame_files_found")
-        return GateResult(status=GateStatus.DROPPED, reasons=reasons)
+        return GateResult(status=GateStatus.DROPPED, reasons=tuple(reasons))
 
     discovered_count = len(listing.files)
     expected_count = candidate.frame_count
@@ -32,6 +32,6 @@ def evaluate_frames_gate(
         reasons.append(f"frame_count_mismatch:expected_{expected_count}_got_{discovered_count}")
 
     if reasons:
-        return GateResult(status=GateStatus.DROPPED, reasons=reasons)
+        return GateResult(status=GateStatus.DROPPED, reasons=tuple(reasons))
 
     return GateResult(status=GateStatus.PASSED)

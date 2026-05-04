@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import enum
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -16,6 +18,34 @@ from text_to_sign_production.data.samples.types import (
 from text_to_sign_production.data.sources.types import SourceCandidate
 
 FloatArray = npt.NDArray[np.float32]
+
+
+class PersonSelectionPolicy(enum.StrEnum):
+    """Deterministic policy for selecting one OpenPose person track."""
+
+    OPENPOSE_PRIMARY = "openpose_primary"
+    HIGHEST_CANONICAL_SIGNAL = "highest_canonical_signal"
+
+
+@dataclass(frozen=True, slots=True)
+class PersonSelectionCandidateScore:
+    """Inspectable signal score for one OpenPose person index."""
+
+    index: int
+    aggregate_canonical_signal: float
+    aggregate_body_signal: float
+    valid_frame_presence_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class PersonSelectionResult:
+    """Resolved person selection plus policy diagnostics."""
+
+    target_index: int
+    policy: PersonSelectionPolicy
+    fallback_used: bool
+    fallback_reason: str | None
+    candidate_scores: tuple[PersonSelectionCandidateScore, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,14 +89,18 @@ class PoseBuildInput:
 
     candidate: SourceCandidate
     frames: FrameFileListing
+    person_selection_policy: PersonSelectionPolicy = PersonSelectionPolicy.HIGHEST_CANONICAL_SIGNAL
 
 
 @dataclass(frozen=True, slots=True)
 class PoseBuildDiagnostics:
     """Diagnostics and facts generated during pose building."""
 
-    parse_error: str | None = None
-    # Add other diagnostic fields if necessary, or just rely on FrameQualitySummary
+    person_selection_policy: PersonSelectionPolicy
+    person_selection_fallback_used: bool = False
+    person_selection_fallback_reason: str | None = None
+    person_selection_candidate_scores: tuple[PersonSelectionCandidateScore, ...] = ()
+    unrecoverable_error: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,4 +114,14 @@ class PoseBuildOutput:
     pose: BfhPosePayload
     frame_quality: FrameQualitySummary
     selected_person: SelectedPersonMetadata
+    people_per_frame: npt.NDArray[np.integer[Any]]
+    frame_valid_mask: npt.NDArray[np.bool_]
     diagnostics: PoseBuildDiagnostics
+
+
+@dataclass(frozen=True, slots=True)
+class PoseValidationIssue:
+    """A specific issue found during pose output validation."""
+
+    code: str
+    message: str

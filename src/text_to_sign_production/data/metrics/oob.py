@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from text_to_sign_production.data.metrics.types import OobMetrics
-from text_to_sign_production.data.samples.schema import (
+from text_to_sign_production.data.pose.schema import (
     CANONICAL_POSE_CHANNELS,
     POSE_CHANNEL_JOINT_COUNTS,
     POSE_COORDINATE_DIMENSIONS,

@@ -10,7 +10,7 @@ from zipfile import BadZipFile
 import numpy as np
 import numpy.typing as npt
 
-from text_to_sign_production.data.constants import PROCESSED_SCHEMA_VERSION
+from text_to_sign_production.data.samples.schema import PROCESSED_SCHEMA_VERSION
 
 
 class PoseSampleError(ValueError):

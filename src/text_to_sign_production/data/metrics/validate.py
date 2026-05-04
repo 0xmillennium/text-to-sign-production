@@ -23,39 +23,162 @@ def validate_metric_bundle(bundle: MetricBundle) -> list[MetricValidationIssue]:
             _add(f"invalid_{name}", f"{name} must be >= 0, got {val}")
 
     # OOB
+    _check_count("analysis_window.start_frame_index", bundle.analysis_window.start_frame_index)
+    _check_count(
+        "analysis_window.end_frame_index_exclusive",
+        bundle.analysis_window.end_frame_index_exclusive,
+    )
+    _check_count("analysis_window.frame_count", bundle.analysis_window.frame_count)
+    _check_ratio("analysis_window.frame_ratio", bundle.analysis_window.frame_ratio)
+    _check_count(
+        "analysis_window.pre_sign_excluded_frame_count",
+        bundle.analysis_window.pre_sign_excluded_frame_count,
+    )
+    _check_ratio(
+        "analysis_window.pre_sign_excluded_frame_ratio",
+        bundle.analysis_window.pre_sign_excluded_frame_ratio,
+    )
+    _check_count(
+        "analysis_window.post_sign_excluded_frame_count",
+        bundle.analysis_window.post_sign_excluded_frame_count,
+    )
+    _check_ratio(
+        "analysis_window.post_sign_excluded_frame_ratio",
+        bundle.analysis_window.post_sign_excluded_frame_ratio,
+    )
+    _check_count(
+        "analysis_window.sustained_hand_evidence_frame_count",
+        bundle.analysis_window.sustained_hand_evidence_frame_count,
+    )
+    _check_ratio(
+        "analysis_window.sustained_hand_evidence_frame_ratio",
+        bundle.analysis_window.sustained_hand_evidence_frame_ratio,
+    )
+    if bundle.analysis_window.end_frame_index_exclusive > bundle.length.num_frames:
+        _add("invalid_analysis_window", "analysis window end exceeds num_frames")
+    if (
+        bundle.analysis_window.start_frame_index
+        >= bundle.analysis_window.end_frame_index_exclusive
+    ):
+        _add("invalid_analysis_window", "analysis window start must be before end")
+    if (
+        bundle.analysis_window.end_frame_index_exclusive
+        - bundle.analysis_window.start_frame_index
+        != bundle.analysis_window.frame_count
+    ):
+        _add("invalid_analysis_window", "analysis window frame_count mismatches bounds")
+    if (
+        bundle.analysis_window.pre_sign_excluded_frame_count
+        + bundle.analysis_window.frame_count
+        + bundle.analysis_window.post_sign_excluded_frame_count
+        != bundle.length.num_frames
+    ):
+        _add("invalid_analysis_window", "analysis window partitions must equal num_frames")
+    if (
+        bundle.analysis_window.sustained_hand_evidence_frame_count
+        > bundle.analysis_window.frame_count
+    ):
+        _add("invalid_analysis_window", "sustained hand evidence exceeds analysis-window frames")
+
+    # OOB
     _check_count("oob.out_of_bounds_coordinate_count", bundle.oob.out_of_bounds_coordinate_count)
     _check_count("oob.total_coordinate_slots", bundle.oob.total_coordinate_slots)
     _check_ratio("oob.out_of_bounds_ratio", bundle.oob.out_of_bounds_ratio)
 
-    # Hand
-    _check_count("hand.left_hand_nonzero_frame_count", bundle.hand.left_hand_nonzero_frame_count)
-    _check_count("hand.right_hand_nonzero_frame_count", bundle.hand.right_hand_nonzero_frame_count)
-    _check_count("hand.any_hand_nonzero_frame_count", bundle.hand.any_hand_nonzero_frame_count)
-    _check_ratio("hand.left_hand_nonzero_frame_ratio", bundle.hand.left_hand_nonzero_frame_ratio)
-    _check_ratio("hand.right_hand_nonzero_frame_ratio", bundle.hand.right_hand_nonzero_frame_ratio)
-    _check_ratio("hand.any_hand_nonzero_frame_ratio", bundle.hand.any_hand_nonzero_frame_ratio)
+    # Coverage
+    for name in (
+        "signing_relevant_body_landmark_coverage_ratio",
+        "full_body_landmark_coverage_ratio",
+        "left_hand_landmark_coverage_ratio",
+        "right_hand_landmark_coverage_ratio",
+        "any_hand_landmark_coverage_ratio",
+        "face_landmark_coverage_ratio",
+    ):
+        _check_ratio(f"coverage.{name}", getattr(bundle.coverage, name))
 
-    if bundle.hand.any_hand_nonzero_frame_count < max(
-        bundle.hand.left_hand_nonzero_frame_count, bundle.hand.right_hand_nonzero_frame_count
+    # Hand
+    _check_count(
+        "hand.whole_clip_left_hand_available_frame_count",
+        bundle.hand.whole_clip_left_hand_available_frame_count,
+    )
+    _check_count(
+        "hand.whole_clip_right_hand_available_frame_count",
+        bundle.hand.whole_clip_right_hand_available_frame_count,
+    )
+    _check_count(
+        "hand.whole_clip_any_hand_available_frame_count",
+        bundle.hand.whole_clip_any_hand_available_frame_count,
+    )
+    _check_count(
+        "hand.active_window_any_hand_available_frame_count",
+        bundle.hand.active_window_any_hand_available_frame_count,
+    )
+    _check_ratio(
+        "hand.whole_clip_left_hand_available_frame_ratio",
+        bundle.hand.whole_clip_left_hand_available_frame_ratio,
+    )
+    _check_ratio(
+        "hand.whole_clip_right_hand_available_frame_ratio",
+        bundle.hand.whole_clip_right_hand_available_frame_ratio,
+    )
+    _check_ratio(
+        "hand.whole_clip_any_hand_available_frame_ratio",
+        bundle.hand.whole_clip_any_hand_available_frame_ratio,
+    )
+    _check_ratio(
+        "hand.active_window_any_hand_available_frame_ratio",
+        bundle.hand.active_window_any_hand_available_frame_ratio,
+    )
+    _check_count(
+        "hand.max_active_window_any_hand_unavailable_run_count",
+        bundle.hand.max_active_window_any_hand_unavailable_run_count,
+    )
+    _check_ratio(
+        "hand.max_active_window_any_hand_unavailable_run_ratio",
+        bundle.hand.max_active_window_any_hand_unavailable_run_ratio,
+    )
+
+    if bundle.hand.whole_clip_any_hand_available_frame_count < max(
+        bundle.hand.whole_clip_left_hand_available_frame_count,
+        bundle.hand.whole_clip_right_hand_available_frame_count,
     ):
         _add(
-            "invalid_any_hand_nonzero",
-            "any_hand_nonzero_frame_count must be >= max of left/right counts",
+            "invalid_any_hand_availability",
+            "whole_clip_any_hand_available_frame_count must be >= max of left/right counts",
         )
-    if bundle.hand.any_hand_nonzero_frame_count > bundle.length.num_frames:
-        _add("invalid_any_hand_nonzero", "any_hand_nonzero_frame_count exceeds num_frames")
+    if bundle.hand.whole_clip_any_hand_available_frame_count > bundle.length.num_frames:
+        _add(
+            "invalid_any_hand_availability",
+            "whole_clip_any_hand_available_frame_count exceeds num_frames",
+        )
+    if (
+        bundle.hand.active_window_any_hand_available_frame_count
+        > bundle.analysis_window.frame_count
+    ):
+        _add(
+            "invalid_any_hand_availability",
+            "active_window_any_hand_available_frame_count exceeds analysis-window frames",
+        )
+    if (
+        bundle.hand.max_active_window_any_hand_unavailable_run_count
+        > bundle.analysis_window.frame_count
+    ):
+        _add(
+            "invalid_any_hand_availability",
+            "max_active_window_any_hand_unavailable_run_count exceeds analysis-window frames",
+        )
 
     # Face
-    _check_count("face.face_nonzero_frame_count", bundle.face.face_nonzero_frame_count)
-    _check_count("face.face_missing_frame_count", bundle.face.face_missing_frame_count)
-    _check_ratio("face.face_nonzero_frame_ratio", bundle.face.face_nonzero_frame_ratio)
-    _check_ratio("face.face_missing_frame_ratio", bundle.face.face_missing_frame_ratio)
+    _check_count("face.face_available_frame_count", bundle.face.face_available_frame_count)
+    _check_count("face.face_unavailable_frame_count", bundle.face.face_unavailable_frame_count)
+    _check_ratio("face.face_available_frame_ratio", bundle.face.face_available_frame_ratio)
+    _check_ratio("face.face_unavailable_frame_ratio", bundle.face.face_unavailable_frame_ratio)
 
     if (
-        bundle.face.face_nonzero_frame_count + bundle.face.face_missing_frame_count
+        bundle.face.face_available_frame_count + bundle.face.face_unavailable_frame_count
         != bundle.length.num_frames
     ):
-        _add("face_frame_mismatch", "face nonzero + missing must equal num_frames")
+        _add("face_frame_mismatch", "face available + unavailable must equal num_frames")
 
     # Valid
     _check_count("valid.valid_frame_count", bundle.valid.valid_frame_count)
@@ -80,11 +203,12 @@ def validate_metric_bundle(bundle: MetricBundle) -> list[MetricValidationIssue]:
 
     # Confidence
     for name in [
-        "body_mean_confidence",
-        "left_hand_mean_confidence",
-        "right_hand_mean_confidence",
-        "face_mean_confidence",
-        "overall_mean_confidence",
+        "body_available_mean_confidence",
+        "active_window_left_hand_available_mean_confidence",
+        "active_window_right_hand_available_mean_confidence",
+        "active_window_any_hand_available_mean_confidence",
+        "face_available_mean_confidence",
+        "overall_available_mean_confidence",
         "body_nonzero_confidence_ratio",
         "left_hand_nonzero_confidence_ratio",
         "right_hand_nonzero_confidence_ratio",

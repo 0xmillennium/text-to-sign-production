@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 
+from text_to_sign_production.data.metrics.analysis_window import compute_analysis_window_metrics
 from text_to_sign_production.data.metrics.confidence import compute_confidence_metrics
+from text_to_sign_production.data.metrics.coverage import compute_coverage_metrics
 from text_to_sign_production.data.metrics.face import compute_face_metrics
 from text_to_sign_production.data.metrics.hand import compute_hand_metrics
 from text_to_sign_production.data.metrics.length import compute_length_metrics
@@ -12,7 +16,7 @@ from text_to_sign_production.data.metrics.oob import compute_oob_metrics
 from text_to_sign_production.data.metrics.text import compute_text_metrics
 from text_to_sign_production.data.metrics.types import MetricBundle
 from text_to_sign_production.data.metrics.valid import compute_valid_metrics
-from text_to_sign_production.data.samples.schema import CANONICAL_POSE_CHANNELS
+from text_to_sign_production.data.pose.schema import CANONICAL_POSE_CHANNELS
 from text_to_sign_production.data.samples.types import PassedManifestEntry, ProcessedSamplePayload
 
 
@@ -33,7 +37,7 @@ def build_metric_bundle(
         raise ValueError(f"text mismatch: {payload.text} != {manifest.text}")
     if payload.num_frames != manifest.num_frames:
         raise ValueError(f"num_frames mismatch: {payload.num_frames} != {manifest.num_frames}")
-    if payload.fps != manifest.fps:
+    if not _fps_values_match(payload.fps, manifest.fps):
         raise ValueError(f"fps mismatch: {payload.fps} != {manifest.fps}")
 
     channels = {
@@ -46,7 +50,12 @@ def build_metric_bundle(
     for channel in CANONICAL_POSE_CHANNELS:
         payload_conf = np.asarray(channels[channel].confidence)
         payload_nonzero = int(np.count_nonzero(np.any(payload_conf > 0.0, axis=1)))
-        manifest_nonzero = manifest.frame_quality.channel_nonzero_frames.get(channel, 0)
+        if channel not in manifest.frame_quality.channel_nonzero_frames:
+            raise ValueError(
+                f"Manifest frame_quality.channel_nonzero_frames missing canonical channel "
+                f"{channel!r}"
+            )
+        manifest_nonzero = manifest.frame_quality.channel_nonzero_frames[channel]
 
         if payload_nonzero != manifest_nonzero:
             raise ValueError(
@@ -54,18 +63,22 @@ def build_metric_bundle(
                 f"payload={payload_nonzero}, manifest={manifest_nonzero}"
             )
 
+    analysis_window = compute_analysis_window_metrics(payload)
     oob = compute_oob_metrics(payload, manifest)
-    hand = compute_hand_metrics(payload, manifest)
+    coverage = compute_coverage_metrics(payload, manifest)
+    hand = compute_hand_metrics(payload, manifest, analysis_window)
     face = compute_face_metrics(payload, manifest)
     valid = compute_valid_metrics(payload, manifest)
-    confidence = compute_confidence_metrics(payload)
+    confidence = compute_confidence_metrics(payload, analysis_window)
     text = compute_text_metrics(payload)
     length = compute_length_metrics(payload, text)
 
     return MetricBundle(
         sample_id=payload.sample_id,
         split=payload.split,
+        analysis_window=analysis_window,
         oob=oob,
+        coverage=coverage,
         hand=hand,
         face=face,
         valid=valid,
@@ -73,3 +86,9 @@ def build_metric_bundle(
         text=text,
         length=length,
     )
+
+
+def _fps_values_match(left: float | None, right: float | None) -> bool:
+    if left is None or right is None:
+        return left is right
+    return math.isclose(left, right, rel_tol=1e-6, abs_tol=1e-6)

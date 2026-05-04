@@ -9,15 +9,15 @@ from text_to_sign_production.data.samples.manifests import (
     build_dropped_entry,
     build_passed_entry,
     manifest_entry_from_record,
+    write_manifest_jsonl,
 )
 from text_to_sign_production.data.samples.payloads import (
     build_payload,
+    load_processed_sample_payload,
     payload_from_record,
+    write_processed_sample_payload,
 )
 from text_to_sign_production.data.samples.schema import (
-    CANONICAL_POSE_CHANNELS,
-    POSE_CHANNEL_JOINT_COUNTS,
-    POSE_COORDINATE_DIMENSIONS,
     PROCESSED_SCHEMA_VERSION,
     REQUIRED_DROPPED_MANIFEST_KEYS,
     REQUIRED_PASSED_MANIFEST_KEYS,
@@ -33,8 +33,8 @@ from text_to_sign_production.data.samples.types import (
     PoseChannelPayload,
     ProcessedSamplePayload,
     SampleStatus,
+    SampleValidationIssue,
     SelectedPersonMetadata,
-    ValidationIssue,
 )
 from text_to_sign_production.data.samples.validate import (
     validate_dropped_entry,
@@ -45,9 +45,6 @@ from text_to_sign_production.data.samples.validate import (
 )
 
 __all__ = (
-    "CANONICAL_POSE_CHANNELS",
-    "POSE_CHANNEL_JOINT_COUNTS",
-    "POSE_COORDINATE_DIMENSIONS",
     "PROCESSED_SCHEMA_VERSION",
     "REQUIRED_DROPPED_MANIFEST_KEYS",
     "REQUIRED_PASSED_MANIFEST_KEYS",
@@ -62,10 +59,11 @@ __all__ = (
     "ProcessedSamplePayload",
     "SampleStatus",
     "SelectedPersonMetadata",
-    "ValidationIssue",
+    "SampleValidationIssue",
     "build_dropped_entry",
     "build_passed_entry",
     "build_payload",
+    "load_processed_sample_payload",
     "manifest_entry_from_record",
     "payload_from_record",
     "validate_dropped_entry",
@@ -73,4 +71,6 @@ __all__ = (
     "validate_passed_entry",
     "validate_payload",
     "validate_payload_record",
+    "write_processed_sample_payload",
+    "write_manifest_jsonl",
 )

@@ -2,7 +2,24 @@
 
 from __future__ import annotations
 
+import enum
 from dataclasses import dataclass
+
+from text_to_sign_production.data._shared.identities import SampleSplit
+
+
+class MetricFamily(enum.StrEnum):
+    """Metric families owned by the metric computation layer."""
+
+    ANALYSIS_WINDOW = "analysis_window"
+    OOB = "oob"
+    COVERAGE = "coverage"
+    HAND = "hand"
+    FACE = "face"
+    VALID = "valid"
+    CONFIDENCE = "confidence"
+    TEXT = "text"
+    LENGTH = "length"
 
 
 @dataclass(frozen=True, slots=True)
@@ -11,6 +28,23 @@ class MetricValidationIssue:
 
     code: str
     message: str
+
+
+@dataclass(frozen=True, slots=True)
+class AnalysisWindowMetrics:
+    """Clip span used for active-signing quality analysis."""
+
+    start_frame_index: int
+    end_frame_index_exclusive: int
+    frame_count: int
+    frame_ratio: float
+    pre_sign_excluded_frame_count: int
+    pre_sign_excluded_frame_ratio: float
+    post_sign_excluded_frame_count: int
+    post_sign_excluded_frame_ratio: float
+    sustained_hand_evidence_frame_count: int
+    sustained_hand_evidence_frame_ratio: float
+    source: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,25 +57,41 @@ class OobMetrics:
 
 
 @dataclass(frozen=True, slots=True)
-class HandMetrics:
-    """Hand presence metrics for a sample."""
+class CoverageMetrics:
+    """Landmark completeness metrics for canonical pose channels."""
 
-    left_hand_nonzero_frame_count: int
-    right_hand_nonzero_frame_count: int
-    any_hand_nonzero_frame_count: int
-    left_hand_nonzero_frame_ratio: float
-    right_hand_nonzero_frame_ratio: float
-    any_hand_nonzero_frame_ratio: float
+    signing_relevant_body_landmark_coverage_ratio: float
+    full_body_landmark_coverage_ratio: float
+    left_hand_landmark_coverage_ratio: float
+    right_hand_landmark_coverage_ratio: float
+    any_hand_landmark_coverage_ratio: float
+    face_landmark_coverage_ratio: float
+
+
+@dataclass(frozen=True, slots=True)
+class HandMetrics:
+    """Active-window hand availability metrics for a sample."""
+
+    whole_clip_left_hand_available_frame_count: int
+    whole_clip_right_hand_available_frame_count: int
+    whole_clip_any_hand_available_frame_count: int
+    whole_clip_left_hand_available_frame_ratio: float
+    whole_clip_right_hand_available_frame_ratio: float
+    whole_clip_any_hand_available_frame_ratio: float
+    active_window_any_hand_available_frame_count: int
+    active_window_any_hand_available_frame_ratio: float
+    max_active_window_any_hand_unavailable_run_count: int
+    max_active_window_any_hand_unavailable_run_ratio: float
 
 
 @dataclass(frozen=True, slots=True)
 class FaceMetrics:
-    """Face presence metrics for a sample."""
+    """Temporal face availability metrics for a sample."""
 
-    face_nonzero_frame_count: int
-    face_missing_frame_count: int
-    face_nonzero_frame_ratio: float
-    face_missing_frame_ratio: float
+    face_available_frame_count: int
+    face_unavailable_frame_count: int
+    face_available_frame_ratio: float
+    face_unavailable_frame_ratio: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,13 +108,14 @@ class ValidMetrics:
 
 @dataclass(frozen=True, slots=True)
 class ConfidenceMetrics:
-    """Confidence metrics for a sample."""
+    """Availability-aware confidence quality metrics for a sample."""
 
-    body_mean_confidence: float
-    left_hand_mean_confidence: float
-    right_hand_mean_confidence: float
-    face_mean_confidence: float
-    overall_mean_confidence: float
+    body_available_mean_confidence: float
+    active_window_left_hand_available_mean_confidence: float
+    active_window_right_hand_available_mean_confidence: float
+    active_window_any_hand_available_mean_confidence: float
+    face_available_mean_confidence: float
+    overall_available_mean_confidence: float
     body_nonzero_confidence_ratio: float
     left_hand_nonzero_confidence_ratio: float
     right_hand_nonzero_confidence_ratio: float
@@ -97,8 +148,10 @@ class MetricBundle:
     """The fully composed metric bundle for a sample."""
 
     sample_id: str
-    split: str
+    split: SampleSplit
+    analysis_window: AnalysisWindowMetrics
     oob: OobMetrics
+    coverage: CoverageMetrics
     hand: HandMetrics
     face: FaceMetrics
     valid: ValidMetrics

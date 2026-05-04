@@ -7,65 +7,62 @@ families:
     tight:
       max_out_of_bounds_ratio: 0.01
 
+  coverage:
+    loose:
+      min_signing_relevant_body_landmark_coverage_ratio: 0.50
+    clean:
+      min_signing_relevant_body_landmark_coverage_ratio: 0.58
+    tight:
+      min_signing_relevant_body_landmark_coverage_ratio: 0.62
+
   hand:
     loose:
-      min_any_hand_nonzero_frame_ratio: 0.50
+      min_active_window_any_hand_available_frame_ratio: 0.50
+      max_active_window_any_hand_unavailable_run_ratio: 0.50
     clean:
-      min_any_hand_nonzero_frame_ratio: 0.70
+      min_active_window_any_hand_available_frame_ratio: 0.70
+      max_active_window_any_hand_unavailable_run_ratio: 0.30
     tight:
-      min_any_hand_nonzero_frame_ratio: 0.85
+      min_active_window_any_hand_available_frame_ratio: 0.85
+      max_active_window_any_hand_unavailable_run_ratio: 0.15
 
   face:
     loose:
-      min_face_nonzero_frame_ratio: 0.50
-      max_face_missing_frame_ratio: 0.50
+      min_face_available_frame_ratio: 0.50
     clean:
-      min_face_nonzero_frame_ratio: 0.70
-      max_face_missing_frame_ratio: 0.30
+      min_face_available_frame_ratio: 0.70
     tight:
-      min_face_nonzero_frame_ratio: 0.85
-      max_face_missing_frame_ratio: 0.15
-
-  valid:
-    loose:
-      min_valid_frame_ratio: 0.80
-      max_zeroed_canonical_joint_frame_ratio: 0.20
-    clean:
-      min_valid_frame_ratio: 0.90
-      max_zeroed_canonical_joint_frame_ratio: 0.10
-    tight:
-      min_valid_frame_ratio: 0.97
-      max_zeroed_canonical_joint_frame_ratio: 0.03
+      min_face_available_frame_ratio: 0.85
 
   confidence:
     loose:
-      min_overall_mean_confidence: 0.20
-      min_overall_nonzero_confidence_ratio: 0.50
+      min_body_available_mean_confidence: 0.20
+      min_active_window_any_hand_available_mean_confidence: 0.20
     clean:
-      min_overall_mean_confidence: 0.35
-      min_overall_nonzero_confidence_ratio: 0.70
+      min_body_available_mean_confidence: 0.37
+      min_active_window_any_hand_available_mean_confidence: 0.28
     tight:
-      min_overall_mean_confidence: 0.50
-      min_overall_nonzero_confidence_ratio: 0.85
+      min_body_available_mean_confidence: 0.43
+      min_active_window_any_hand_available_mean_confidence: 0.38
 
   text:
     loose:
       min_character_count: 2
       min_token_count: 1
     clean:
-      min_character_count: 4
+      min_character_count: 2
       min_token_count: 1
     tight:
-      min_character_count: 6
-      min_token_count: 2
+      min_character_count: 2
+      min_token_count: 1
 
   length:
     loose:
       min_num_frames: 8
       min_duration_seconds: 0.25
     clean:
-      min_num_frames: 12
-      min_duration_seconds: 0.40
+      min_num_frames: 8
+      min_duration_seconds: 0.25
     tight:
-      min_num_frames: 16
-      min_duration_seconds: 0.55
+      min_num_frames: 8
+      min_duration_seconds: 0.25

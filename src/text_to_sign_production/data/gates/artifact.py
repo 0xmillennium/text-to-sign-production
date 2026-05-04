@@ -14,7 +14,7 @@ def evaluate_artifact_gate(candidate: SourceCandidate, pose_output: PoseBuildOut
 
     Does not perform file I/O or decide filesystem layout.
     """
-    reasons: list[str] = []
+    reasons = []
 
     try:
         payload = ProcessedSamplePayload(
@@ -27,14 +27,14 @@ def evaluate_artifact_gate(candidate: SourceCandidate, pose_output: PoseBuildOut
             frame_quality=pose_output.frame_quality,
             selected_person=pose_output.selected_person,
         )
-    except Exception as exc:
+    except (TypeError, ValueError) as exc:
         reasons.append(f"payload_construction_failed:{exc}")
-        return GateResult(status=GateStatus.DROPPED, reasons=reasons)
+        return GateResult(status=GateStatus.DROPPED, reasons=tuple(reasons))
 
     validation_issues = validate_payload(payload)
     if validation_issues:
         for issue in validation_issues:
-            reasons.append(f"contract_invalid:{issue}")
-        return GateResult(status=GateStatus.DROPPED, reasons=reasons)
+            reasons.append(f"contract_invalid:{issue.code}")
+        return GateResult(status=GateStatus.DROPPED, reasons=tuple(reasons))
 
     return GateResult(status=GateStatus.PASSED)

@@ -3,13 +3,10 @@
 
 min_valid_frames: 1
 max_out_of_bounds_ratio: 0.5
+min_any_hand_nonzero_frames: 1
 
 channels:
   body:
-    min_nonzero_frames: 1
-  left_hand:
-    min_nonzero_frames: 1
-  right_hand:
     min_nonzero_frames: 1
   face:
     min_nonzero_frames: 1
