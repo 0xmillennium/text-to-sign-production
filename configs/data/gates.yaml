@@ -1,5 +1,15 @@
 # Structural usability decisions
 # Defines the absolute gating rules that reject corrupted or structurally unusable data
-# (e.g., missing video, corrupted metadata)
 
-enabled_gates: []
+min_valid_frames: 1
+max_out_of_bounds_ratio: 0.5
+
+channels:
+  body:
+    min_nonzero_frames: 1
+  left_hand:
+    min_nonzero_frames: 1
+  right_hand:
+    min_nonzero_frames: 1
+  face:
+    min_nonzero_frames: 1
