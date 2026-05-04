@@ -48,6 +48,14 @@ class LeakagePairFact:
 
 
 @dataclass(frozen=True, slots=True)
+class LeakageSampleRef:
+    """A split-aware reference to a matched sample."""
+
+    split: str
+    sample_id: str
+
+
+@dataclass(frozen=True, slots=True)
 class LeakageSampleSummary:
     """Summary of all cross-split leakages involving a specific sample."""
 
@@ -58,7 +66,7 @@ class LeakageSampleSummary:
     same_source_sentence_match_count: int
     exact_normalized_text_match_count: int
     same_source_video_match_count: int
-    matched_sample_ids: tuple[str, ...]
+    matched_samples: tuple[LeakageSampleRef, ...]
 
 
 @dataclass(frozen=True, slots=True)

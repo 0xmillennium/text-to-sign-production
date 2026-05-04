@@ -13,6 +13,7 @@ from text_to_sign_production.data.leakages.types import (
     LeakageInput,
     LeakagePairFact,
     LeakageRelation,
+    LeakageSampleRef,
     LeakageSampleSummary,
     LeakageSeverity,
 )
@@ -23,6 +24,7 @@ __all__ = [
     "LeakageInput",
     "LeakagePairFact",
     "LeakageRelation",
+    "LeakageSampleRef",
     "LeakageSampleSummary",
     "LeakageSeverity",
     "build_leakage_bundle",

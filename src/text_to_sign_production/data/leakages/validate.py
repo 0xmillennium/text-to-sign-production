@@ -6,6 +6,7 @@ from text_to_sign_production.data.leakages.severity import classify_leakage_seve
 from text_to_sign_production.data.leakages.types import (
     LeakageBundle,
     LeakageRelation,
+    LeakageSampleRef,
     LeakageSeverity,
 )
 
@@ -64,8 +65,9 @@ def validate_leakage_bundle(bundle: LeakageBundle) -> list[str]:
         if s.same_source_video_match_count < 0:
             issues.append(f"negative_count:{key}")
 
-        if s.matched_sample_ids != tuple(sorted(set(s.matched_sample_ids))):
-            issues.append(f"matched_ids_not_sorted_or_unique:{key}")
+        matched_keys = tuple((ref.split, ref.sample_id) for ref in s.matched_samples)
+        if matched_keys != tuple(sorted(set(matched_keys))):
+            issues.append(f"matched_samples_not_sorted_or_unique:{key}")
 
         expected_has_leakage = s.max_severity != LeakageSeverity.NONE
         if s.has_leakage != expected_has_leakage:
@@ -78,14 +80,14 @@ def validate_leakage_bundle(bundle: LeakageBundle) -> list[str]:
                 issues.append(f"nonzero_count_without_leakage:{key}")
             if s.same_source_video_match_count > 0:
                 issues.append(f"nonzero_count_without_leakage:{key}")
-            if s.matched_sample_ids:
-                issues.append(f"matched_ids_without_leakage:{key}")
+            if s.matched_samples:
+                issues.append(f"matched_samples_without_leakage:{key}")
         else:
-            if not s.matched_sample_ids:
-                issues.append(f"missing_matched_ids_with_leakage:{key}")
+            if not s.matched_samples:
+                issues.append(f"missing_matched_samples_with_leakage:{key}")
 
         # 3. Cross-consistency
-        actual_matches: set[str] = set()
+        actual_matches: set[tuple[str, str]] = set()
         actual_severity = LeakageSeverity.NONE
         actual_counts = {
             LeakageRelation.SAME_SOURCE_SENTENCE: 0,
@@ -109,14 +111,18 @@ def validate_leakage_bundle(bundle: LeakageBundle) -> list[str]:
             else:
                 continue
 
-            actual_matches.add(other[1])
+            actual_matches.add(other)
             if sev_val[pf.severity] > sev_val[actual_severity]:
                 actual_severity = pf.severity
             for r in pf.relations:
                 actual_counts[r] += 1
 
-        if tuple(sorted(actual_matches)) != s.matched_sample_ids:
-            issues.append(f"matched_ids_cross_mismatch:{key}")
+        expected_matched_samples = tuple(
+            LeakageSampleRef(split=split, sample_id=sample_id)
+            for split, sample_id in sorted(actual_matches)
+        )
+        if expected_matched_samples != s.matched_samples:
+            issues.append(f"matched_samples_cross_mismatch:{key}")
 
         if actual_severity != s.max_severity:
             issues.append(f"max_severity_cross_mismatch:{key}")

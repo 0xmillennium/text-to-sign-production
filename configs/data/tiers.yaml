@@ -1,4 +1,33 @@
-# YAML-driven dataset surface decisions
-# Defines which thresholds and rules form specific dataset tiers
+tiers:
+  loose:
+    families:
+      oob: loose
+      hand: loose
+      face: loose
+      valid: loose
+      confidence: loose
+      text: loose
+      length: loose
+    max_allowed_leakage_severity: NONE
 
-tiers: {}
+  clean:
+    families:
+      oob: clean
+      hand: clean
+      face: clean
+      valid: clean
+      confidence: clean
+      text: clean
+      length: clean
+    max_allowed_leakage_severity: NONE
+
+  tight:
+    families:
+      oob: tight
+      hand: tight
+      face: tight
+      valid: tight
+      confidence: tight
+      text: tight
+      length: tight
+    max_allowed_leakage_severity: NONE

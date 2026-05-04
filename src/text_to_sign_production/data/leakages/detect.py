@@ -11,6 +11,7 @@ from text_to_sign_production.data.leakages.types import (
     LeakageInput,
     LeakagePairFact,
     LeakageRelation,
+    LeakageSampleRef,
     LeakageSampleSummary,
     LeakageSeverity,
 )
@@ -60,7 +61,7 @@ def build_leakage_bundle(inputs: Sequence[LeakageInput]) -> LeakageBundle:
     sample_summaries: list[LeakageSampleSummary] = []
     for sample in sorted_inputs:
         sample_key = (sample.split, sample.sample_id)
-        matched_ids: set[str] = set()
+        matched_samples: set[tuple[str, str]] = set()
         max_severity = LeakageSeverity.NONE
 
         counts = {
@@ -78,7 +79,7 @@ def build_leakage_bundle(inputs: Sequence[LeakageInput]) -> LeakageBundle:
         }
 
         for pf, matched_sample_key in summary_pairs[sample_key]:
-            matched_ids.add(matched_sample_key[1])
+            matched_samples.add(matched_sample_key)
             if severity_val[pf.severity] > severity_val[max_severity]:
                 max_severity = pf.severity
 
@@ -96,7 +97,10 @@ def build_leakage_bundle(inputs: Sequence[LeakageInput]) -> LeakageBundle:
                 same_source_sentence_match_count=counts[LeakageRelation.SAME_SOURCE_SENTENCE],
                 exact_normalized_text_match_count=counts[LeakageRelation.EXACT_NORMALIZED_TEXT],
                 same_source_video_match_count=counts[LeakageRelation.SAME_SOURCE_VIDEO],
-                matched_sample_ids=tuple(sorted(matched_ids)),
+                matched_samples=tuple(
+                    LeakageSampleRef(split=split, sample_id=sample_id)
+                    for split, sample_id in sorted(matched_samples)
+                ),
             )
         )
 

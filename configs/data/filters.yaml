@@ -1,4 +1,71 @@
-# Metric-family threshold levels
-# Defines quantitative thresholds for policy-free measurements
+families:
+  oob:
+    loose:
+      max_out_of_bounds_ratio: 0.05
+    clean:
+      max_out_of_bounds_ratio: 0.02
+    tight:
+      max_out_of_bounds_ratio: 0.01
 
-thresholds: {}
+  hand:
+    loose:
+      min_any_hand_nonzero_frame_ratio: 0.50
+    clean:
+      min_any_hand_nonzero_frame_ratio: 0.70
+    tight:
+      min_any_hand_nonzero_frame_ratio: 0.85
+
+  face:
+    loose:
+      min_face_nonzero_frame_ratio: 0.50
+      max_face_missing_frame_ratio: 0.50
+    clean:
+      min_face_nonzero_frame_ratio: 0.70
+      max_face_missing_frame_ratio: 0.30
+    tight:
+      min_face_nonzero_frame_ratio: 0.85
+      max_face_missing_frame_ratio: 0.15
+
+  valid:
+    loose:
+      min_valid_frame_ratio: 0.80
+      max_zeroed_canonical_joint_frame_ratio: 0.20
+    clean:
+      min_valid_frame_ratio: 0.90
+      max_zeroed_canonical_joint_frame_ratio: 0.10
+    tight:
+      min_valid_frame_ratio: 0.97
+      max_zeroed_canonical_joint_frame_ratio: 0.03
+
+  confidence:
+    loose:
+      min_overall_mean_confidence: 0.20
+      min_overall_nonzero_confidence_ratio: 0.50
+    clean:
+      min_overall_mean_confidence: 0.35
+      min_overall_nonzero_confidence_ratio: 0.70
+    tight:
+      min_overall_mean_confidence: 0.50
+      min_overall_nonzero_confidence_ratio: 0.85
+
+  text:
+    loose:
+      min_character_count: 2
+      min_token_count: 1
+    clean:
+      min_character_count: 4
+      min_token_count: 1
+    tight:
+      min_character_count: 6
+      min_token_count: 2
+
+  length:
+    loose:
+      min_num_frames: 8
+      min_duration_seconds: 0.25
+    clean:
+      min_num_frames: 12
+      min_duration_seconds: 0.40
+    tight:
+      min_num_frames: 16
+      min_duration_seconds: 0.55
