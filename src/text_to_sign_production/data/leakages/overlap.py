@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
-from text_to_sign_production.data.leakages.types import LeakageInput, LeakageRelation
+from text_to_sign_production.data.leakages.types import (
+    LEAKAGE_RELATION_SPECS,
+    LeakageInput,
+    LeakageRelation,
+)
 from text_to_sign_production.data.metrics.types import MetricBundle
 from text_to_sign_production.data.samples.types import PassedManifestEntry
 
 
 def build_leakage_input(manifest: PassedManifestEntry, metrics: MetricBundle) -> LeakageInput:
     """Build the deterministic leakage input from accepted facts."""
+    if manifest.split != metrics.split:
+        raise ValueError(
+            f"Leakage input split mismatch for {manifest.sample_id}: "
+            f"{manifest.split.value} != {metrics.split.value}"
+        )
     return LeakageInput(
         sample_id=manifest.sample_id,
         split=manifest.split,
@@ -26,16 +35,11 @@ def detect_pair_relations(
     if left.split == right.split:
         return None
 
-    relations: list[LeakageRelation] = []
-
-    if left.source_sentence_id == right.source_sentence_id:
-        relations.append(LeakageRelation.SAME_SOURCE_SENTENCE)
-
-    if left.normalized_text == right.normalized_text:
-        relations.append(LeakageRelation.EXACT_NORMALIZED_TEXT)
-
-    if left.source_video_id == right.source_video_id:
-        relations.append(LeakageRelation.SAME_SOURCE_VIDEO)
+    relations: list[LeakageRelation] = [
+        spec.relation
+        for spec in LEAKAGE_RELATION_SPECS
+        if getattr(left, spec.input_field) == getattr(right, spec.input_field)
+    ]
 
     if not relations:
         return None

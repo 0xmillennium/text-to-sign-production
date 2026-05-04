@@ -7,8 +7,14 @@ from pathlib import Path
 from text_to_sign_production.data.sources.types import (
     SourceCandidate,
     SourceMatchResult,
+    TranslationRow,
     VideoMetadataFacts,
 )
+
+
+def sample_id_from_translation(translation: TranslationRow) -> str:
+    """Return the canonical sample identity for a translation row."""
+    return translation.sentence_name
 
 
 def assemble_candidate(match: SourceMatchResult, video_path: Path) -> SourceCandidate:
@@ -24,11 +30,7 @@ def assemble_candidate(match: SourceMatchResult, video_path: Path) -> SourceCand
 
     translation = match.translation
 
-    # Generate source issues based on validation findings.
-    source_issues: list[str] = []
-
-    if match.keypoints.frame_count == 0:
-        source_issues.append("missing_frame_json_files")
+    source_issues: list[str] = list(match.source_issues)
 
     video_metadata = match.video_metadata
     if video_metadata is None:
@@ -36,12 +38,9 @@ def assemble_candidate(match: SourceMatchResult, video_path: Path) -> SourceCand
         video_metadata = VideoMetadataFacts(
             width=None, height=None, fps=None, error="video_metadata_not_provided"
         )
-        source_issues.append("video_metadata_not_provided")
-    elif not video_metadata.is_readable:
-        source_issues.append(f"video_metadata:{video_metadata.error}")
 
     return SourceCandidate(
-        sample_id=translation.sentence_name,
+        sample_id=sample_id_from_translation(translation),
         split=match.split,
         text=translation.text,
         start_time=translation.start_time,

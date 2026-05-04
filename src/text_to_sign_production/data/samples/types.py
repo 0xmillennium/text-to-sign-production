@@ -6,6 +6,8 @@ import enum
 from dataclasses import asdict, dataclass, field
 from typing import Any, Protocol, TypeAlias, runtime_checkable
 
+from text_to_sign_production.data._shared.identities import SampleSplit as _SampleSplit
+from text_to_sign_production.data.samples._shared.validation import ValidationSeverity
 from text_to_sign_production.data.samples.schema import PROCESSED_SCHEMA_VERSION
 
 JsonScalar: TypeAlias = str | int | float | bool | None
@@ -20,10 +22,10 @@ class SampleStatus(enum.StrEnum):
 
 
 @dataclass(slots=True, frozen=True)
-class ValidationIssue:
+class SampleValidationIssue:
     """A specific issue found during sample validation."""
 
-    severity: str
+    severity: ValidationSeverity
     code: str
     message: str
 
@@ -46,9 +48,9 @@ class PoseChannelPayload:
     """A single canonical pose channel carrying coordinates and confidence data.
 
     This record models per-sample data only.  Schema-level metadata such as
-    expected joint counts, coordinate dimensionality, and required-vs-optional
-    policy are owned by ``schema.py`` and enforced by validation, not embedded
-    in every payload record.
+    expected joint counts and coordinate dimensionality are owned by
+    ``pose.schema`` and enforced by validation, not embedded in every payload
+    record.
     """
 
     coordinates: ArrayLike
@@ -106,7 +108,7 @@ class FrameQualitySummary:
     invalid_frame_count: int
     face_missing_frame_count: int
     out_of_bounds_coordinate_count: int
-    frames_with_any_zeroed_required_joint: int
+    frames_with_any_zeroed_canonical_joint: int
     frame_issue_counts: dict[str, int] = field(default_factory=dict)
     channel_nonzero_frames: dict[str, int] = field(default_factory=dict)
 
@@ -121,12 +123,14 @@ class ProcessedSamplePayload:
 
     sample_id: str
     text: str
-    split: str
+    split: _SampleSplit
     num_frames: int
     fps: float | None
     selected_person: SelectedPersonMetadata
     frame_quality: FrameQualitySummary
     pose: BfhPosePayload
+    people_per_frame: ArrayLike | None = None
+    frame_valid_mask: ArrayLike | None = None
     schema_version: str = PROCESSED_SCHEMA_VERSION
 
     def to_record(self) -> dict[str, Any]:
@@ -135,7 +139,7 @@ class ProcessedSamplePayload:
             "sample_id": self.sample_id,
             "schema_version": self.schema_version,
             "text": self.text,
-            "split": self.split,
+            "split": self.split.value,
             "num_frames": self.num_frames,
             "fps": self.fps,
             "selected_person": self.selected_person.to_record(),
@@ -150,7 +154,7 @@ class PassedManifestEntry:
 
     sample_id: str
     text: str
-    split: str
+    split: _SampleSplit
     num_frames: int
     fps: float | None
     sample_path: str
@@ -174,7 +178,7 @@ class PassedManifestEntry:
             "schema_version": self.schema_version,
             "status": self.status.value,
             "text": self.text,
-            "split": self.split,
+            "split": self.split.value,
             "num_frames": self.num_frames,
             "fps": self.fps,
             "sample_path": self.sample_path,
@@ -191,7 +195,7 @@ class DroppedManifestEntry:
     """A manifest entry for a sample that was rejected."""
 
     sample_id: str
-    split: str
+    split: _SampleSplit
 
     # Why it was dropped.
     drop_stage: str
@@ -218,7 +222,7 @@ class DroppedManifestEntry:
             "sample_id": self.sample_id,
             "schema_version": self.schema_version,
             "status": self.status.value,
-            "split": self.split,
+            "split": self.split.value,
             "drop_stage": self.drop_stage,
             "drop_reasons": list(self.drop_reasons),
             "debug_only": self.debug_only,

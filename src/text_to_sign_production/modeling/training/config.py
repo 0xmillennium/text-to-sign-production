@@ -9,7 +9,7 @@ from typing import Any, cast
 
 import yaml
 
-from text_to_sign_production.data.constants import SPLITS
+from text_to_sign_production.data._shared.identities import VALID_SAMPLE_SPLITS as SPLITS
 from text_to_sign_production.modeling.config import DEFAULT_BASELINE_CONFIG_PATH
 from text_to_sign_production.modeling.contracts import (
     BASELINE_ID,

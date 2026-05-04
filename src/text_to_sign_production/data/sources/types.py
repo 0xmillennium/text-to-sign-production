@@ -13,6 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from text_to_sign_production.data._shared.identities import SampleSplit
+
 
 @dataclass(frozen=True, slots=True)
 class TranslationRow:
@@ -69,17 +71,23 @@ class SourceMatchResult:
     """The outcome of matching a translation row against keypoint and video sources.
 
     Represents a single translation row matched (or unmatched) against its
-    expected keypoint directory and video file.  Missing sources are
-    represented as ``None`` fields rather than exceptions, allowing
-    downstream code to distinguish matched from unmatched candidates.
+    expected keypoint directory and video file. ``matched`` only means the
+    source identity resolved to an available keypoint directory. Structural
+    viability is represented separately by ``source_issues``.
     """
 
     translation: TranslationRow
-    split: str
+    split: SampleSplit
     keypoints: KeypointSourceFacts | None
     video_metadata: VideoMetadataFacts | None
     matched: bool
     unmatched_reason: str | None = None
+    source_issues: tuple[str, ...] = field(default_factory=tuple)
+
+    @property
+    def structurally_viable(self) -> bool:
+        """Whether matched sources carry no source-side structural issues."""
+        return self.matched and not self.source_issues
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,13 +95,15 @@ class SourceCandidate:
     """A fully assembled source-side sample candidate.
 
     Carries enough information to locate and interpret a sample for
-    downstream pose processing.  Only matched sources become candidates.
+    downstream pose processing. Only matched sources become candidates; source
+    issues retain facts that may still make the candidate structurally
+    unusable.
 
     This is the natural input surface for ``pose`` package operations.
     """
 
     sample_id: str
-    split: str
+    split: SampleSplit
     text: str
     start_time: float
     end_time: float
@@ -105,3 +115,16 @@ class SourceCandidate:
     video_path: Path
     video_metadata: VideoMetadataFacts
     source_issues: tuple[str, ...] = field(default_factory=tuple)
+
+    @property
+    def structurally_viable(self) -> bool:
+        """Whether the source candidate is structurally viable before pose parsing."""
+        return not self.source_issues
+
+
+@dataclass(frozen=True, slots=True)
+class SourceValidationIssue:
+    """A specific issue found during source candidate validation."""
+
+    code: str
+    message: str

@@ -2,7 +2,23 @@
 
 from __future__ import annotations
 
+import enum
 from dataclasses import dataclass
+
+from text_to_sign_production.data._shared.identities import SampleSplit
+
+
+class MetricFamily(enum.StrEnum):
+    """Metric families owned by the metric computation layer."""
+
+    OOB = "oob"
+    COVERAGE = "coverage"
+    HAND = "hand"
+    FACE = "face"
+    VALID = "valid"
+    CONFIDENCE = "confidence"
+    TEXT = "text"
+    LENGTH = "length"
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,25 +39,38 @@ class OobMetrics:
 
 
 @dataclass(frozen=True, slots=True)
-class HandMetrics:
-    """Hand presence metrics for a sample."""
+class CoverageMetrics:
+    """Landmark completeness metrics for canonical pose channels."""
 
-    left_hand_nonzero_frame_count: int
-    right_hand_nonzero_frame_count: int
-    any_hand_nonzero_frame_count: int
-    left_hand_nonzero_frame_ratio: float
-    right_hand_nonzero_frame_ratio: float
-    any_hand_nonzero_frame_ratio: float
+    body_landmark_coverage_ratio: float
+    left_hand_landmark_coverage_ratio: float
+    right_hand_landmark_coverage_ratio: float
+    any_hand_landmark_coverage_ratio: float
+    face_landmark_coverage_ratio: float
+
+
+@dataclass(frozen=True, slots=True)
+class HandMetrics:
+    """Temporal hand availability metrics for a sample."""
+
+    left_hand_available_frame_count: int
+    right_hand_available_frame_count: int
+    any_hand_available_frame_count: int
+    left_hand_available_frame_ratio: float
+    right_hand_available_frame_ratio: float
+    any_hand_available_frame_ratio: float
+    max_any_hand_unavailable_run_count: int
+    max_any_hand_unavailable_run_ratio: float
 
 
 @dataclass(frozen=True, slots=True)
 class FaceMetrics:
-    """Face presence metrics for a sample."""
+    """Temporal face availability metrics for a sample."""
 
-    face_nonzero_frame_count: int
-    face_missing_frame_count: int
-    face_nonzero_frame_ratio: float
-    face_missing_frame_ratio: float
+    face_available_frame_count: int
+    face_unavailable_frame_count: int
+    face_available_frame_ratio: float
+    face_unavailable_frame_ratio: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,8 +126,9 @@ class MetricBundle:
     """The fully composed metric bundle for a sample."""
 
     sample_id: str
-    split: str
+    split: SampleSplit
     oob: OobMetrics
+    coverage: CoverageMetrics
     hand: HandMetrics
     face: FaceMetrics
     valid: ValidMetrics

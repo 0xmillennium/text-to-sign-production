@@ -11,13 +11,11 @@ from zipfile import BadZipFile
 import numpy as np
 import numpy.typing as npt
 
-from text_to_sign_production.data.constants import (
-    OPENPOSE_CHANNEL_SPECS,
-    PROCESSED_SCHEMA_VERSION,
-    SPLITS,
-)
-from text_to_sign_production.data.schemas import ProcessedManifestEntry
-from text_to_sign_production.data.validate import validate_processed_sample_path
+from text_to_sign_production.data._shared.identities import VALID_SAMPLE_SPLITS as SPLITS
+from text_to_sign_production.data.pose.schema import OPENPOSE_CHANNEL_SPECS
+from text_to_sign_production.data.samples.manifests import manifest_entry_from_record
+from text_to_sign_production.data.samples.schema import PROCESSED_SCHEMA_VERSION
+from text_to_sign_production.data.samples.types import PassedManifestEntry
 
 from .schemas import (
     M0_TARGET_CHANNELS,
@@ -44,7 +42,7 @@ def _validate_split(split: str, *, context: str) -> None:
 
 
 def _processed_manifest_record_from_entry(
-    entry: ProcessedManifestEntry,
+    entry: PassedManifestEntry,
     *,
     manifest_path: Path,
     expected_split: str | None,
@@ -60,16 +58,17 @@ def _processed_manifest_record_from_entry(
             f"Processed manifest record {entry.sample_id!r} in {manifest_path} has leading "
             "or trailing whitespace in sample_id."
         )
-    if entry.processed_schema_version != PROCESSED_SCHEMA_VERSION:
+    if entry.schema_version != PROCESSED_SCHEMA_VERSION:
         raise ProcessedModelingDataError(
             "Processed manifest record "
-            f"{sample_id!r} uses schema {entry.processed_schema_version!r}; "
+            f"{sample_id!r} uses schema {entry.schema_version!r}; "
             f"expected {PROCESSED_SCHEMA_VERSION!r}."
         )
-    _validate_split(entry.split, context=f"Processed manifest record {sample_id!r}")
-    if expected_split is not None and entry.split != expected_split:
+    split = entry.split.value
+    _validate_split(split, context=f"Processed manifest record {sample_id!r}")
+    if expected_split is not None and split != expected_split:
         raise ProcessedModelingDataError(
-            f"Processed manifest record {sample_id!r} has split {entry.split!r}; "
+            f"Processed manifest record {sample_id!r} has split {split!r}; "
             f"expected {expected_split!r}."
         )
     if entry.num_frames < 0:
@@ -78,9 +77,9 @@ def _processed_manifest_record_from_entry(
         )
 
     try:
-        resolved_sample_path = validate_processed_sample_path(
+        resolved_sample_path = _validate_processed_sample_path(
             entry.sample_path,
-            split=entry.split,
+            split=split,
             sample_id=sample_id,
             data_root=data_root,
         )
@@ -96,18 +95,18 @@ def _processed_manifest_record_from_entry(
 
     return ProcessedModelingManifestRecord(
         sample_id=sample_id,
-        split=entry.split,
+        split=split,
         text=entry.text,
         fps=entry.fps,
         num_frames=entry.num_frames,
         sample_path=resolved_sample_path,
         sample_path_value=entry.sample_path,
-        processed_schema_version=entry.processed_schema_version,
-        selected_person_index=entry.selected_person_index,
-        multi_person_frame_count=entry.multi_person_frame_count,
-        max_people_per_frame=entry.max_people_per_frame,
-        frame_valid_count=entry.frame_valid_count,
-        frame_invalid_count=entry.frame_invalid_count,
+        processed_schema_version=entry.schema_version,
+        selected_person_index=entry.selected_person.index,
+        multi_person_frame_count=entry.selected_person.multi_person_frame_count,
+        max_people_per_frame=entry.selected_person.max_people_per_frame,
+        frame_valid_count=entry.frame_quality.valid_frame_count,
+        frame_invalid_count=entry.frame_quality.invalid_frame_count,
     )
 
 
@@ -116,15 +115,21 @@ def _parse_processed_manifest_entry(
     *,
     manifest_path: Path,
     line_number: int,
-) -> ProcessedManifestEntry:
+) -> PassedManifestEntry:
     try:
-        return ProcessedManifestEntry.from_record(record)
+        entry = manifest_entry_from_record(record)
     except Exception as exc:
         sample_id = str(record.get("sample_id", "<unknown>"))
         raise ProcessedModelingDataError(
             f"Could not parse processed manifest record on line {line_number} "
             f"({sample_id!r}) in {manifest_path}: {exc}"
         ) from exc
+    if not isinstance(entry, PassedManifestEntry):
+        raise ProcessedModelingDataError(
+            f"Processed manifest record on line {line_number} in {manifest_path} "
+            f"is not a passed entry: {entry.sample_id!r}."
+        )
+    return entry
 
 
 def _iter_processed_manifest_records(path: Path) -> Iterator[tuple[int, dict[str, Any]]]:
@@ -196,6 +201,27 @@ def _infer_data_root_from_manifest(path: Path) -> Path:
     raise ProcessedModelingDataError(
         f"Could not infer project data root from processed manifest path: {path}"
     )
+
+
+def _validate_processed_sample_path(
+    sample_path: str,
+    *,
+    split: str,
+    sample_id: str,
+    data_root: Path,
+) -> Path:
+    path = Path(sample_path)
+    resolved = path if path.is_absolute() else data_root / path
+    resolved = resolved.expanduser().resolve()
+    if resolved.suffix != ".npz":
+        raise ValueError(f"sample_path must point to an .npz file: {sample_path!r}.")
+    if sample_id not in resolved.stem:
+        raise ValueError(
+            f"sample_path {sample_path!r} does not appear to reference sample {sample_id!r}."
+        )
+    if split not in resolved.parts:
+        raise ValueError(f"sample_path {sample_path!r} does not include split {split!r}.")
+    return resolved
 
 
 def _sample_array(

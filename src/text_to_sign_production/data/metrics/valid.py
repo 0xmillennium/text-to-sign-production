@@ -14,7 +14,7 @@ def compute_valid_metrics(
     invalid_frame_count = manifest.frame_quality.invalid_frame_count
 
     zeroed_canonical_joint_frame_count = (
-        manifest.frame_quality.frames_with_any_zeroed_required_joint
+        manifest.frame_quality.frames_with_any_zeroed_canonical_joint
     )
 
     num_frames = payload.num_frames

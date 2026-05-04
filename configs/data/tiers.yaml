@@ -2,32 +2,32 @@ tiers:
   loose:
     families:
       oob: loose
+      coverage: loose
       hand: loose
       face: loose
-      valid: loose
       confidence: loose
       text: loose
       length: loose
-    max_allowed_leakage_severity: NONE
+    max_allowed_leakage_severity: none
 
   clean:
     families:
       oob: clean
+      coverage: clean
       hand: clean
       face: clean
-      valid: clean
       confidence: clean
       text: clean
       length: clean
-    max_allowed_leakage_severity: NONE
+    max_allowed_leakage_severity: none
 
   tight:
     families:
       oob: tight
+      coverage: tight
       hand: tight
       face: tight
-      valid: tight
       confidence: tight
       text: tight
       length: tight
-    max_allowed_leakage_severity: NONE
+    max_allowed_leakage_severity: none

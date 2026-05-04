@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 
-from text_to_sign_production.data.constants import CANVAS_HEIGHT, CANVAS_WIDTH
+from text_to_sign_production.data.pose.schema import CANVAS_HEIGHT, CANVAS_WIDTH
 
 from .pose import PoseSample
 

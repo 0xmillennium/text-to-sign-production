@@ -10,7 +10,7 @@ from typing import Any, Final, cast
 import numpy as np
 import numpy.typing as npt
 
-from text_to_sign_production.data.constants import PROCESSED_SCHEMA_VERSION
+from text_to_sign_production.data.samples.schema import PROCESSED_SCHEMA_VERSION
 from text_to_sign_production.modeling.contracts import (
     CONFIDENCE_POLICY,
     LENGTH_POLICY,

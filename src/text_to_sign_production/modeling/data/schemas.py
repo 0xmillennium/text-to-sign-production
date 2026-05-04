@@ -9,7 +9,7 @@ from typing import Any, Final, TypeAlias
 import numpy as np
 import numpy.typing as npt
 
-from text_to_sign_production.data.constants import OPENPOSE_CHANNEL_SPECS
+from text_to_sign_production.data.pose.schema import OPENPOSE_CHANNEL_SPECS
 
 M0_TARGET_CHANNELS: Final[tuple[str, str, str, str]] = (
     "body",

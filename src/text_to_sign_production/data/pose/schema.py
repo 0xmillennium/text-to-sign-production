@@ -18,6 +18,12 @@ EXPECTED_OPENPOSE_PERSON_KEYS: Final[frozenset[str]] = frozenset(
         "hand_right_keypoints_3d",
     }
 )
+EXPECTED_OPENPOSE_3D_KEYS: Final[tuple[str, ...]] = (
+    "pose_keypoints_3d",
+    "face_keypoints_3d",
+    "hand_left_keypoints_3d",
+    "hand_right_keypoints_3d",
+)
 
 OPENPOSE_CHANNEL_SPECS: Final[dict[str, tuple[str, int]]] = {
     "body": ("pose_keypoints_2d", 25),
@@ -27,6 +33,10 @@ OPENPOSE_CHANNEL_SPECS: Final[dict[str, tuple[str, int]]] = {
 }
 
 CANONICAL_POSE_CHANNELS: Final[tuple[str, ...]] = ("body", "left_hand", "right_hand", "face")
+POSE_CHANNEL_JOINT_COUNTS: Final[dict[str, int]] = {
+    channel: joint_count for channel, (_, joint_count) in OPENPOSE_CHANNEL_SPECS.items()
+}
+POSE_COORDINATE_DIMENSIONS: Final[int] = 2
 
 CANVAS_WIDTH: Final[int] = 1280
 CANVAS_HEIGHT: Final[int] = 720

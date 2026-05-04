@@ -19,8 +19,8 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 from torch.utils.data import DataLoader, Sampler, Subset
 
-from text_to_sign_production.core.files import sha256_json
-from text_to_sign_production.core.progress import (
+from text_to_sign_production.foundation.integrity import sha256_json
+from text_to_sign_production.foundation.progress import (
     BatchProgress,
     ProgressReporter,
     StdoutProgressReporter,
@@ -292,7 +292,6 @@ def run_training_epoch(
         total=progress_total,
         unit="batches",
         reporter=progress_reporter or StdoutProgressReporter(),
-        interval=progress_interval_batches,
     )
     optimizer.zero_grad(set_to_none=True)
     pending_steps = 0
@@ -1037,7 +1036,6 @@ def fit_target_standardization(
         total=len(dataset),
         unit="samples",
         reporter=reporter,
-        interval=100,
     )
     for item in cast(Iterable[Any], dataset):
         for channel in M0_TARGET_CHANNELS:

@@ -2,105 +2,105 @@
 
 from __future__ import annotations
 
-from text_to_sign_production.data.leakages.severity import classify_leakage_severity
+from text_to_sign_production.data._shared.identities import SampleSplit
+from text_to_sign_production.data.leakages.severity import (
+    classify_leakage_severity,
+    max_leakage_severity,
+)
 from text_to_sign_production.data.leakages.types import (
+    LEAKAGE_RELATION_ORDER,
     LeakageBundle,
     LeakageRelation,
     LeakageSampleRef,
     LeakageSeverity,
+    LeakageValidationIssue,
 )
 
 
-def validate_leakage_bundle(bundle: LeakageBundle) -> list[str]:
+def validate_leakage_bundle(bundle: LeakageBundle) -> list[LeakageValidationIssue]:
     """Validate the deterministic leakage bundle."""
-    issues: list[str] = []
+    issues: list[LeakageValidationIssue] = []
+
+    def add(code: str, message: str) -> None:
+        issues.append(LeakageValidationIssue(code=code, message=message))
 
     # 1. Pair fact integrity
-    seen_pairs: set[tuple[tuple[str, str], tuple[str, str]]] = set()
+    seen_pairs: set[tuple[tuple[SampleSplit, str], tuple[SampleSplit, str]]] = set()
     for pf in bundle.pair_facts:
         left_key = (pf.left_split, pf.left_sample_id)
         right_key = (pf.right_split, pf.right_sample_id)
         if left_key == right_key:
-            issues.append(f"self_pair:{left_key}")
+            add("self_pair", f"Leakage pair references the same sample: {left_key}.")
         if pf.left_split == pf.right_split:
-            issues.append(f"same_split_pair:{pf.left_sample_id}_{pf.right_sample_id}")
+            add("same_split_pair", "Leakage pair is not cross-split.")
 
         pair_key = (left_key, right_key) if left_key <= right_key else (right_key, left_key)
         if pair_key in seen_pairs:
-            issues.append(f"duplicate_pair:{pair_key}")
+            add("duplicate_pair", f"Duplicate leakage pair: {pair_key}.")
         seen_pairs.add(pair_key)
 
         if not pf.relations:
-            issues.append(f"empty_relations:{pair_key}")
+            add("empty_relations", f"Leakage pair has no relations: {pair_key}.")
 
         expected_order = tuple(
             sorted(
                 set(pf.relations),
-                key=lambda r: [
-                    LeakageRelation.SAME_SOURCE_SENTENCE,
-                    LeakageRelation.EXACT_NORMALIZED_TEXT,
-                    LeakageRelation.SAME_SOURCE_VIDEO,
-                ].index(r),
+                key=LEAKAGE_RELATION_ORDER.index,
             )
         )
         if pf.relations != expected_order:
-            issues.append(f"invalid_relation_order:{pair_key}")
+            add("invalid_relation_order", f"Leakage pair relations are not canonical: {pair_key}.")
 
         expected_severity = classify_leakage_severity(pf.relations)
         if pf.severity != expected_severity:
-            issues.append(f"invalid_severity:{pair_key}:{pf.severity}!={expected_severity}")
+            add("invalid_severity", f"Leakage pair severity mismatch: {pair_key}.")
 
     # 2. Sample summary integrity
-    seen_samples: set[tuple[str, str]] = set()
+    seen_samples: set[tuple[SampleSplit, str]] = set()
     for s in bundle.sample_summaries:
         key = (s.split, s.sample_id)
         if key in seen_samples:
-            issues.append(f"duplicate_summary:{key}")
+            add("duplicate_summary", f"Duplicate leakage summary for {key}.")
         seen_samples.add(key)
 
         if s.same_source_sentence_match_count < 0:
-            issues.append(f"negative_count:{key}")
+            add("negative_count", f"Negative same-source-sentence count for {key}.")
         if s.exact_normalized_text_match_count < 0:
-            issues.append(f"negative_count:{key}")
+            add("negative_count", f"Negative exact-normalized-text count for {key}.")
         if s.same_source_video_match_count < 0:
-            issues.append(f"negative_count:{key}")
+            add("negative_count", f"Negative same-source-video count for {key}.")
 
         matched_keys = tuple((ref.split, ref.sample_id) for ref in s.matched_samples)
         if matched_keys != tuple(sorted(set(matched_keys))):
-            issues.append(f"matched_samples_not_sorted_or_unique:{key}")
+            add("matched_samples_not_sorted_or_unique", f"Matched samples invalid for {key}.")
 
         expected_has_leakage = s.max_severity != LeakageSeverity.NONE
         if s.has_leakage != expected_has_leakage:
-            issues.append(f"has_leakage_mismatch:{key}")
+            add("has_leakage_mismatch", f"has_leakage does not match severity for {key}.")
 
         if not s.has_leakage:
             if s.same_source_sentence_match_count > 0:
-                issues.append(f"nonzero_count_without_leakage:{key}")
+                add("nonzero_count_without_leakage", f"Nonzero relation count for {key}.")
             if s.exact_normalized_text_match_count > 0:
-                issues.append(f"nonzero_count_without_leakage:{key}")
+                add("nonzero_count_without_leakage", f"Nonzero relation count for {key}.")
             if s.same_source_video_match_count > 0:
-                issues.append(f"nonzero_count_without_leakage:{key}")
+                add("nonzero_count_without_leakage", f"Nonzero relation count for {key}.")
             if s.matched_samples:
-                issues.append(f"matched_samples_without_leakage:{key}")
+                add(
+                    "matched_samples_without_leakage",
+                    f"Matched samples without leakage for {key}.",
+                )
         else:
             if not s.matched_samples:
-                issues.append(f"missing_matched_samples_with_leakage:{key}")
+                add("missing_matched_samples_with_leakage", f"Missing matched samples for {key}.")
 
         # 3. Cross-consistency
-        actual_matches: set[tuple[str, str]] = set()
+        actual_matches: set[tuple[SampleSplit, str]] = set()
         actual_severity = LeakageSeverity.NONE
         actual_counts = {
-            LeakageRelation.SAME_SOURCE_SENTENCE: 0,
-            LeakageRelation.EXACT_NORMALIZED_TEXT: 0,
-            LeakageRelation.SAME_SOURCE_VIDEO: 0,
+            relation: 0
+            for relation in LEAKAGE_RELATION_ORDER
         }
-        sev_val = {
-            LeakageSeverity.NONE: 0,
-            LeakageSeverity.LOW: 1,
-            LeakageSeverity.MEDIUM: 2,
-            LeakageSeverity.HIGH: 3,
-        }
-
         for pf in bundle.pair_facts:
             left_key = (pf.left_split, pf.left_sample_id)
             right_key = (pf.right_split, pf.right_sample_id)
@@ -112,8 +112,7 @@ def validate_leakage_bundle(bundle: LeakageBundle) -> list[str]:
                 continue
 
             actual_matches.add(other)
-            if sev_val[pf.severity] > sev_val[actual_severity]:
-                actual_severity = pf.severity
+            actual_severity = max_leakage_severity(actual_severity, pf.severity)
             for r in pf.relations:
                 actual_counts[r] += 1
 
@@ -122,22 +121,22 @@ def validate_leakage_bundle(bundle: LeakageBundle) -> list[str]:
             for split, sample_id in sorted(actual_matches)
         )
         if expected_matched_samples != s.matched_samples:
-            issues.append(f"matched_samples_cross_mismatch:{key}")
+            add("matched_samples_cross_mismatch", f"Matched samples mismatch for {key}.")
 
         if actual_severity != s.max_severity:
-            issues.append(f"max_severity_cross_mismatch:{key}")
+            add("max_severity_cross_mismatch", f"Max severity mismatch for {key}.")
 
         if (
             actual_counts[LeakageRelation.SAME_SOURCE_SENTENCE]
             != s.same_source_sentence_match_count
         ):
-            issues.append(f"count_mismatch_same_source_sentence:{key}")
+            add("count_mismatch_same_source_sentence", f"Relation count mismatch for {key}.")
         if (
             actual_counts[LeakageRelation.EXACT_NORMALIZED_TEXT]
             != s.exact_normalized_text_match_count
         ):
-            issues.append(f"count_mismatch_exact_normalized_text:{key}")
+            add("count_mismatch_exact_normalized_text", f"Relation count mismatch for {key}.")
         if actual_counts[LeakageRelation.SAME_SOURCE_VIDEO] != s.same_source_video_match_count:
-            issues.append(f"count_mismatch_same_source_video:{key}")
+            add("count_mismatch_same_source_video", f"Relation count mismatch for {key}.")
 
     return issues

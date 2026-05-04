@@ -295,7 +295,7 @@ def _export_qualitative_sample_artifacts(
     path_formatter: Callable[[Path], str],
     progress_reporter: Any | None = None,
 ) -> list[dict[str, object]]:
-    from text_to_sign_production.core.progress import (
+    from text_to_sign_production.foundation.progress import (
         ItemProgress,
         NoOpProgressReporter,
     )
@@ -305,7 +305,6 @@ def _export_qualitative_sample_artifacts(
         total=len(selected_records),
         unit="sample",
         reporter=progress_reporter if progress_reporter is not None else NoOpProgressReporter(),
-        interval=1,
     )
     artifact_records: list[dict[str, object]] = []
     for index, record in enumerate(selected_records):

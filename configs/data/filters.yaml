@@ -7,46 +7,55 @@ families:
     tight:
       max_out_of_bounds_ratio: 0.01
 
+  coverage:
+    loose:
+      min_body_landmark_coverage_ratio: 0.50
+      min_any_hand_landmark_coverage_ratio: 0.50
+      min_face_landmark_coverage_ratio: 0.50
+    clean:
+      min_body_landmark_coverage_ratio: 0.70
+      min_any_hand_landmark_coverage_ratio: 0.70
+      min_face_landmark_coverage_ratio: 0.70
+    tight:
+      min_body_landmark_coverage_ratio: 0.85
+      min_any_hand_landmark_coverage_ratio: 0.85
+      min_face_landmark_coverage_ratio: 0.85
+
   hand:
     loose:
-      min_any_hand_nonzero_frame_ratio: 0.50
+      min_any_hand_available_frame_ratio: 0.50
+      max_any_hand_unavailable_run_ratio: 0.50
     clean:
-      min_any_hand_nonzero_frame_ratio: 0.70
+      min_any_hand_available_frame_ratio: 0.70
+      max_any_hand_unavailable_run_ratio: 0.30
     tight:
-      min_any_hand_nonzero_frame_ratio: 0.85
+      min_any_hand_available_frame_ratio: 0.85
+      max_any_hand_unavailable_run_ratio: 0.15
 
   face:
     loose:
-      min_face_nonzero_frame_ratio: 0.50
-      max_face_missing_frame_ratio: 0.50
+      min_face_available_frame_ratio: 0.50
     clean:
-      min_face_nonzero_frame_ratio: 0.70
-      max_face_missing_frame_ratio: 0.30
+      min_face_available_frame_ratio: 0.70
     tight:
-      min_face_nonzero_frame_ratio: 0.85
-      max_face_missing_frame_ratio: 0.15
-
-  valid:
-    loose:
-      min_valid_frame_ratio: 0.80
-      max_zeroed_canonical_joint_frame_ratio: 0.20
-    clean:
-      min_valid_frame_ratio: 0.90
-      max_zeroed_canonical_joint_frame_ratio: 0.10
-    tight:
-      min_valid_frame_ratio: 0.97
-      max_zeroed_canonical_joint_frame_ratio: 0.03
+      min_face_available_frame_ratio: 0.85
 
   confidence:
     loose:
-      min_overall_mean_confidence: 0.20
-      min_overall_nonzero_confidence_ratio: 0.50
+      min_body_mean_confidence: 0.20
+      min_left_hand_mean_confidence: 0.20
+      min_right_hand_mean_confidence: 0.20
+      min_face_mean_confidence: 0.20
     clean:
-      min_overall_mean_confidence: 0.35
-      min_overall_nonzero_confidence_ratio: 0.70
+      min_body_mean_confidence: 0.35
+      min_left_hand_mean_confidence: 0.35
+      min_right_hand_mean_confidence: 0.35
+      min_face_mean_confidence: 0.35
     tight:
-      min_overall_mean_confidence: 0.50
-      min_overall_nonzero_confidence_ratio: 0.85
+      min_body_mean_confidence: 0.50
+      min_left_hand_mean_confidence: 0.50
+      min_right_hand_mean_confidence: 0.50
+      min_face_mean_confidence: 0.50
 
   text:
     loose:
