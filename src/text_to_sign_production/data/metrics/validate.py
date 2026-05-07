@@ -78,9 +78,7 @@ def validate_metric_bundle(bundle: MetricBundle) -> list[MetricValidationIssue]:
     if span.end_frame_index_exclusive - span.start_frame_index != span.frame_count:
         _add("invalid_active_signing_span", "active signing span frame_count mismatches bounds")
     if (
-        span.trimmed_prefix_frame_count
-        + span.frame_count
-        + span.trimmed_suffix_frame_count
+        span.trimmed_prefix_frame_count + span.frame_count + span.trimmed_suffix_frame_count
         != bundle.length.num_frames
     ):
         _add("invalid_active_signing_span", "active signing span partitions must equal num_frames")
@@ -167,18 +165,12 @@ def validate_metric_bundle(bundle: MetricBundle) -> list[MetricValidationIssue]:
             "invalid_any_hand_availability",
             "whole_clip_any_hand_available_frame_count exceeds num_frames",
         )
-    if (
-        bundle.hand.active_span_any_hand_available_frame_count
-        > span.frame_count
-    ):
+    if bundle.hand.active_span_any_hand_available_frame_count > span.frame_count:
         _add(
             "invalid_any_hand_availability",
             "active_span_any_hand_available_frame_count exceeds active signing span frames",
         )
-    if (
-        bundle.hand.max_active_span_any_hand_unavailable_run_count
-        > span.frame_count
-    ):
+    if bundle.hand.max_active_span_any_hand_unavailable_run_count > span.frame_count:
         _add(
             "invalid_any_hand_availability",
             "max_active_span_any_hand_unavailable_run_count exceeds active signing span frames",

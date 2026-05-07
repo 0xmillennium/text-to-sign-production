@@ -24,10 +24,7 @@ _FAMILY_NAMES: tuple[BindingTierFamily, ...] = BINDING_TIER_FAMILIES
 _FAMILY_DISPLAY_NAMES: tuple[str, ...] = tuple(family.value for family in BindingTierFamily)
 
 _METRIC_RULES: dict[BindingTierFamily, dict[str, tuple[str, str]]] = {
-    family: {
-        spec.metric_key: (str(spec.reason_code), str(spec.comparison))
-        for spec in specs
-    }
+    family: {spec.metric_key: (str(spec.reason_code), str(spec.comparison)) for spec in specs}
     for family, specs in BINDING_TIER_METRICS_BY_FAMILY.items()
 }
 

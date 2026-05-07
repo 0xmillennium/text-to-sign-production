@@ -380,19 +380,13 @@ DIAGNOSTIC_TIER_METRICS: tuple[TierMetricRoleSpec, ...] = (
 
 BINDING_TIER_METRIC_KEYS_BY_FAMILY: dict[BindingTierFamily, frozenset[str]] = {
     family: frozenset(
-        spec.metric_key
-        for spec in BINDING_TIER_METRICS
-        if spec.family == family.value
+        spec.metric_key for spec in BINDING_TIER_METRICS if spec.family == family.value
     )
     for family in BINDING_TIER_FAMILIES
 }
 
 BINDING_TIER_METRICS_BY_FAMILY: dict[BindingTierFamily, tuple[TierMetricRoleSpec, ...]] = {
-    family: tuple(
-        spec
-        for spec in BINDING_TIER_METRICS
-        if spec.family == family.value
-    )
+    family: tuple(spec for spec in BINDING_TIER_METRICS if spec.family == family.value)
     for family in BINDING_TIER_FAMILIES
 }
 

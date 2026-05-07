@@ -18,10 +18,10 @@ from text_to_sign_production.data.tiers.temporal_coherence import (
     parse_temporal_coherence_thresholds,
 )
 from text_to_sign_production.data.tiers.text import parse_text_thresholds
+from text_to_sign_production.data.tiers.types import FilterConfig, FilterLevel
 from text_to_sign_production.data.tiers.upper_body_support import (
     parse_upper_body_support_thresholds,
 )
-from text_to_sign_production.data.tiers.types import FilterConfig, FilterLevel
 
 ThresholdT = TypeVar("ThresholdT")
 
@@ -131,8 +131,7 @@ def _require_nondecreasing(
     values = _ordered_values(thresholds_by_level, attr_name)
     if values != sorted(values):
         raise ValueError(
-            f"{label} must be monotonic non-decreasing across loose/clean/tight, "
-            f"got {values}"
+            f"{label} must be monotonic non-decreasing across loose/clean/tight, got {values}"
         )
 
 
@@ -144,8 +143,7 @@ def _require_nonincreasing(
     values = _ordered_values(thresholds_by_level, attr_name)
     if values != sorted(values, reverse=True):
         raise ValueError(
-            f"{label} must be monotonic non-increasing across loose/clean/tight, "
-            f"got {values}"
+            f"{label} must be monotonic non-increasing across loose/clean/tight, got {values}"
         )
 
 

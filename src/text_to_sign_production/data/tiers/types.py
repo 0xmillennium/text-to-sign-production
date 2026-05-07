@@ -47,9 +47,7 @@ class DiagnosticMetric(enum.StrEnum):
     """Computed metrics kept visible for diagnostics without tier veto power."""
 
     ACTIVE_SIGNING_SPAN_START_FRAME_INDEX = "active_signing_span_start_frame_index"
-    ACTIVE_SIGNING_SPAN_END_FRAME_INDEX_EXCLUSIVE = (
-        "active_signing_span_end_frame_index_exclusive"
-    )
+    ACTIVE_SIGNING_SPAN_END_FRAME_INDEX_EXCLUSIVE = "active_signing_span_end_frame_index_exclusive"
     ACTIVE_SIGNING_SPAN_FRAME_COUNT = "active_signing_span_frame_count"
     ACTIVE_SIGNING_SPAN_FRAME_RATIO = "active_signing_span_frame_ratio"
     TRIMMED_PREFIX_FRAME_COUNT = "trimmed_prefix_frame_count"

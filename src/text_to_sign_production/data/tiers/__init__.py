@@ -24,9 +24,9 @@ from text_to_sign_production.data.tiers.filters import (
 from text_to_sign_production.data.tiers.policies import load_tier_policies, parse_tier_policies
 from text_to_sign_production.data.tiers.roles import (
     BINDING_TIER_FAMILIES,
-    BINDING_TIER_METRICS_BY_FAMILY,
     BINDING_TIER_METRIC_KEYS_BY_FAMILY,
     BINDING_TIER_METRICS,
+    BINDING_TIER_METRICS_BY_FAMILY,
     DIAGNOSTIC_TIER_METRICS,
     TierMetricRoleSpec,
     evaluate_binding_metric,

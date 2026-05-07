@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 from text_to_sign_production.data._shared.identities import SampleSplit
 from text_to_sign_production.data.metrics.types import MetricBundle
@@ -65,10 +65,7 @@ def build_tier_calibration_surfaces(
     filter_config: FilterConfig,
 ) -> TierCalibrationSurfaces:
     """Build reusable calibration surfaces without changing tier decisions."""
-    metrics_by_key = {
-        (bundle.split, bundle.sample_id): bundle
-        for bundle in metric_bundles
-    }
+    metrics_by_key = {(bundle.split, bundle.sample_id): bundle for bundle in metric_bundles}
     decisions = tuple(tier_bundle.decisions)
     pass_fail_counts = _build_pass_fail_counts(decisions, metrics_by_key, filter_config)
     distributions = build_metric_distribution_records(metric_bundles)
@@ -136,7 +133,8 @@ def build_cofailure_records(tier_bundle: TierBundle) -> tuple[CoFailureRecord, .
         if decision.included:
             continue
         families = tuple(
-            family for family in BindingTierFamily
+            family
+            for family in BindingTierFamily
             if any(failure.family == family for failure in decision.metric_failures)
         )
         for left in families:
@@ -181,7 +179,9 @@ def build_near_threshold_sample_records(
             family = BindingTierFamily(spec.family)
             level = decision.applied_family_levels[family]
             actual = get_metric_value(bundle, spec)
-            expected = get_threshold_value(_thresholds_for_family(filter_config, family, level), spec)
+            expected = get_threshold_value(
+                _thresholds_for_family(filter_config, family, level), spec
+            )
             passes = _passes(actual, expected, spec.comparison)
             side = NearThresholdSide.PASSING if passes else NearThresholdSide.FAILING
             distance = _threshold_distance(actual, expected)
@@ -398,7 +398,9 @@ def _build_pass_fail_counts(
             family = BindingTierFamily(spec.family)
             level = decision.applied_family_levels[family]
             actual = get_metric_value(bundle, spec)
-            expected = get_threshold_value(_thresholds_for_family(filter_config, family, level), spec)
+            expected = get_threshold_value(
+                _thresholds_for_family(filter_config, family, level), spec
+            )
             bucket = counters[(decision.tier_name, decision.split, family, spec.metric_key)]
             bucket["pass" if _passes(actual, expected, spec.comparison) else "fail"] += 1
     return tuple(

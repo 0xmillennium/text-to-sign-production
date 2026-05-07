@@ -37,9 +37,7 @@ def compute_active_signing_span_metrics(
     right_hand_conf = np.asarray(payload.pose.right_hand.confidence)
     right_hand_coords = np.asarray(payload.pose.right_hand.coordinates)
 
-    any_hand_evidence = (
-        np.any(left_hand_conf > 0.0, axis=1) | np.any(right_hand_conf > 0.0, axis=1)
-    )
+    any_hand_evidence = np.any(left_hand_conf > 0.0, axis=1) | np.any(right_hand_conf > 0.0, axis=1)
     upper_body_evidence = (
         np.count_nonzero(body_conf[:, UPPER_BODY_SUPPORT_LANDMARK_INDICES] > 0.0, axis=1)
         >= _MIN_UPPER_BODY_SUPPORT_LANDMARKS

@@ -20,9 +20,7 @@ UPPER_BODY_SUPPORT_LANDMARKS: Final[dict[int, str]] = {
     7: "left_wrist",
     8: "mid_hip_torso_anchor",
 }
-UPPER_BODY_SUPPORT_LANDMARK_INDICES: Final[tuple[int, ...]] = tuple(
-    UPPER_BODY_SUPPORT_LANDMARKS
-)
+UPPER_BODY_SUPPORT_LANDMARK_INDICES: Final[tuple[int, ...]] = tuple(UPPER_BODY_SUPPORT_LANDMARKS)
 
 
 def compute_upper_body_support_metrics(payload: ProcessedSamplePayload) -> UpperBodySupportMetrics:

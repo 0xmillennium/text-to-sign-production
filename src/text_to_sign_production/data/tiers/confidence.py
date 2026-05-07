@@ -55,6 +55,5 @@ def evaluate_confidence_family(
     return tuple(
         failure
         for spec in _BINDING_SPECS
-        if (failure := evaluate_binding_metric(bundle, thresholds, spec, applied_level))
-        is not None
+        if (failure := evaluate_binding_metric(bundle, thresholds, spec, applied_level)) is not None
     )
