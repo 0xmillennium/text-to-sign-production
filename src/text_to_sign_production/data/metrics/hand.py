@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import numpy as np
 
-from text_to_sign_production.data.metrics.types import ActiveSigningSpanMetrics, HandMetrics
+from text_to_sign_production.data.metrics.types import (
+    ActiveSigningSpanMetrics,
+    ManualVisibilityMetrics,
+)
 from text_to_sign_production.data.samples.types import PassedManifestEntry, ProcessedSamplePayload
 
 
@@ -12,8 +15,8 @@ def compute_hand_metrics(
     payload: ProcessedSamplePayload,
     manifest: PassedManifestEntry,
     active_signing_span: ActiveSigningSpanMetrics,
-) -> HandMetrics:
-    """Compute active-signing-span any-hand availability metrics."""
+) -> ManualVisibilityMetrics:
+    """Compute active-signing-span manual visibility metrics."""
     left_hand_conf = np.asarray(payload.pose.left_hand.confidence)
     right_hand_conf = np.asarray(payload.pose.right_hand.confidence)
 
@@ -38,7 +41,7 @@ def compute_hand_metrics(
     active_any_hand_available_frame_count = int(np.count_nonzero(active_any_frame_available))
     max_active_unavailable_run = _longest_false_run(active_any_frame_available)
 
-    return HandMetrics(
+    return ManualVisibilityMetrics(
         whole_clip_left_hand_available_frame_count=left_hand_available_frame_count,
         whole_clip_right_hand_available_frame_count=right_hand_available_frame_count,
         whole_clip_any_hand_available_frame_count=any_hand_available_frame_count,

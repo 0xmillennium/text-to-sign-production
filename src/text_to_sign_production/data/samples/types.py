@@ -6,28 +6,24 @@ import enum
 from dataclasses import asdict, dataclass, field
 from typing import Any, Protocol, TypeAlias, runtime_checkable
 
-from text_to_sign_production.data._shared.identities import SampleSplit as _SampleSplit
-from text_to_sign_production.data.samples._shared.validation import ValidationSeverity
+from text_to_sign_production.core.ids import SampleSplit as _SampleSplit
+from text_to_sign_production.core.ids import SampleStatus
+from text_to_sign_production.data._shared.types import (
+    JsonValue,
+    SevereValidationIssue,
+)
 from text_to_sign_production.data.samples.schema import PROCESSED_SCHEMA_VERSION
 
-JsonScalar: TypeAlias = str | int | float | bool | None
-JsonValue: TypeAlias = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
+
+class DroppedDebugMaterializationOutcome(enum.StrEnum):
+    """Attempt outcome for optional dropped-sample debug payload materialization."""
+
+    NOT_ATTEMPTED = "not_attempted"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
 
 
-class SampleStatus(enum.StrEnum):
-    """The outcome status of a sample after processing and gating."""
-
-    PASSED = "passed"
-    DROPPED = "dropped"
-
-
-@dataclass(slots=True, frozen=True)
-class SampleValidationIssue:
-    """A specific issue found during sample validation."""
-
-    severity: ValidationSeverity
-    code: str
-    message: str
+SampleValidationIssue = SevereValidationIssue
 
 
 @runtime_checkable
@@ -109,6 +105,12 @@ class FrameQualitySummary:
     face_missing_frame_count: int
     out_of_bounds_coordinate_count: int
     frames_with_any_zeroed_canonical_joint: int
+    tracked_target_missing_frame_count: int
+    tracked_target_missing_frame_ratio: float
+    person_tracking_continuity_break_count: int
+    person_tracking_continuity_break_ratio: float
+    person_tracking_reanchor_count: int
+    person_tracking_reanchor_ratio: float
     frame_issue_counts: dict[str, int] = field(default_factory=dict)
     channel_nonzero_frames: dict[str, int] = field(default_factory=dict)
 
@@ -191,6 +193,31 @@ class PassedManifestEntry:
 
 
 @dataclass(slots=True, kw_only=True)
+class DroppedMaterializationLifecycle:
+    """Lifecycle facts for optional dropped-sample debug payload materialization."""
+
+    debug_materialization_eligible: bool
+    debug_materialization_attempted: bool
+    debug_materialization_outcome: DroppedDebugMaterializationOutcome
+    payload_path: str | None = None
+    payload_exists: bool = False
+    archive_publishable: bool = False
+    failure_reason: str | None = None
+
+    def to_record(self) -> dict[str, Any]:
+        """Convert lifecycle facts to a serializable dictionary."""
+        return {
+            "debug_materialization_eligible": self.debug_materialization_eligible,
+            "debug_materialization_attempted": self.debug_materialization_attempted,
+            "debug_materialization_outcome": self.debug_materialization_outcome.value,
+            "payload_path": self.payload_path,
+            "payload_exists": self.payload_exists,
+            "archive_publishable": self.archive_publishable,
+            "failure_reason": self.failure_reason,
+        }
+
+
+@dataclass(slots=True, kw_only=True)
 class DroppedManifestEntry:
     """A manifest entry for a sample that was rejected."""
 
@@ -201,9 +228,8 @@ class DroppedManifestEntry:
     drop_stage: str
     drop_reasons: tuple[str, ...]
 
-    # Materialized dropped samples are debug artifacts, never passed samples.
-    debug_only: bool = False
-    sample_path: str | None = None
+    # Debug payload materialization is explicit and separate from dropped status.
+    materialization: DroppedMaterializationLifecycle
     drop_details: dict[str, JsonValue] = field(default_factory=dict)
 
     # Partial sample facts are present only when meaningful.
@@ -225,11 +251,9 @@ class DroppedManifestEntry:
             "split": self.split.value,
             "drop_stage": self.drop_stage,
             "drop_reasons": list(self.drop_reasons),
-            "debug_only": self.debug_only,
+            "materialization": self.materialization.to_record(),
             "drop_details": dict(self.drop_details),
         }
-        if self.sample_path is not None:
-            record["sample_path"] = self.sample_path
         if self.text is not None:
             record["text"] = self.text
         if self.num_frames is not None:
@@ -244,3 +268,95 @@ class DroppedManifestEntry:
 
 
 ManifestEntry: TypeAlias = PassedManifestEntry | DroppedManifestEntry
+
+
+@dataclass(frozen=True, slots=True)
+class SampleManifestStatusCountRecord:
+    """Count of manifest entries by sample status."""
+
+    status: SampleStatus
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SampleSplitStatusCountRecord:
+    """Split-aware count of manifest entries by sample status."""
+
+    split: _SampleSplit
+    status: SampleStatus
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SampleProcessingSummaryRecord:
+    """Split-level passed/dropped processing counts."""
+
+    split: _SampleSplit
+    passed_count: int
+    dropped_count: int
+    total_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SampleSplitCountRecord:
+    """Count of manifest entries by split."""
+
+    split: _SampleSplit
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SampleDroppedMaterializationSummaryRecord:
+    """Split-level dropped-sample materialization lifecycle counts."""
+
+    split: _SampleSplit
+    dropped_count: int
+    debug_materialization_eligible_count: int
+    debug_materialization_not_eligible_count: int
+    debug_materialization_attempted_count: int
+    debug_materialization_not_attempted_count: int
+    debug_materialization_succeeded_count: int
+    debug_materialization_failed_count: int
+    dropped_payload_exists_count: int
+    archive_publishable_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SampleDroppedMaterializationOutcomeCountRecord:
+    """Count of dropped manifest entries by split and materialization outcome."""
+
+    split: _SampleSplit
+    outcome: DroppedDebugMaterializationOutcome
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SampleDroppedArchivePublishableCountRecord:
+    """Split-level archive-publishable count for materialized dropped payloads."""
+
+    split: _SampleSplit
+    dropped_count: int
+    archive_publishable_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SamplePayloadCompletenessRecord:
+    """Count of payloads by optional array completeness."""
+
+    has_people_per_frame: bool
+    has_frame_valid_mask: bool
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SampleNumericDistributionRecord:
+    """Numeric distribution for a sample-owned field."""
+
+    surface: str
+    field_name: str
+    sample_count: int
+    missing_count: int
+    minimum: float | None
+    p50: float | None
+    p95: float | None
+    maximum: float | None

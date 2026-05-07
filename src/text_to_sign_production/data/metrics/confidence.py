@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from text_to_sign_production.data.metrics.types import ActiveSigningSpanMetrics, ConfidenceMetrics
-from text_to_sign_production.data.metrics.upper_body_support import (
+from text_to_sign_production.data.metrics.support import (
     UPPER_BODY_SUPPORT_LANDMARK_INDICES,
 )
 from text_to_sign_production.data.samples.types import ProcessedSamplePayload
@@ -16,12 +16,16 @@ def compute_confidence_metrics(
     active_signing_span: ActiveSigningSpanMetrics,
 ) -> ConfidenceMetrics:
     """Compute confidence quality metrics without treating missingness as confidence."""
-    body_conf = np.asarray(payload.pose.body.confidence)[:, UPPER_BODY_SUPPORT_LANDMARK_INDICES]
     full_body_conf = np.asarray(payload.pose.body.confidence)
     left_hand_conf = np.asarray(payload.pose.left_hand.confidence)
     right_hand_conf = np.asarray(payload.pose.right_hand.confidence)
     face_conf = np.asarray(payload.pose.face.confidence)
 
+    active_body_conf = full_body_conf[
+        active_signing_span.start_frame_index : active_signing_span.end_frame_index_exclusive,
+        UPPER_BODY_SUPPORT_LANDMARK_INDICES,
+    ]
+    full_clip_upper_body_conf = full_body_conf[:, UPPER_BODY_SUPPORT_LANDMARK_INDICES]
     active_left_hand_conf = left_hand_conf[
         active_signing_span.start_frame_index : active_signing_span.end_frame_index_exclusive
     ]
@@ -29,10 +33,11 @@ def compute_confidence_metrics(
         active_signing_span.start_frame_index : active_signing_span.end_frame_index_exclusive
     ]
     if (
-        active_left_hand_conf.shape[0] != active_signing_span.frame_count
+        active_body_conf.shape[0] != active_signing_span.frame_count
+        or active_left_hand_conf.shape[0] != active_signing_span.frame_count
         or active_right_hand_conf.shape[0] != active_signing_span.frame_count
     ):
-        raise ValueError("Active signing span frame count does not match hand confidence arrays.")
+        raise ValueError("Active signing span frame count does not match confidence arrays.")
 
     active_any_hand_conf = _best_usable_hand_frame_confidence(
         active_left_hand_conf,
@@ -47,7 +52,8 @@ def compute_confidence_metrics(
     )
 
     return ConfidenceMetrics(
-        body_available_mean_confidence=_available_mean(body_conf),
+        active_span_body_available_mean_confidence=_available_mean(active_body_conf),
+        full_clip_body_available_mean_confidence=_available_mean(full_clip_upper_body_conf),
         active_span_left_hand_available_mean_confidence=_available_mean(active_left_hand_conf),
         active_span_right_hand_available_mean_confidence=_available_mean(active_right_hand_conf),
         active_span_any_hand_available_mean_confidence=_available_mean(active_any_hand_conf),

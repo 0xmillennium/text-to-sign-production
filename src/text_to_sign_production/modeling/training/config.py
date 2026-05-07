@@ -9,7 +9,7 @@ from typing import Any, cast
 
 import yaml
 
-from text_to_sign_production.data._shared.identities import VALID_SAMPLE_SPLITS as SPLITS
+from text_to_sign_production.core.ids import VALID_SAMPLE_SPLITS as SPLITS
 from text_to_sign_production.modeling.config import DEFAULT_BASELINE_CONFIG_PATH
 from text_to_sign_production.modeling.contracts import (
     BASELINE_ID,
@@ -108,7 +108,6 @@ class BaselineLoopConfig:
     gradient_accumulation_steps: int
     max_grad_norm: float
     mixed_precision: str
-    progress_interval_batches: int
     length_bucketed_batching: bool
 
 
@@ -336,10 +335,6 @@ def load_baseline_training_config(
                 training_section,
                 "training.mixed_precision",
             ),
-            progress_interval_batches=_required_positive_int(
-                training_section,
-                "training.progress_interval_batches",
-            ),
             length_bucketed_batching=_required_bool(
                 training_section,
                 "training.length_bucketed_batching",
@@ -434,7 +429,6 @@ def baseline_config_to_dict(
             "gradient_accumulation_steps": config.training.gradient_accumulation_steps,
             "max_grad_norm": config.training.max_grad_norm,
             "mixed_precision": config.training.mixed_precision,
-            "progress_interval_batches": config.training.progress_interval_batches,
             "length_bucketed_batching": config.training.length_bucketed_batching,
         },
         "optimizer": {

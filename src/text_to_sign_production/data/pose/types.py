@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from text_to_sign_production.data._shared.types import ValidationIssue
 from text_to_sign_production.data.samples.types import (
     BfhPosePayload,
     FrameQualitySummary,
@@ -46,6 +47,20 @@ class PersonSelectionResult:
     fallback_used: bool
     fallback_reason: str | None
     candidate_scores: tuple[PersonSelectionCandidateScore, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PersonTrackingResult:
+    """Frame-wise person resolution anchored by the global selection result."""
+
+    anchor_selection: PersonSelectionResult
+    selected_person_indices: tuple[int, ...]
+    continuity_break_count: int
+    continuity_break_ratio: float
+    reanchor_count: int
+    reanchor_ratio: float
+    tracked_target_missing_frame_count: int
+    tracked_target_missing_frame_ratio: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +115,13 @@ class PoseBuildDiagnostics:
     person_selection_fallback_used: bool = False
     person_selection_fallback_reason: str | None = None
     person_selection_candidate_scores: tuple[PersonSelectionCandidateScore, ...] = ()
+    tracked_person_indices: tuple[int, ...] = ()
+    person_tracking_continuity_break_count: int = 0
+    person_tracking_continuity_break_ratio: float = 0.0
+    person_tracking_reanchor_count: int = 0
+    person_tracking_reanchor_ratio: float = 0.0
+    tracked_target_missing_frame_count: int = 0
+    tracked_target_missing_frame_ratio: float = 0.0
     unrecoverable_error: str | None = None
 
 
@@ -119,9 +141,55 @@ class PoseBuildOutput:
     diagnostics: PoseBuildDiagnostics
 
 
-@dataclass(frozen=True, slots=True)
-class PoseValidationIssue:
-    """A specific issue found during pose output validation."""
+PoseValidationIssue = ValidationIssue
 
-    code: str
-    message: str
+
+@dataclass(frozen=True, slots=True)
+class PoseIssueFrequencyRecord:
+    """Frequency of pose frame/build issue codes."""
+
+    issue_code: str
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class PosePersonSelectionFallbackCountRecord:
+    """Selected-person fallback count for one policy."""
+
+    policy: PersonSelectionPolicy
+    fallback_used: bool
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class PoseChannelNonzeroDistributionRecord:
+    """Distribution of nonzero frame counts for one pose channel."""
+
+    channel: str
+    sample_count: int
+    missing_count: int
+    minimum: float | None
+    p50: float | None
+    p95: float | None
+    maximum: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class PosePeoplePerFrameDistributionRecord:
+    """Distribution of people-per-frame values across pose outputs."""
+
+    output_count: int
+    frame_count: int
+    minimum: float | None
+    p50: float | None
+    p95: float | None
+    maximum: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class PoseBuildDiagnosticAggregateRecord:
+    """Aggregate pose build diagnostic counts."""
+
+    output_count: int
+    unrecoverable_error_count: int
+    fallback_used_count: int

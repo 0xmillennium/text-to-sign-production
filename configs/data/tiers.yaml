@@ -3,34 +3,40 @@ tiers:
     families:
       oob: loose
       upper_body_support: loose
-      hand: loose
+      manual_visibility: loose
+      non_manual_visibility: loose
       confidence: loose
-      face: loose
-      temporal_coherence: loose
-      text: loose
-      length: loose
+      kinematic_naturalness: loose
+      tracking_quality: loose
+      manual_detail: loose
+      non_manual_quality: loose
+      geometry: loose
     max_allowed_leakage_severity: none
 
   clean:
     families:
       oob: clean
       upper_body_support: clean
-      hand: clean
+      manual_visibility: clean
+      non_manual_visibility: clean
       confidence: clean
-      face: clean
-      temporal_coherence: clean
-      text: clean
-      length: clean
+      kinematic_naturalness: clean
+      tracking_quality: clean
+      manual_detail: clean
+      non_manual_quality: clean
+      geometry: clean
     max_allowed_leakage_severity: none
 
   tight:
     families:
       oob: tight
       upper_body_support: tight
-      hand: tight
+      manual_visibility: tight
+      non_manual_visibility: tight
       confidence: tight
-      face: tight
-      temporal_coherence: tight
-      text: tight
-      length: tight
+      kinematic_naturalness: tight
+      tracking_quality: tight
+      manual_detail: tight
+      non_manual_quality: tight
+      geometry: tight
     max_allowed_leakage_severity: none

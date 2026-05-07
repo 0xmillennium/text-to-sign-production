@@ -3,53 +3,87 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from typing import TypeVar
+from dataclasses import dataclass
+from typing import Protocol, TypeVar, cast
 
-from text_to_sign_production.data._shared.identities import SampleSplit
+from text_to_sign_production.core.ids import SampleSplit
 from text_to_sign_production.data.leakages.types import LeakageSampleSummary
 from text_to_sign_production.data.metrics.types import MetricBundle
 from text_to_sign_production.data.samples.types import PassedManifestEntry
-from text_to_sign_production.data.tiers.confidence import evaluate_confidence_family
-from text_to_sign_production.data.tiers.face import evaluate_face_family
-from text_to_sign_production.data.tiers.hand import evaluate_hand_family
-from text_to_sign_production.data.tiers.leakage import evaluate_leakage_policy
-from text_to_sign_production.data.tiers.length import evaluate_length_family
-from text_to_sign_production.data.tiers.oob import evaluate_oob_family
-from text_to_sign_production.data.tiers.roles import BINDING_TIER_FAMILIES
-from text_to_sign_production.data.tiers.temporal_coherence import (
+from text_to_sign_production.data.tiers.coherence import (
     evaluate_temporal_coherence_family,
 )
-from text_to_sign_production.data.tiers.text import evaluate_text_family
+from text_to_sign_production.data.tiers.confidence import evaluate_confidence_family
+from text_to_sign_production.data.tiers.face import evaluate_face_family
+from text_to_sign_production.data.tiers.geometry import evaluate_geometry_family
+from text_to_sign_production.data.tiers.hand import evaluate_hand_family
+from text_to_sign_production.data.tiers.leakage import evaluate_leakage_policy
+from text_to_sign_production.data.tiers.manual_detail import evaluate_manual_detail_family
+from text_to_sign_production.data.tiers.non_manual_quality import (
+    evaluate_non_manual_quality_family,
+)
+from text_to_sign_production.data.tiers.oob import evaluate_oob_family
+from text_to_sign_production.data.tiers.roles import BINDING_TIER_FAMILIES
+from text_to_sign_production.data.tiers.support import (
+    evaluate_upper_body_support_family,
+)
+from text_to_sign_production.data.tiers.tracking import evaluate_tracking_quality_family
 from text_to_sign_production.data.tiers.types import (
     BindingTierFamily,
     FilterConfig,
     FilterLevel,
     TierBundle,
-    TierDecision,
+    TierDecisionDetail,
+    TierMembership,
+    TierMembershipRecord,
     TierMetricFailure,
     TierName,
     TierPolicy,
-)
-from text_to_sign_production.data.tiers.upper_body_support import (
-    evaluate_upper_body_support_family,
+    binding_tier_family_display_label,
 )
 
 SampleKey = tuple[SampleSplit, str]
 ThresholdT = TypeVar("ThresholdT")
-TierDecisionProgressCallback = Callable[..., None]
+FamilyEvaluator = Callable[[MetricBundle, object, FilterLevel], tuple[TierMetricFailure, ...]]
+
+
+@dataclass(frozen=True, slots=True)
+class TierDecisionProgressEvent:
+    split: SampleSplit
+    sample_id: str
+    tier_name: TierName
+    membership: TierMembership
+
+
+class TierDecisionProgressSink(Protocol):
+    def update_tier_decision_progress(self, event: TierDecisionProgressEvent) -> None: ...
+
 
 _TIER_ORDER: tuple[TierName, ...] = tuple(TierName)
 _FAMILY_ORDER: tuple[BindingTierFamily, ...] = BINDING_TIER_FAMILIES
-_FAMILY_DISPLAY_ORDER: tuple[str, ...] = tuple(family.value for family in _FAMILY_ORDER)
-_FAMILY_EVALUATORS = {
-    BindingTierFamily.OOB: evaluate_oob_family,
-    BindingTierFamily.UPPER_BODY_SUPPORT: evaluate_upper_body_support_family,
-    BindingTierFamily.HAND: evaluate_hand_family,
-    BindingTierFamily.CONFIDENCE: evaluate_confidence_family,
-    BindingTierFamily.FACE: evaluate_face_family,
-    BindingTierFamily.TEMPORAL_COHERENCE: evaluate_temporal_coherence_family,
-    BindingTierFamily.TEXT: evaluate_text_family,
-    BindingTierFamily.LENGTH: evaluate_length_family,
+_FAMILY_DISPLAY_ORDER: tuple[str, ...] = tuple(
+    binding_tier_family_display_label(family) for family in _FAMILY_ORDER
+)
+_FAMILY_EVALUATORS: Mapping[BindingTierFamily, FamilyEvaluator] = {
+    BindingTierFamily.OOB: cast(FamilyEvaluator, evaluate_oob_family),
+    BindingTierFamily.UPPER_BODY_SUPPORT: cast(
+        FamilyEvaluator,
+        evaluate_upper_body_support_family,
+    ),
+    BindingTierFamily.MANUAL_VISIBILITY: cast(FamilyEvaluator, evaluate_hand_family),
+    BindingTierFamily.NON_MANUAL_VISIBILITY: cast(FamilyEvaluator, evaluate_face_family),
+    BindingTierFamily.CONFIDENCE: cast(FamilyEvaluator, evaluate_confidence_family),
+    BindingTierFamily.KINEMATIC_NATURALNESS: cast(
+        FamilyEvaluator,
+        evaluate_temporal_coherence_family,
+    ),
+    BindingTierFamily.TRACKING_QUALITY: cast(FamilyEvaluator, evaluate_tracking_quality_family),
+    BindingTierFamily.MANUAL_DETAIL: cast(FamilyEvaluator, evaluate_manual_detail_family),
+    BindingTierFamily.NON_MANUAL_QUALITY: cast(
+        FamilyEvaluator,
+        evaluate_non_manual_quality_family,
+    ),
+    BindingTierFamily.GEOMETRY: cast(FamilyEvaluator, evaluate_geometry_family),
 }
 
 
@@ -60,9 +94,9 @@ def build_tier_bundle(
     filter_config: FilterConfig,
     tier_policies: Sequence[TierPolicy],
     *,
-    progress_callback: TierDecisionProgressCallback | None = None,
+    progress_sink: TierDecisionProgressSink | None = None,
 ) -> TierBundle:
-    """Compose one deterministic decision for every sample and tier."""
+    """Compose thin memberships and explicit decision details for every sample and tier."""
     _require_filter_config_levels(filter_config)
     manifest_by_key = _build_manifest_lookup(manifests)
     metrics_by_key = _build_metric_lookup(metric_bundles)
@@ -70,9 +104,8 @@ def build_tier_bundle(
     _require_matching_keys(manifest_by_key, metrics_by_key, leakage_by_key)
 
     policy_by_name = _build_policy_lookup(tier_policies)
-    decisions: list[TierDecision] = []
-    included_count = 0
-    excluded_count = 0
+    memberships: list[TierMembershipRecord] = []
+    decision_details: list[TierDecisionDetail] = []
 
     sample_keys = sorted(manifest_by_key)
     for split, sample_id in sample_keys:
@@ -88,33 +121,45 @@ def build_tier_bundle(
                 policy.family_levels,
             )
             leakage_failure = evaluate_leakage_policy(leakage_summary, policy)
-            included = not metric_failures and leakage_failure is None
-            if included:
-                included_count += 1
-            else:
-                excluded_count += 1
-            decisions.append(
-                TierDecision(
+            membership = (
+                TierMembership.INCLUDED
+                if not metric_failures and leakage_failure is None
+                else TierMembership.EXCLUDED
+            )
+            memberships.append(
+                TierMembershipRecord(
                     sample_id=sample_id,
                     split=split,
                     tier_name=tier_name,
-                    included=included,
+                    membership=membership,
+                )
+            )
+            decision_details.append(
+                TierDecisionDetail(
+                    sample_id=sample_id,
+                    split=split,
+                    tier_name=tier_name,
+                    membership=membership,
                     metric_failures=metric_failures,
                     leakage_failure=leakage_failure,
                     max_leakage_severity=leakage_summary.max_severity,
                     applied_family_levels=dict(policy.family_levels),
                 )
             )
-            if progress_callback is not None:
-                progress_callback(
-                    split=split.value,
-                    sample=sample_id,
-                    tier=tier_name.value,
-                    included=included_count,
-                    excluded=excluded_count,
+            if progress_sink is not None:
+                progress_sink.update_tier_decision_progress(
+                    TierDecisionProgressEvent(
+                        split=split,
+                        sample_id=sample_id,
+                        tier_name=tier_name,
+                        membership=membership,
+                    )
                 )
 
-    return TierBundle(decisions=tuple(decisions))
+    return TierBundle(
+        memberships=tuple(memberships),
+        decision_details=tuple(decision_details),
+    )
 
 
 def _build_manifest_lookup(
@@ -246,4 +291,4 @@ def _evaluate_metric_failures(
 
 
 def _display_families(families: set[BindingTierFamily]) -> list[str]:
-    return sorted(family.value for family in families)
+    return sorted(binding_tier_family_display_label(family) for family in families)

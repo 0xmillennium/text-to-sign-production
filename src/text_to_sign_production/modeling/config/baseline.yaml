@@ -62,7 +62,6 @@ training:
   gradient_accumulation_steps: 8
   max_grad_norm: 1.0
   mixed_precision: auto
-  progress_interval_batches: 100
   length_bucketed_batching: true
 
 optimizer:

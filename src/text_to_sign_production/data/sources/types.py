@@ -13,7 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from text_to_sign_production.data._shared.identities import SampleSplit
+from text_to_sign_production.core.ids import SampleSplit
+from text_to_sign_production.data._shared.types import ValidationIssue
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,9 +123,74 @@ class SourceCandidate:
         return not self.source_issues
 
 
-@dataclass(frozen=True, slots=True)
-class SourceValidationIssue:
-    """A specific issue found during source candidate validation."""
+SourceValidationIssue = ValidationIssue
 
-    code: str
-    message: str
+
+@dataclass(frozen=True, slots=True)
+class SourceAvailabilitySummaryRecord:
+    """Availability summary for source match results."""
+
+    match_count: int
+    matched_count: int
+    structurally_viable_count: int
+    keypoint_available_count: int
+    readable_video_count: int
+    matched_ratio: float
+    structurally_viable_ratio: float
+    readable_video_ratio: float
+
+
+@dataclass(frozen=True, slots=True)
+class SourceIssueFrequencyRecord:
+    """Frequency of source-side issue codes."""
+
+    issue_code: str
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SourceSplitIssueFrequencyRecord:
+    """Split-aware frequency of source-side issue codes."""
+
+    split: SampleSplit
+    issue_code: str
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SourceUnmatchedReasonCountRecord:
+    """Frequency of unmatched source reasons."""
+
+    reason: str
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SourceSplitUnmatchedReasonCountRecord:
+    """Split-aware frequency of unmatched source reasons."""
+
+    split: SampleSplit
+    reason: str
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SourceFrameCountDistributionRecord:
+    """Distribution of source keypoint frame counts."""
+
+    sample_count: int
+    missing_count: int
+    minimum: float | None
+    p50: float | None
+    p95: float | None
+    maximum: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class SourceVideoReadabilityRecord:
+    """Readable-video coverage summary."""
+
+    source_count: int
+    readable_count: int
+    unreadable_count: int
+    readable_ratio: float

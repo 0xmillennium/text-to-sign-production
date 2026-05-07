@@ -6,23 +6,29 @@ import math
 
 import numpy as np
 
-from text_to_sign_production.data.metrics.active_signing_span import (
-    compute_active_signing_span_metrics,
+from text_to_sign_production.data.metrics.coherence import (
+    compute_temporal_coherence_metrics,
 )
 from text_to_sign_production.data.metrics.confidence import compute_confidence_metrics
 from text_to_sign_production.data.metrics.coverage import compute_coverage_metrics
 from text_to_sign_production.data.metrics.face import compute_face_metrics
+from text_to_sign_production.data.metrics.geometry import compute_geometry_metrics
 from text_to_sign_production.data.metrics.hand import compute_hand_metrics
 from text_to_sign_production.data.metrics.length import compute_length_metrics
-from text_to_sign_production.data.metrics.oob import compute_oob_metrics
-from text_to_sign_production.data.metrics.temporal_coherence import (
-    compute_temporal_coherence_metrics,
+from text_to_sign_production.data.metrics.manual_detail import compute_manual_detail_metrics
+from text_to_sign_production.data.metrics.non_manual_quality import (
+    compute_non_manual_quality_metrics,
 )
-from text_to_sign_production.data.metrics.text import compute_text_metrics
-from text_to_sign_production.data.metrics.types import MetricBundle
-from text_to_sign_production.data.metrics.upper_body_support import (
+from text_to_sign_production.data.metrics.oob import compute_oob_metrics
+from text_to_sign_production.data.metrics.span import (
+    compute_active_signing_span_metrics,
+)
+from text_to_sign_production.data.metrics.support import (
     compute_upper_body_support_metrics,
 )
+from text_to_sign_production.data.metrics.text import compute_text_metrics
+from text_to_sign_production.data.metrics.tracking import compute_tracking_quality_metrics
+from text_to_sign_production.data.metrics.types import MetricBundle
 from text_to_sign_production.data.metrics.valid import compute_valid_metrics
 from text_to_sign_production.data.pose.schema import CANONICAL_POSE_CHANNELS
 from text_to_sign_production.data.samples.types import PassedManifestEntry, ProcessedSamplePayload
@@ -73,13 +79,17 @@ def build_metric_bundle(
 
     active_signing_span = compute_active_signing_span_metrics(payload)
     oob = compute_oob_metrics(payload, manifest)
-    upper_body_support = compute_upper_body_support_metrics(payload)
+    upper_body_support = compute_upper_body_support_metrics(payload, active_signing_span)
     coverage = compute_coverage_metrics(payload, manifest)
-    hand = compute_hand_metrics(payload, manifest, active_signing_span)
-    face = compute_face_metrics(payload, manifest)
+    manual_visibility = compute_hand_metrics(payload, manifest, active_signing_span)
+    non_manual_visibility = compute_face_metrics(payload, manifest, active_signing_span)
     valid = compute_valid_metrics(payload, manifest)
     confidence = compute_confidence_metrics(payload, active_signing_span)
-    temporal_coherence = compute_temporal_coherence_metrics(payload, active_signing_span)
+    kinematic_naturalness = compute_temporal_coherence_metrics(payload, active_signing_span)
+    tracking_quality = compute_tracking_quality_metrics(manifest)
+    manual_detail = compute_manual_detail_metrics(payload, active_signing_span)
+    non_manual_quality = compute_non_manual_quality_metrics(payload, active_signing_span)
+    geometry = compute_geometry_metrics(payload, active_signing_span)
     text = compute_text_metrics(payload)
     length = compute_length_metrics(payload, text)
 
@@ -90,11 +100,15 @@ def build_metric_bundle(
         oob=oob,
         upper_body_support=upper_body_support,
         coverage=coverage,
-        hand=hand,
-        face=face,
+        manual_visibility=manual_visibility,
+        non_manual_visibility=non_manual_visibility,
         valid=valid,
         confidence=confidence,
-        temporal_coherence=temporal_coherence,
+        kinematic_naturalness=kinematic_naturalness,
+        tracking_quality=tracking_quality,
+        manual_detail=manual_detail,
+        non_manual_quality=non_manual_quality,
+        geometry=geometry,
         text=text,
         length=length,
     )

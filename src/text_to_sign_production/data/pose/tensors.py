@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Literal, Protocol
 
 import numpy as np
 
 from text_to_sign_production.data.pose.parser import parse_frame
 from text_to_sign_production.data.pose.people import (
     build_person_metadata,
-    resolve_person_selection,
+    resolve_person_tracking,
 )
 from text_to_sign_production.data.pose.schema import (
     CANONICAL_POSE_CHANNELS,
@@ -28,7 +29,20 @@ from text_to_sign_production.data.samples.types import (
     PoseChannelPayload,
 )
 
-PoseProgressCallback = Callable[..., None]
+PoseProgressPhase = Literal["parse", "tensors"]
+
+
+@dataclass(frozen=True, slots=True)
+class PoseProgressEvent:
+    sample_id: str
+    phase: PoseProgressPhase
+    completed: int
+    total: int
+    people: int | None = None
+
+
+class PoseProgressSink(Protocol):
+    def update_pose_progress(self, event: PoseProgressEvent) -> None: ...
 
 
 def _empty_channel_tensor(
@@ -45,7 +59,7 @@ def _empty_channel_tensor(
 def build_pose_tensors(
     build_input: PoseBuildInput,
     *,
-    progress_callback: PoseProgressCallback | None = None,
+    progress_sink: PoseProgressSink | None = None,
 ) -> PoseBuildOutput:
     """Build pose tensors and facts for a candidate."""
 
@@ -83,18 +97,21 @@ def build_pose_tensors(
             break
         finally:
             progress_count += 1
-            if progress_callback is not None:
-                progress_callback(
-                    sample_id=candidate.sample_id,
-                    phase="parse",
-                    completed=progress_count,
-                    total=2 * num_frames,
+            if progress_sink is not None:
+                progress_sink.update_pose_progress(
+                    PoseProgressEvent(
+                        sample_id=candidate.sample_id,
+                        phase="parse",
+                        completed=progress_count,
+                        total=2 * num_frames,
+                    )
                 )
 
-    person_selection = resolve_person_selection(
+    person_tracking = resolve_person_tracking(
         parsed_frames,
         build_input.person_selection_policy,
     )
+    person_selection = person_tracking.anchor_selection
     target_person_index = person_selection.target_index
 
     for index, parsed in enumerate(parsed_frames):
@@ -106,21 +123,24 @@ def build_pose_tensors(
 
         issue_counter.update(parsed.issue_codes)
 
-        if target_person_index >= people_count:
+        selected_person_index = person_tracking.selected_person_indices[index]
+        if selected_person_index < 0 or selected_person_index >= people_count:
             frame_valid_mask[index] = False
             issue_counter["target_person_missing"] += 1
             progress_count += 1
-            if progress_callback is not None:
-                progress_callback(
-                    sample_id=candidate.sample_id,
-                    phase="tensors",
-                    completed=progress_count,
-                    total=2 * num_frames,
-                    people=people_count,
+            if progress_sink is not None:
+                progress_sink.update_pose_progress(
+                    PoseProgressEvent(
+                        sample_id=candidate.sample_id,
+                        phase="tensors",
+                        completed=progress_count,
+                        total=2 * num_frames,
+                        people=people_count,
+                    )
                 )
             continue
 
-        person = parsed.people[target_person_index]
+        person = parsed.people[selected_person_index]
         frame_valid_mask[index] = person.person_valid
 
         if person.face_missing:
@@ -136,13 +156,15 @@ def build_pose_tensors(
             confidence_tensors[channel][index] = person.confidences[channel]
 
         progress_count += 1
-        if progress_callback is not None:
-            progress_callback(
-                sample_id=candidate.sample_id,
-                phase="tensors",
-                completed=progress_count,
-                total=2 * num_frames,
-                people=people_count,
+        if progress_sink is not None:
+            progress_sink.update_pose_progress(
+                PoseProgressEvent(
+                    sample_id=candidate.sample_id,
+                    phase="tensors",
+                    completed=progress_count,
+                    total=2 * num_frames,
+                    people=people_count,
+                )
             )
 
     channel_nonzero_frames = {
@@ -163,6 +185,12 @@ def build_pose_tensors(
         face_missing_frame_count=face_missing_frame_count,
         out_of_bounds_coordinate_count=out_of_bounds_coordinate_count,
         frames_with_any_zeroed_canonical_joint=frames_with_any_zeroed_canonical_joint,
+        tracked_target_missing_frame_count=person_tracking.tracked_target_missing_frame_count,
+        tracked_target_missing_frame_ratio=person_tracking.tracked_target_missing_frame_ratio,
+        person_tracking_continuity_break_count=person_tracking.continuity_break_count,
+        person_tracking_continuity_break_ratio=person_tracking.continuity_break_ratio,
+        person_tracking_reanchor_count=person_tracking.reanchor_count,
+        person_tracking_reanchor_ratio=person_tracking.reanchor_ratio,
         frame_issue_counts={str(key): int(value) for key, value in sorted(issue_counter.items())},
         channel_nonzero_frames=channel_nonzero_frames,
     )
@@ -187,6 +215,13 @@ def build_pose_tensors(
         person_selection_fallback_used=person_selection.fallback_used,
         person_selection_fallback_reason=person_selection.fallback_reason,
         person_selection_candidate_scores=person_selection.candidate_scores,
+        tracked_person_indices=person_tracking.selected_person_indices,
+        person_tracking_continuity_break_count=person_tracking.continuity_break_count,
+        person_tracking_continuity_break_ratio=person_tracking.continuity_break_ratio,
+        person_tracking_reanchor_count=person_tracking.reanchor_count,
+        person_tracking_reanchor_ratio=person_tracking.reanchor_ratio,
+        tracked_target_missing_frame_count=person_tracking.tracked_target_missing_frame_count,
+        tracked_target_missing_frame_ratio=person_tracking.tracked_target_missing_frame_ratio,
         unrecoverable_error=unrecoverable_error,
     )
 

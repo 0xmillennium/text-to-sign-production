@@ -5,7 +5,8 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass
 
-from text_to_sign_production.data._shared.identities import SampleSplit
+from text_to_sign_production.core.ids import SampleSplit
+from text_to_sign_production.data._shared.types import ValidationIssue
 
 
 class LeakageRelation(enum.StrEnum):
@@ -106,9 +107,57 @@ class LeakageBundle:
     sample_summaries: tuple[LeakageSampleSummary, ...]
 
 
-@dataclass(frozen=True, slots=True)
-class LeakageValidationIssue:
-    """A specific issue found during leakage bundle validation."""
+LeakageValidationIssue = ValidationIssue
 
-    code: str
-    message: str
+
+@dataclass(frozen=True, slots=True)
+class LeakageRelationFrequencyRecord:
+    """Frequency of a leakage relation across pair facts."""
+
+    relation: LeakageRelation
+    pair_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class LeakageSeverityDistributionRecord:
+    """Frequency of leakage severities across pair facts."""
+
+    severity: LeakageSeverity
+    pair_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class LeakageSampleSeverityDistributionRecord:
+    """Split-aware sample count by maximum leakage severity."""
+
+    split: SampleSplit
+    severity: LeakageSeverity
+    sample_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class LeakageRelationCooccurrenceRecord:
+    """Ordered relation co-occurrence count across pair facts."""
+
+    left_relation: LeakageRelation
+    right_relation: LeakageRelation
+    pair_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class LeakageSplitPairCountRecord:
+    """Cross-split pair count for leakage pair facts."""
+
+    left_split: SampleSplit
+    right_split: SampleSplit
+    pair_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class LeakageAffectedSampleCoverageRecord:
+    """Affected-sample coverage by split."""
+
+    split: SampleSplit
+    sample_count: int
+    affected_sample_count: int
+    affected_sample_ratio: float

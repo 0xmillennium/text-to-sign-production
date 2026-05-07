@@ -19,6 +19,7 @@ from text_to_sign_production.artifacts.catalog.enrich import (
 )
 from text_to_sign_production.artifacts.catalog.types import (
     SampleHandle,
+    SampleManifestProjection,
     SampleRef,
     SamplesCatalog,
     TieredCatalog,
@@ -31,6 +32,7 @@ from text_to_sign_production.artifacts.catalog.validate import (
 
 __all__ = [
     "SampleHandle",
+    "SampleManifestProjection",
     "SampleRef",
     "SamplesCatalog",
     "TieredCatalog",

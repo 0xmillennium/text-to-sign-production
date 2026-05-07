@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from text_to_sign_production.data._shared.validate import shape_tuple
 from text_to_sign_production.data.pose.schema import OPENPOSE_CHANNEL_SPECS
 from text_to_sign_production.data.pose.types import PoseBuildOutput, PoseValidationIssue
 
@@ -40,18 +41,26 @@ def validate_pose_build(output: PoseBuildOutput) -> list[PoseValidationIssue]:
             add("missing_channel_data", f"Pose channel {name!r} has missing data.")
             continue
 
-        coords_shape = channel.coordinates.shape
-        conf_shape = channel.confidence.shape
+        coords_shape = shape_tuple(channel.coordinates)
+        conf_shape = shape_tuple(channel.confidence)
 
         _, expected_points = OPENPOSE_CHANNEL_SPECS[name]
 
-        if len(coords_shape) != 3 or coords_shape[1] != expected_points or coords_shape[2] != 2:
+        if (
+            coords_shape is None
+            or len(coords_shape) != 3
+            or coords_shape[1] != expected_points
+            or coords_shape[2] != 2
+        ):
             add("invalid_coordinates_shape", f"Pose channel {name!r} coordinates shape is invalid.")
 
-        if len(conf_shape) != 2 or conf_shape[1] != expected_points:
+        if conf_shape is None or len(conf_shape) != 2 or conf_shape[1] != expected_points:
             add("invalid_confidence_shape", f"Pose channel {name!r} confidence shape is invalid.")
 
-        if coords_shape[0] != expected_frames or conf_shape[0] != expected_frames:
+        if (
+            (coords_shape is not None and coords_shape[0] != expected_frames)
+            or (conf_shape is not None and conf_shape[0] != expected_frames)
+        ):
             add("frame_count_mismatch", f"Pose channel {name!r} frame count mismatches quality.")
 
     if output.selected_person.multi_person_frame_count > expected_frames:

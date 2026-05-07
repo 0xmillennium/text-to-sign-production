@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from text_to_sign_production.data.gates.artifact import evaluate_artifact_gate
 from text_to_sign_production.data.gates.body import evaluate_body_gate
-from text_to_sign_production.data.gates.config import GatesConfig
 from text_to_sign_production.data.gates.face import evaluate_face_gate
 from text_to_sign_production.data.gates.frames import evaluate_frames_gate
 from text_to_sign_production.data.gates.hand import evaluate_hand_gate
@@ -12,6 +11,7 @@ from text_to_sign_production.data.gates.schema import evaluate_schema_gate
 from text_to_sign_production.data.gates.source import evaluate_source_gate
 from text_to_sign_production.data.gates.types import (
     GateResult,
+    GatesConfig,
     GateStage,
     GateStatus,
     ProcessingDecision,
@@ -23,9 +23,7 @@ from text_to_sign_production.data.sources.types import SourceCandidate, SourceMa
 
 def evaluate_unmatched_source(match: SourceMatchResult) -> ProcessingDecision:
     """Build the canonical source-stage decision for an unmatched source row."""
-    reasons = _unique_reasons(
-        (*match.source_issues, match.unmatched_reason or "unmatched_source")
-    )
+    reasons = _unique_reasons((*match.source_issues, match.unmatched_reason or "unmatched_source"))
     return ProcessingDecision(
         status=ProcessingStatus.DROPPED,
         drop_stage=GateStage.SOURCE,
@@ -50,9 +48,7 @@ def evaluate_sample_processing(
     """
     gate_results = {}
 
-    def _fail(
-        stage: GateStage, result: GateResult, materializable: bool
-    ) -> ProcessingDecision:
+    def _fail(stage: GateStage, result: GateResult, materializable: bool) -> ProcessingDecision:
         gate_results[stage] = result
         return ProcessingDecision(
             status=ProcessingStatus.DROPPED,
@@ -63,7 +59,7 @@ def evaluate_sample_processing(
         )
 
     # 1. Source
-    source_res = evaluate_source_gate(candidate)
+    source_res = evaluate_source_gate(candidate, config)
     gate_results[GateStage.SOURCE] = source_res
     if not source_res.passed:
         return _fail(GateStage.SOURCE, source_res, materializable=False)

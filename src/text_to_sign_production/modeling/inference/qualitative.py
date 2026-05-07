@@ -24,6 +24,11 @@ from text_to_sign_production.modeling.data import (
 from text_to_sign_production.modeling.training.config import load_baseline_training_config
 
 from .evidence import write_baseline_evidence_bundle
+from .events import (
+    InferenceProgressSink,
+    NoOpInferenceProgressSink,
+    QualitativeSampleExported,
+)
 from .paths import portable_path
 from .schemas import (
     build_prediction_sample_payload,
@@ -186,7 +191,7 @@ def export_qualitative_panel(
     panel_size: int = DEFAULT_QUALITATIVE_PANEL_SIZE,
     repo_root: Path | str | None = None,
     path_formatter: Callable[[Path], str],
-    progress_reporter: Any | None = None,
+    progress_sink: InferenceProgressSink | None = None,
 ) -> QualitativeExportResult:
     """Export the fixed qualitative validation panel for an M0 baseline checkpoint."""
 
@@ -235,7 +240,7 @@ def export_qualitative_panel(
         predictor=predictor,
         predict_baseline_batch=predict_baseline_batch,
         path_formatter=path_formatter,
-        progress_reporter=progress_reporter,
+        progress_sink=progress_sink,
     )
     _write_qualitative_export_manifests(
         artifact_paths=artifact_paths,
@@ -293,20 +298,11 @@ def _export_qualitative_sample_artifacts(
     predictor: Any,
     predict_baseline_batch: Any,
     path_formatter: Callable[[Path], str],
-    progress_reporter: Any | None = None,
+    progress_sink: InferenceProgressSink | None = None,
 ) -> list[dict[str, object]]:
-    from text_to_sign_production.foundation.progress import (
-        ItemProgress,
-        NoOpProgressReporter,
-    )
-
-    progress = ItemProgress(
-        label="qualitative panel",
-        total=len(selected_records),
-        unit="sample",
-        reporter=progress_reporter if progress_reporter is not None else NoOpProgressReporter(),
-    )
+    sink = progress_sink if progress_sink is not None else NoOpInferenceProgressSink()
     artifact_records: list[dict[str, object]] = []
+    total_samples = len(selected_records)
     for index, record in enumerate(selected_records):
         pose_sample = load_processed_pose_sample(record)
         item = ProcessedPoseItem.from_manifest_and_sample(record, pose_sample)
@@ -316,17 +312,28 @@ def _export_qualitative_sample_artifacts(
             batch,
             device=predictor.device,
         )
-        artifact_records.append(
-            write_qualitative_sample_artifacts(
-                output_dir,
-                index=index,
-                item=item,
-                prediction=prediction,
-                path_formatter=path_formatter,
+        artifact_record = write_qualitative_sample_artifacts(
+            output_dir,
+            index=index,
+            item=item,
+            prediction=prediction,
+            path_formatter=path_formatter,
+        )
+        artifact_records.append(artifact_record)
+        reference_path, prediction_path = _qualitative_sample_artifact_paths(
+            output_dir,
+            index=index,
+            sample_id=item.sample_id,
+        )
+        sink.emit(
+            QualitativeSampleExported(
+                sample_index=index + 1,
+                total_samples=total_samples,
+                sample_id=item.sample_id,
+                reference_artifact_path=reference_path,
+                prediction_artifact_path=prediction_path,
             )
         )
-        progress.advance(sample_id=record.sample_id)
-    progress.finish()
     return artifact_records
 
 
@@ -381,9 +388,11 @@ def write_qualitative_sample_artifacts(
     if index < 0:
         raise QualitativeExportError("artifact index must not be negative.")
 
-    filename = f"{index:04d}__{_sanitize_sample_id(item.sample_id)}.npz"
-    reference_path = output_dir / REFERENCE_ARTIFACTS_DIRNAME / filename
-    prediction_path = output_dir / PREDICTION_ARTIFACTS_DIRNAME / filename
+    reference_path, prediction_path = _qualitative_sample_artifact_paths(
+        output_dir,
+        index=index,
+        sample_id=item.sample_id,
+    )
     _require_existing_dir(reference_path.parent, label="Qualitative reference artifact directory")
     _require_existing_dir(
         prediction_path.parent,
@@ -440,6 +449,19 @@ def write_qualitative_sample_artifacts(
         "prediction_schema_version": str(prediction_payload["prediction_schema_version"].item()),
         **policy_metadata,
     }
+
+
+def _qualitative_sample_artifact_paths(
+    output_dir: Path,
+    *,
+    index: int,
+    sample_id: str,
+) -> tuple[Path, Path]:
+    filename = f"{index:04d}__{_sanitize_sample_id(sample_id)}.npz"
+    return (
+        output_dir / REFERENCE_ARTIFACTS_DIRNAME / filename,
+        output_dir / PREDICTION_ARTIFACTS_DIRNAME / filename,
+    )
 
 
 def _panel_definition_from_mapping(

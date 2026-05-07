@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from text_to_sign_production.data._shared.identities import SampleSplit
+from text_to_sign_production.core.ids import SampleSplit
 from text_to_sign_production.data.sources.types import (
     KeypointSourceFacts,
     SourceMatchResult,

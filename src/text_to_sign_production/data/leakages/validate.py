@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from text_to_sign_production.data._shared.identities import SampleSplit
+from text_to_sign_production.core.ids import SampleSplit
+from text_to_sign_production.data._shared.validate import is_sorted_unique_sequence
 from text_to_sign_production.data.leakages.severity import (
     classify_leakage_severity,
     max_leakage_severity,
@@ -71,7 +72,7 @@ def validate_leakage_bundle(bundle: LeakageBundle) -> list[LeakageValidationIssu
             add("negative_count", f"Negative same-source-video count for {key}.")
 
         matched_keys = tuple((ref.split, ref.sample_id) for ref in s.matched_samples)
-        if matched_keys != tuple(sorted(set(matched_keys))):
+        if not is_sorted_unique_sequence(matched_keys):
             add("matched_samples_not_sorted_or_unique", f"Matched samples invalid for {key}.")
 
         expected_has_leakage = s.max_severity != LeakageSeverity.NONE

@@ -26,6 +26,12 @@ REQUIRED_FRAME_QUALITY_KEYS: Final[frozenset[str]] = frozenset(
         "face_missing_frame_count",
         "out_of_bounds_coordinate_count",
         "frames_with_any_zeroed_canonical_joint",
+        "tracked_target_missing_frame_count",
+        "tracked_target_missing_frame_ratio",
+        "person_tracking_continuity_break_count",
+        "person_tracking_continuity_break_ratio",
+        "person_tracking_reanchor_count",
+        "person_tracking_reanchor_ratio",
         "frame_issue_counts",
         "channel_nonzero_frames",
     }
@@ -74,7 +80,19 @@ REQUIRED_DROPPED_MANIFEST_KEYS: Final[frozenset[str]] = frozenset(
         "split",
         "drop_stage",
         "drop_reasons",
-        "debug_only",
+        "materialization",
+    }
+)
+
+REQUIRED_DROPPED_MATERIALIZATION_KEYS: Final[frozenset[str]] = frozenset(
+    {
+        "debug_materialization_eligible",
+        "debug_materialization_attempted",
+        "debug_materialization_outcome",
+        "payload_path",
+        "payload_exists",
+        "archive_publishable",
+        "failure_reason",
     }
 )
 
@@ -83,12 +101,13 @@ DROPPED_ONLY_MANIFEST_KEYS: Final[frozenset[str]] = frozenset(
         "drop_stage",
         "drop_reasons",
         "drop_details",
-        "debug_only",
+        "materialization",
     }
 )
 
 PASSED_ONLY_MANIFEST_KEYS: Final[frozenset[str]] = frozenset(
     {
+        "sample_path",
         "source_video_id",
         "source_sentence_id",
         "source_sentence_name",

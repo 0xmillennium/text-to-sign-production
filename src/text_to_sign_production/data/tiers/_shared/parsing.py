@@ -2,21 +2,32 @@
 
 from __future__ import annotations
 
-import math
 from collections.abc import Mapping
 from typing import TypeVar, cast
+
+from text_to_sign_production.data._shared.validate import (
+    float_value,
+    int_value,
+    is_positive_finite_number,
+    is_unit_interval,
+    key_delta,
+    non_string_keys,
+    require_string_key_mapping,
+)
 
 StrEnumT = TypeVar("StrEnumT")
 
 
 def require_mapping(payload: object, name: str) -> Mapping[str, object]:
     """Require a string-keyed mapping."""
-    if not isinstance(payload, Mapping):
+    mapping = require_string_key_mapping(payload)
+    if mapping is None:
+        if isinstance(payload, Mapping):
+            bad_keys = non_string_keys(payload)
+            if bad_keys:
+                raise ValueError(f"{name} contains non-string key {bad_keys[0]!r}")
         raise ValueError(f"{name} must be a mapping")
-    for key in payload:
-        if not isinstance(key, str):
-            raise ValueError(f"{name} contains non-string key {key!r}")
-    return cast(Mapping[str, object], payload)
+    return cast(Mapping[str, object], mapping)
 
 
 def require_exact_keys(
@@ -25,10 +36,7 @@ def require_exact_keys(
     name: str,
 ) -> None:
     """Require exactly the named keys, rejecting missing and unknown fields."""
-    actual = set(payload)
-    expected = set(expected_keys)
-    missing = sorted(expected - actual)
-    unknown = sorted(actual - expected)
+    missing, unknown = key_delta(payload, expected_keys)
     if missing or unknown:
         details: list[str] = []
         if missing:
@@ -42,38 +50,40 @@ def require_exact_keys(
 
 def require_ratio(value: object, name: str) -> float:
     """Require a finite ratio in [0, 1]."""
-    if isinstance(value, bool) or not isinstance(value, int | float):
+    number = float_value(value)
+    if number is None:
         raise ValueError(f"{name} must be a number, got {value!r}")
-    number = float(value)
-    if not math.isfinite(number) or not 0.0 <= number <= 1.0:
+    if not is_unit_interval(number):
         raise ValueError(f"{name} must be finite and within [0, 1], got {value!r}")
     return number
 
 
 def require_nonnegative_int(value: object, name: str) -> int:
     """Require a non-negative integer."""
-    if isinstance(value, bool) or not isinstance(value, int):
+    parsed = int_value(value)
+    if parsed is None:
         raise ValueError(f"{name} must be an integer, got {value!r}")
-    if value < 0:
+    if parsed < 0:
         raise ValueError(f"{name} must be non-negative, got {value!r}")
-    return value
+    return parsed
 
 
 def require_positive_int(value: object, name: str) -> int:
     """Require a positive integer."""
-    if isinstance(value, bool) or not isinstance(value, int):
+    parsed = int_value(value)
+    if parsed is None:
         raise ValueError(f"{name} must be an integer, got {value!r}")
-    if value <= 0:
+    if parsed <= 0:
         raise ValueError(f"{name} must be positive, got {value!r}")
-    return value
+    return parsed
 
 
 def require_positive_float(value: object, name: str) -> float:
     """Require a positive finite number."""
-    if isinstance(value, bool) or not isinstance(value, int | float):
+    number = float_value(value)
+    if number is None:
         raise ValueError(f"{name} must be a number, got {value!r}")
-    number = float(value)
-    if not math.isfinite(number) or number <= 0.0:
+    if not is_positive_finite_number(number):
         raise ValueError(f"{name} must be positive and finite, got {value!r}")
     return number
 

@@ -36,6 +36,11 @@ def zero_confidence(channel: str) -> FloatArray:
 def _reshape_flat_keypoints(
     flat_values: list[float], expected_points: int
 ) -> tuple[FloatArray, FloatArray, FloatArray]:
+    """Return raw pixel triplets plus coordinate/confidence views.
+
+    OpenPose stores 2D keypoints in pixel space. `parse_frame` converts the
+    coordinate view to normalized x/y space before exposing it downstream.
+    """
     if len(flat_values) != expected_points * 3:
         raise ValueError(f"Expected {expected_points * 3} values, got {len(flat_values)}.")
 
@@ -51,7 +56,14 @@ def parse_frame(
     canvas_width: int = CANVAS_WIDTH,
     canvas_height: int = CANVAS_HEIGHT,
 ) -> ParsedFrameResult:
-    """Parse and normalize one OpenPose frame JSON file."""
+    """Parse one OpenPose frame JSON file into normalized pose coordinates.
+
+    The returned `ParsedPerson.coords` values are normalized by the parser:
+    x coordinates are divided by `canvas_width`, y coordinates are divided by
+    `canvas_height`, and confidences remain unchanged. Downstream data-layer
+    metrics and tensor builders must therefore treat these coordinates as
+    normalized coordinate-space values, not pixels.
+    """
 
     issue_codes: list[str] = []
 
@@ -150,6 +162,8 @@ def parse_frame(
                 coords[channel] = zero_coords(channel)
                 confidences[channel] = zero_confidence(channel)
                 continue
+            # Parser output is the domain boundary where OpenPose pixel
+            # coordinates become normalized coordinates.
             parsed_coords[:, 0] = parsed_coords[:, 0] / np.float32(canvas_width)
             parsed_coords[:, 1] = parsed_coords[:, 1] / np.float32(canvas_height)
 

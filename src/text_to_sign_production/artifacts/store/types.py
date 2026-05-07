@@ -3,45 +3,34 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
 from pathlib import Path, PurePosixPath
 
-from text_to_sign_production.data._shared.identities import SampleSplit
+from text_to_sign_production.core.ids import (
+    SampleSplit,
+    SampleStatus,
+    TierMembership,
+    TierName,
+)
 
 
-class SplitName(StrEnum):
-    """Supported dataset split names."""
-
-    TRAIN = "train"
-    VAL = "val"
-    TEST = "test"
-
-
-def split_name_from_sample_split(split: SplitName | SampleSplit | str) -> SplitName:
+def sample_split_from_value(split: SampleSplit | str) -> SampleSplit:
     """Canonicalize sample split identity at the artifact-store boundary."""
-    return SplitName(str(split))
+    return SampleSplit(str(split))
 
 
-class SampleStatus(StrEnum):
-    """Physical sample status buckets."""
-
-    PASSED = "passed"
-    DROPPED = "dropped"
+def sample_status_from_value(status: SampleStatus | str) -> SampleStatus:
+    """Canonicalize physical sample status at the artifact-store boundary."""
+    return SampleStatus(str(status))
 
 
-class TierName(StrEnum):
-    """Tiered manifest names."""
-
-    LOOSE = "loose"
-    CLEAN = "clean"
-    TIGHT = "tight"
+def tier_name_from_value(tier: TierName | str) -> TierName:
+    """Canonicalize physical tier identity at the artifact-store boundary."""
+    return TierName(str(tier))
 
 
-class TierMembership(StrEnum):
-    """Tiered manifest membership buckets."""
-
-    INCLUDED = "included"
-    EXCLUDED = "excluded"
+def tier_membership_from_value(membership: TierMembership | str) -> TierMembership:
+    """Canonicalize physical tier membership at the artifact-store boundary."""
+    return TierMembership(str(membership))
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +55,13 @@ class SamplePathRef:
 
 
 @dataclass(frozen=True, slots=True)
+class ReportPathRef:
+    """Physical report path reference."""
+
+    path: Path
+
+
+@dataclass(frozen=True, slots=True)
 class ArchivePathRef:
     """Physical archive path reference."""
 
@@ -84,10 +80,10 @@ __all__ = [
     "ArchivePathRef",
     "ArtifactPathRef",
     "ManifestPathRef",
+    "ReportPathRef",
     "SamplePathRef",
-    "SampleStatus",
-    "SplitName",
-    "TierMembership",
-    "TierName",
-    "split_name_from_sample_split",
+    "sample_split_from_value",
+    "sample_status_from_value",
+    "tier_membership_from_value",
+    "tier_name_from_value",
 ]

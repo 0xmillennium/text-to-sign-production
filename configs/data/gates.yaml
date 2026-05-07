@@ -1,12 +1,26 @@
 # Structural usability decisions
-# Defines the absolute gating rules that reject corrupted or structurally unusable data
+# Defines absolute gates that reject corrupted or structurally unusable data.
 
-min_valid_frames: 1
-max_out_of_bounds_ratio: 0.5
-min_any_hand_nonzero_frames: 1
+integrity:
+  min_valid_frames: 1
+  max_out_of_bounds_ratio: 0.5
+  min_num_frames: 8
+  min_duration_seconds: 0.25
 
-channels:
-  body:
-    min_nonzero_frames: 1
-  face:
-    min_nonzero_frames: 1
+tracking_integrity:
+  max_tracked_target_missing_frame_ratio: 0.2
+  max_zeroed_canonical_joint_frame_ratio: 0.6
+  max_person_tracking_continuity_break_ratio: 0.3
+  max_person_tracking_reanchor_ratio: 0.3
+
+channel_presence:
+  min_any_hand_nonzero_frames: 1
+  channels:
+    body:
+      min_nonzero_frames: 1
+    face:
+      min_nonzero_frames: 1
+
+text_sanity:
+  min_character_count: 2
+  min_token_count: 1

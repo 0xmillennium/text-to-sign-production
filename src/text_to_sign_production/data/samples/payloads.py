@@ -9,14 +9,22 @@ from zipfile import BadZipFile
 
 import numpy as np
 
-from text_to_sign_production.data._shared.identities import SampleSplit
+from text_to_sign_production.core.ids import SampleSplit
 from text_to_sign_production.data.samples._shared.parsing import (
     frame_quality_from_record,
+    int_from_record,
+    optional_float_from_record,
     require_mapping,
+    require_record_keys,
     sample_split_from_record,
     selected_person_from_record,
+    text_from_record,
 )
-from text_to_sign_production.data.samples.schema import PROCESSED_SCHEMA_VERSION
+from text_to_sign_production.data.samples.schema import (
+    PROCESSED_SCHEMA_VERSION,
+    REQUIRED_PAYLOAD_KEYS,
+    REQUIRED_POSE_CHANNEL_KEYS,
+)
 from text_to_sign_production.data.samples.types import (
     BfhPosePayload,
     FrameQualitySummary,
@@ -56,6 +64,7 @@ def build_payload(
 
 def payload_from_record(record: Mapping[str, Any]) -> ProcessedSamplePayload:
     """Parse a payload record into its typed sample contract."""
+    require_record_keys(record, REQUIRED_PAYLOAD_KEYS, surface="Payload")
     selected_person_record = require_mapping(
         record["selected_person"], "selected_person", surface="Payload"
     )
@@ -65,12 +74,12 @@ def payload_from_record(record: Mapping[str, Any]) -> ProcessedSamplePayload:
     pose_record = require_mapping(record["pose"], "pose", surface="Payload")
 
     return ProcessedSamplePayload(
-        sample_id=str(record["sample_id"]),
-        schema_version=str(record["schema_version"]),
-        text=str(record["text"]),
+        sample_id=text_from_record(record["sample_id"], "Payload sample_id"),
+        schema_version=text_from_record(record["schema_version"], "Payload schema_version"),
+        text=text_from_record(record["text"], "Payload text"),
         split=sample_split_from_record(record["split"], "Payload split"),
-        num_frames=int(record["num_frames"]),
-        fps=float(record["fps"]) if record.get("fps") is not None else None,
+        num_frames=int_from_record(record["num_frames"], "Payload num_frames"),
+        fps=optional_float_from_record(record.get("fps"), "Payload fps"),
         selected_person=selected_person_from_record(selected_person_record),
         frame_quality=frame_quality_from_record(frame_quality_record),
         pose=_pose_from_record(pose_record),
@@ -78,6 +87,11 @@ def payload_from_record(record: Mapping[str, Any]) -> ProcessedSamplePayload:
 
 
 def _pose_from_record(record: Mapping[str, Any]) -> BfhPosePayload:
+    require_record_keys(
+        record,
+        frozenset({"body", "left_hand", "right_hand", "face"}),
+        surface="Payload pose",
+    )
     return BfhPosePayload(
         body=_channel_from_record(require_mapping(record["body"], "pose.body", surface="Payload")),
         left_hand=_channel_from_record(
@@ -91,6 +105,7 @@ def _pose_from_record(record: Mapping[str, Any]) -> BfhPosePayload:
 
 
 def _channel_from_record(record: Mapping[str, Any]) -> PoseChannelPayload:
+    require_record_keys(record, REQUIRED_POSE_CHANNEL_KEYS, surface="Payload pose channel")
     return PoseChannelPayload(
         coordinates=record["coordinates"],
         confidence=record["confidence"],

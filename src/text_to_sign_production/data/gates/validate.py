@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
-from numbers import Real
-
-from text_to_sign_production.data.gates.config import GatesConfig
+from text_to_sign_production.data._shared.validate import (
+    is_non_bool_int,
+    is_positive_finite_number,
+    is_unit_interval,
+)
 from text_to_sign_production.data.gates.types import (
     GateResult,
+    GatesConfig,
     GateStage,
     GateStatus,
     GateValidationIssue,
     ProcessingDecision,
     ProcessingStatus,
 )
+
 _CHANNEL_GATE_CONFIG_CHANNELS = ("body", "face")
 
 
@@ -23,50 +27,91 @@ def validate_gates_config(config: GatesConfig) -> list[GateValidationIssue]:
     def add(code: str, message: str) -> None:
         issues.append(GateValidationIssue(code=code, message=message))
 
-    if isinstance(config.min_valid_frames, bool) or not isinstance(config.min_valid_frames, int):
-        add("invalid_min_valid_frames_type", "min_valid_frames must be an integer.")
-    elif config.min_valid_frames < 1:
-        add("invalid_min_valid_frames", "min_valid_frames must be positive.")
+    integrity = config.integrity
+    tracking = config.tracking_integrity
+    channel_presence = config.channel_presence
+    text_sanity = config.text_sanity
 
-    if isinstance(config.max_out_of_bounds_ratio, bool) or not isinstance(
-        config.max_out_of_bounds_ratio, Real
-    ):
-        add("invalid_max_out_of_bounds_ratio_type", "max_out_of_bounds_ratio must be numeric.")
-    elif not (0.0 <= config.max_out_of_bounds_ratio <= 1.0):
-        add("invalid_max_out_of_bounds_ratio", "max_out_of_bounds_ratio must be within [0, 1].")
+    if not is_non_bool_int(integrity.min_valid_frames):
+        add("invalid_min_valid_frames_type", "integrity.min_valid_frames must be an integer.")
+    elif integrity.min_valid_frames < 1:
+        add("invalid_min_valid_frames", "integrity.min_valid_frames must be positive.")
 
-    if (
-        isinstance(config.min_any_hand_nonzero_frames, bool)
-        or not isinstance(config.min_any_hand_nonzero_frames, int)
+    if not is_unit_interval(integrity.max_out_of_bounds_ratio):
+        add(
+            "invalid_max_out_of_bounds_ratio",
+            "integrity.max_out_of_bounds_ratio must be within [0, 1].",
+        )
+
+    if not is_non_bool_int(integrity.min_num_frames):
+        add("invalid_min_num_frames_type", "integrity.min_num_frames must be an integer.")
+    elif integrity.min_num_frames < 1:
+        add("invalid_min_num_frames", "integrity.min_num_frames must be positive.")
+
+    if not is_positive_finite_number(integrity.min_duration_seconds):
+        add(
+            "invalid_min_duration_seconds",
+            "integrity.min_duration_seconds must be positive and finite.",
+        )
+
+    for field_name in (
+        "max_tracked_target_missing_frame_ratio",
+        "max_zeroed_canonical_joint_frame_ratio",
+        "max_person_tracking_continuity_break_ratio",
+        "max_person_tracking_reanchor_ratio",
     ):
-        add("invalid_min_any_hand_nonzero_frames_type", "min_any_hand_nonzero_frames is invalid.")
-    elif config.min_any_hand_nonzero_frames < 0:
-        add("invalid_min_any_hand_nonzero_frames", "min_any_hand_nonzero_frames is negative.")
-    elif config.min_any_hand_nonzero_frames > config.min_valid_frames:
+        if not is_unit_interval(getattr(tracking, field_name)):
+            add(
+                f"invalid_{field_name}",
+                f"tracking_integrity.{field_name} must be within [0, 1].",
+            )
+
+    if not is_non_bool_int(channel_presence.min_any_hand_nonzero_frames):
+        add(
+            "invalid_min_any_hand_nonzero_frames_type",
+            "channel_presence.min_any_hand_nonzero_frames is invalid.",
+        )
+    elif channel_presence.min_any_hand_nonzero_frames < 0:
+        add(
+            "invalid_min_any_hand_nonzero_frames",
+            "channel_presence.min_any_hand_nonzero_frames is negative.",
+        )
+    elif channel_presence.min_any_hand_nonzero_frames > integrity.min_valid_frames:
         add(
             "any_hand_requires_more_frames_than_min_valid",
-            "min_any_hand_nonzero_frames exceeds min_valid_frames.",
+            "channel_presence.min_any_hand_nonzero_frames exceeds integrity.min_valid_frames.",
         )
 
     for channel in _CHANNEL_GATE_CONFIG_CHANNELS:
-        if channel not in config.channel_configs:
+        if channel not in channel_presence.channels:
             add("missing_canonical_channel_config", f"Missing channel config for {channel}.")
 
-    for channel, ch_config in config.channel_configs.items():
+    for channel, ch_config in channel_presence.channels.items():
         if channel not in _CHANNEL_GATE_CONFIG_CHANNELS:
             add("unknown_channel_config", f"Unknown channel config {channel!r}.")
-        if isinstance(ch_config.min_nonzero_frames, bool) or not isinstance(
-            ch_config.min_nonzero_frames, int
-        ):
+        if not is_non_bool_int(ch_config.min_nonzero_frames):
             add("invalid_min_nonzero_frames_type", f"{channel} min_nonzero_frames is invalid.")
             continue
         if ch_config.min_nonzero_frames < 0:
             add("invalid_min_nonzero_frames", f"{channel} min_nonzero_frames is negative.")
-        if ch_config.min_nonzero_frames > config.min_valid_frames:
+        if ch_config.min_nonzero_frames > integrity.min_valid_frames:
             add(
                 "channel_requires_more_frames_than_min_valid",
-                f"{channel} min_nonzero_frames exceeds min_valid_frames.",
+                f"{channel} min_nonzero_frames exceeds integrity.min_valid_frames.",
             )
+
+    if not is_non_bool_int(text_sanity.min_character_count):
+        add(
+            "invalid_min_character_count_type",
+            "text_sanity.min_character_count must be an integer.",
+        )
+    elif text_sanity.min_character_count < 0:
+        add("invalid_min_character_count", "text_sanity.min_character_count is negative.")
+
+    if not is_non_bool_int(text_sanity.min_token_count):
+        add("invalid_min_token_count_type", "text_sanity.min_token_count must be an integer.")
+    elif text_sanity.min_token_count < 0:
+        add("invalid_min_token_count", "text_sanity.min_token_count is negative.")
 
     return issues
 

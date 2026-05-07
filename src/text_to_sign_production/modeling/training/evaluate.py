@@ -9,13 +9,13 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from text_to_sign_production.foundation.progress import (
-    BatchProgress,
-    NoOpProgressReporter,
-    ProgressReporter,
-)
 from text_to_sign_production.modeling.data import M0_TARGET_CHANNELS, ProcessedPoseBatch
 
+from .events import (
+    NoOpTrainingProgressSink,
+    TrainingProgressSink,
+    ValidationBatchProcessed,
+)
 from .losses import channel_balanced_masked_pose_mse_loss
 from .masking import build_effective_frame_mask
 from .metrics import (
@@ -194,10 +194,10 @@ def run_validation_epoch(
     *,
     device: torch.device,
     non_blocking: bool = False,
-    progress_label: str = "",
-    progress_total: int | None = None,
-    progress_reporter: ProgressReporter | None = None,
-    progress_interval_batches: int = 100,
+    epoch_index: int = 1,
+    epoch_count: int = 1,
+    batch_count: int | None = None,
+    progress_sink: TrainingProgressSink | None = None,
     channel_weights: Mapping[str, float] | None = None,
     tier_by_sample_id: Mapping[str, str] | None = None,
     target_standardization: TargetStandardization | None = None,
@@ -226,17 +226,25 @@ def run_validation_epoch(
     channel_loss_sums = {channel: 0.0 for channel in M0_TARGET_CHANNELS}
     channel_valid_point_counts = {channel: 0 for channel in M0_TARGET_CHANNELS}
 
-    progress = _progress(
-        progress_label,
-        total=progress_total,
-        reporter=progress_reporter,
-        interval=progress_interval_batches,
-    )
-    for _batch_index, batch in enumerate(batches, start=1):
+    sink = progress_sink if progress_sink is not None else NoOpTrainingProgressSink()
+    for batch_index, batch in enumerate(batches, start=1):
         device_batch = move_batch_to_device(batch, device, non_blocking=non_blocking)
         valid_frame_count = count_valid_contributing_frames(device_batch)
         if valid_frame_count == 0:
-            progress.advance()
+            sink.emit(
+                ValidationBatchProcessed(
+                    epoch_index=epoch_index,
+                    epoch_count=epoch_count,
+                    batch_index=batch_index,
+                    batch_count=batch_count,
+                    valid_frame_count=0,
+                    valid_point_count=0,
+                    batch_loss=None,
+                    batch_metric=None,
+                    running_loss=None,
+                    skipped=True,
+                )
+            )
             continue
 
         result = validation_step(
@@ -270,8 +278,18 @@ def run_validation_epoch(
             valid_point_count = result.channel_valid_point_counts[channel]
             channel_valid_point_counts[channel] += valid_point_count
             channel_loss_sums[channel] += result.channel_losses[channel] * valid_point_count
-        progress.advance(
-            loss=f"{total_loss / max(1, total_valid_frames):.6g}",
+        sink.emit(
+            ValidationBatchProcessed(
+                epoch_index=epoch_index,
+                epoch_count=epoch_count,
+                batch_index=batch_index,
+                batch_count=batch_count,
+                valid_frame_count=result.valid_frame_count,
+                valid_point_count=result.valid_point_count,
+                batch_loss=result.loss,
+                batch_metric=result.metric,
+                running_loss=total_loss / max(1, total_valid_frames),
+            )
         )
 
     if total_valid_frames == 0:
@@ -314,7 +332,6 @@ def run_validation_epoch(
                 "valid_point_count": float(point_count),
             }
 
-    progress.finish(loss=f"{total_loss / total_valid_frames:.6g}")
     return ValidationEpochResult(
         loss=total_loss / total_valid_frames,
         metric=epoch_masked_l2,
@@ -341,21 +358,6 @@ def _averaged_channel_losses(
         )
         for channel in M0_TARGET_CHANNELS
     }
-
-
-def _progress(
-    label: str,
-    *,
-    total: int | None,
-    reporter: ProgressReporter | None,
-    interval: int,
-) -> BatchProgress:
-    return BatchProgress(
-        label=label or "validation batch",
-        total=total,
-        unit="batches",
-        reporter=reporter if reporter is not None else NoOpProgressReporter(),
-    )
 
 
 def _accumulate_grouped_metrics(

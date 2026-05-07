@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from itertools import combinations
+from typing import Literal, Protocol
 
-from text_to_sign_production.data._shared.identities import SampleSplit
+from text_to_sign_production.core.ids import SampleSplit
 from text_to_sign_production.data.leakages.severity import (
     classify_leakage_severity,
     max_leakage_severity,
@@ -23,24 +25,48 @@ from text_to_sign_production.data.leakages.types import (
 )
 
 SampleKey = tuple[SampleSplit, str]
-LeakageProgressCallback = Callable[..., None]
+LeakageProgressKind = Literal["start", "advance", "finish"]
+LeakageProgressPhase = Literal[
+    "duplicates",
+    "index_relations",
+    "relations",
+    "facts",
+    "summary_pairs",
+    "summaries",
+]
 RelationGroups = dict[LeakageRelation, dict[str, list[LeakageInput]]]
+
+
+@dataclass(frozen=True, slots=True)
+class LeakageProgressEvent:
+    kind: LeakageProgressKind
+    phase: LeakageProgressPhase
+    total: int | None = None
+    split: SampleSplit | None = None
+    sample_id: str | None = None
+    relation: LeakageRelation | None = None
+    matches: int | None = None
+    leakage: LeakageSeverity | None = None
+
+
+class LeakageProgressSink(Protocol):
+    def update_leakage_progress(self, event: LeakageProgressEvent) -> None: ...
 
 
 def build_leakage_bundle(
     inputs: Sequence[LeakageInput],
     *,
-    progress_callback: LeakageProgressCallback | None = None,
+    progress_sink: LeakageProgressSink | None = None,
 ) -> LeakageBundle:
     """Detect and compose deterministic leakage facts for a set of inputs."""
     seen: set[SampleKey] = set()
-    if progress_callback is not None:
-        progress_callback(
-            event="start",
-            phase="duplicates",
-            label="check duplicates",
-            total=len(inputs),
-            unit="sample",
+    if progress_sink is not None:
+        progress_sink.update_leakage_progress(
+            LeakageProgressEvent(
+                kind="start",
+                phase="duplicates",
+                total=len(inputs),
+            )
         )
     for sample in inputs:
         key = (sample.split, sample.sample_id)
@@ -50,15 +76,19 @@ def build_leakage_bundle(
                 f"split={sample.split.value!r}, sample_id={sample.sample_id!r}."
             )
         seen.add(key)
-        if progress_callback is not None:
-            progress_callback(
-                event="advance",
-                phase="duplicates",
-                split=sample.split.value,
-                sample=sample.sample_id,
+        if progress_sink is not None:
+            progress_sink.update_leakage_progress(
+                LeakageProgressEvent(
+                    kind="advance",
+                    phase="duplicates",
+                    split=sample.split,
+                    sample_id=sample.sample_id,
+                )
             )
-    if progress_callback is not None:
-        progress_callback(event="finish", phase="duplicates")
+    if progress_sink is not None:
+        progress_sink.update_leakage_progress(
+            LeakageProgressEvent(kind="finish", phase="duplicates")
+        )
 
     sorted_inputs = sorted(inputs, key=lambda x: (x.split, x.sample_id))
     sample_by_key = {(sample.split, sample.sample_id): sample for sample in sorted_inputs}
@@ -66,23 +96,19 @@ def build_leakage_bundle(
 
     relation_groups = _index_relation_groups(
         sorted_inputs,
-        progress_callback=progress_callback,
+        progress_sink=progress_sink,
     )
     _scan_relation_pairs(
         relation_groups,
         relations_by_pair,
-        progress_callback=progress_callback,
+        progress_sink=progress_sink,
     )
 
     pair_facts: list[LeakagePairFact] = []
     relation_pairs = sorted(relations_by_pair)
-    if progress_callback is not None:
-        progress_callback(
-            event="start",
-            phase="facts",
-            label="build pair facts",
-            total=len(relation_pairs),
-            unit="pair",
+    if progress_sink is not None:
+        progress_sink.update_leakage_progress(
+            LeakageProgressEvent(kind="start", phase="facts", total=len(relation_pairs))
         )
     for left_key, right_key in relation_pairs:
         pair_facts.append(
@@ -93,10 +119,14 @@ def build_leakage_bundle(
                 sample_by_key,
             )
         )
-        if progress_callback is not None:
-            progress_callback(event="advance", phase="facts")
-    if progress_callback is not None:
-        progress_callback(event="finish", phase="facts")
+        if progress_sink is not None:
+            progress_sink.update_leakage_progress(
+                LeakageProgressEvent(kind="advance", phase="facts")
+            )
+    if progress_sink is not None:
+        progress_sink.update_leakage_progress(
+            LeakageProgressEvent(kind="finish", phase="facts")
+        )
 
     pair_facts.sort(
         key=lambda x: (x.left_split, x.left_sample_id, x.right_split, x.right_sample_id)
@@ -106,13 +136,9 @@ def build_leakage_bundle(
         SampleKey,
         list[tuple[LeakagePairFact, SampleKey]],
     ] = {(sample.split, sample.sample_id): [] for sample in sorted_inputs}
-    if progress_callback is not None:
-        progress_callback(
-            event="start",
-            phase="summary_pairs",
-            label="map sample pairs",
-            total=len(pair_facts),
-            unit="pair",
+    if progress_sink is not None:
+        progress_sink.update_leakage_progress(
+            LeakageProgressEvent(kind="start", phase="summary_pairs", total=len(pair_facts))
         )
     for pf in pair_facts:
         left_key = (pf.left_split, pf.left_sample_id)
@@ -121,19 +147,19 @@ def build_leakage_bundle(
             summary_pairs[left_key].append((pf, right_key))
         if right_key in summary_pairs:
             summary_pairs[right_key].append((pf, left_key))
-        if progress_callback is not None:
-            progress_callback(event="advance", phase="summary_pairs")
-    if progress_callback is not None:
-        progress_callback(event="finish", phase="summary_pairs")
+        if progress_sink is not None:
+            progress_sink.update_leakage_progress(
+                LeakageProgressEvent(kind="advance", phase="summary_pairs")
+            )
+    if progress_sink is not None:
+        progress_sink.update_leakage_progress(
+            LeakageProgressEvent(kind="finish", phase="summary_pairs")
+        )
 
     sample_summaries: list[LeakageSampleSummary] = []
-    if progress_callback is not None:
-        progress_callback(
-            event="start",
-            phase="summaries",
-            label="summarize samples",
-            total=len(sorted_inputs),
-            unit="sample",
+    if progress_sink is not None:
+        progress_sink.update_leakage_progress(
+            LeakageProgressEvent(kind="start", phase="summaries", total=len(sorted_inputs))
         )
     for sample in sorted_inputs:
         sample_key = (sample.split, sample.sample_id)
@@ -166,16 +192,20 @@ def build_leakage_bundle(
                 ),
             ),
         )
-        if progress_callback is not None:
-            progress_callback(
-                event="advance",
-                phase="summaries",
-                split=sample.split.value,
-                sample=sample.sample_id,
-                leakage=sample_max_severity.value,
+        if progress_sink is not None:
+            progress_sink.update_leakage_progress(
+                LeakageProgressEvent(
+                    kind="advance",
+                    phase="summaries",
+                    split=sample.split,
+                    sample_id=sample.sample_id,
+                    leakage=sample_max_severity,
+                )
             )
-    if progress_callback is not None:
-        progress_callback(event="finish", phase="summaries")
+    if progress_sink is not None:
+        progress_sink.update_leakage_progress(
+            LeakageProgressEvent(kind="finish", phase="summaries")
+        )
 
     return LeakageBundle(
         pair_facts=tuple(pair_facts),
@@ -186,33 +216,37 @@ def build_leakage_bundle(
 def _index_relation_groups(
     inputs: Sequence[LeakageInput],
     *,
-    progress_callback: LeakageProgressCallback | None,
+    progress_sink: LeakageProgressSink | None,
 ) -> RelationGroups:
     relation_groups: RelationGroups = {}
-    if progress_callback is not None:
-        progress_callback(
-            event="start",
-            phase="index_relations",
-            label="index relations",
-            total=len(inputs) * len(LEAKAGE_RELATION_SPECS),
-            unit="sample-relation",
+    if progress_sink is not None:
+        progress_sink.update_leakage_progress(
+            LeakageProgressEvent(
+                kind="start",
+                phase="index_relations",
+                total=len(inputs) * len(LEAKAGE_RELATION_SPECS),
+            )
         )
     for spec in LEAKAGE_RELATION_SPECS:
         groups: dict[str, list[LeakageInput]] = {}
         key_fn = _relation_key_fn(spec.input_field)
         for sample in inputs:
             groups.setdefault(key_fn(sample), []).append(sample)
-            if progress_callback is not None:
-                progress_callback(
-                    event="advance",
-                    phase="index_relations",
-                    relation=spec.relation.value,
-                    split=sample.split.value,
-                    sample=sample.sample_id,
+            if progress_sink is not None:
+                progress_sink.update_leakage_progress(
+                    LeakageProgressEvent(
+                        kind="advance",
+                        phase="index_relations",
+                        relation=spec.relation,
+                        split=sample.split,
+                        sample_id=sample.sample_id,
+                    )
                 )
         relation_groups[spec.relation] = groups
-    if progress_callback is not None:
-        progress_callback(event="finish", phase="index_relations")
+    if progress_sink is not None:
+        progress_sink.update_leakage_progress(
+            LeakageProgressEvent(kind="finish", phase="index_relations")
+        )
     return relation_groups
 
 
@@ -220,16 +254,12 @@ def _scan_relation_pairs(
     relation_groups: RelationGroups,
     relations_by_pair: dict[tuple[SampleKey, SampleKey], set[LeakageRelation]],
     *,
-    progress_callback: LeakageProgressCallback | None,
+    progress_sink: LeakageProgressSink | None,
 ) -> None:
     candidate_pair_total = _candidate_pair_total(relation_groups)
-    if progress_callback is not None:
-        progress_callback(
-            event="start",
-            phase="relations",
-            label="scan relation pairs",
-            total=candidate_pair_total,
-            unit="pair",
+    if progress_sink is not None:
+        progress_sink.update_leakage_progress(
+            LeakageProgressEvent(kind="start", phase="relations", total=candidate_pair_total)
         )
 
     relation_matches = 0
@@ -249,18 +279,19 @@ def _scan_relation_pairs(
                         )
                         relations_by_pair.setdefault(pair_key, set()).add(spec.relation)
                         relation_matches += 1
-                    if progress_callback is not None:
-                        progress_callback(
-                            event="advance",
-                            phase="relations",
-                            relation=spec.relation.value,
-                            match_rate=_match_rate_text(
-                                relation_matches,
-                                candidate_pair_total,
-                            ),
+                    if progress_sink is not None:
+                        progress_sink.update_leakage_progress(
+                            LeakageProgressEvent(
+                                kind="advance",
+                                phase="relations",
+                                relation=spec.relation,
+                                matches=relation_matches,
+                            )
                         )
-    if progress_callback is not None:
-        progress_callback(event="finish", phase="relations")
+    if progress_sink is not None:
+        progress_sink.update_leakage_progress(
+            LeakageProgressEvent(kind="finish", phase="relations")
+        )
 
 
 def _candidate_pair_total(relation_groups: RelationGroups) -> int:
@@ -277,11 +308,6 @@ def _relation_key_fn(input_field: str) -> Callable[[LeakageInput], str]:
         return str(getattr(sample, input_field))
 
     return key_fn
-
-
-def _match_rate_text(matches: int, total: int) -> str:
-    denominator = total or 1
-    return f"{matches / denominator * 100.0:.1f}%"
 
 
 def _build_pair_fact(

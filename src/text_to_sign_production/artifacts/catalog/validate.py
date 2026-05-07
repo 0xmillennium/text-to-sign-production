@@ -18,9 +18,8 @@ from text_to_sign_production.artifacts.store.types import (
     ArchiveMemberPathRef,
     ArchivePathRef,
     SamplePathRef,
-    SampleStatus,
-    SplitName,
 )
+from text_to_sign_production.core.ids import SampleSplit, SampleStatus
 from text_to_sign_production.artifacts.store.validate import (
     validate_sample_archive_member_path,
     validate_sample_archive_relative_path,
@@ -38,13 +37,21 @@ def validate_samples_catalog(catalog: SamplesCatalog, stores: ArtifactStores) ->
             errors.append(f"{label}: handle ref must match the catalog key.")
         if handle.status is not catalog.status:
             errors.append(f"{label}: handle status must match catalog status.")
-        if handle.manifest_entry.sample_id != ref.sample_id:
+        if handle.manifest.sample_id != ref.sample_id:
             errors.append(f"{label}: manifest sample_id must match ref sample_id.")
-        if handle.manifest_entry.split != ref.split.value:
+        if handle.manifest.split != ref.split:
             errors.append(f"{label}: manifest split must match ref split.")
-        declared_sample_path = handle.manifest_entry.sample_path
+        if handle.manifest.status is not catalog.status:
+            errors.append(f"{label}: manifest status must match catalog status.")
+        declared_sample_path = handle.manifest.sample_path
         if catalog.status is SampleStatus.PASSED and declared_sample_path is None:
             errors.append(f"{label}: passed manifest entry must declare a sample path.")
+        if handle.manifest.archive_publishable and not handle.manifest.payload_declared_present:
+            errors.append(
+                f"{label}: archive-publishable payload must be declared physically present."
+            )
+        if handle.manifest.archive_publishable and declared_sample_path is None:
+            errors.append(f"{label}: archive-publishable payload must declare a sample path.")
         if declared_sample_path is None:
             if handle.runtime_sample is not None:
                 errors.append(
@@ -76,17 +83,29 @@ def validate_samples_catalog(catalog: SamplesCatalog, stores: ArtifactStores) ->
                     manifest_path_is_valid=not manifest_path_errors,
                 )
             )
-            errors.extend(
-                _validate_drive_sample_binding(
-                    stores=stores,
-                    archive=handle.drive_archive,
-                    member=handle.drive_archive_member,
-                    label=label,
-                    status=catalog.status,
-                    split=ref.split,
-                    sample_id=ref.sample_id,
+            if handle.manifest.archive_publishable:
+                errors.extend(
+                    _validate_drive_sample_binding(
+                        stores=stores,
+                        archive=handle.drive_archive,
+                        member=handle.drive_archive_member,
+                        label=label,
+                        status=catalog.status,
+                        split=ref.split,
+                        sample_id=ref.sample_id,
+                    )
                 )
-            )
+            else:
+                if handle.drive_archive is not None:
+                    errors.append(
+                        f"{label}: drive_archive must be absent when payload is not "
+                        "archive-publishable."
+                    )
+                if handle.drive_archive_member is not None:
+                    errors.append(
+                        f"{label}: drive_archive_member must be absent when payload is not "
+                        "archive-publishable."
+                    )
     return errors
 
 
@@ -102,11 +121,13 @@ def validate_tiered_catalog(catalog: TieredCatalog, stores: ArtifactStores) -> l
             errors.append(f"{label}: handle tier must match catalog tier.")
         if handle.membership is not catalog.membership:
             errors.append(f"{label}: handle membership must match catalog membership.")
-        if handle.manifest_entry.sample_id != ref.sample_id:
+        if handle.manifest.sample_id != ref.sample_id:
             errors.append(f"{label}: manifest sample_id must match ref sample_id.")
-        if handle.manifest_entry.split != ref.split.value:
+        if handle.manifest.split != ref.split:
             errors.append(f"{label}: manifest split must match ref split.")
-        declared_sample_path = handle.manifest_entry.sample_path
+        if handle.manifest.status is not SampleStatus.PASSED:
+            errors.append(f"{label}: tiered manifest projection must be passed.")
+        declared_sample_path = handle.manifest.sample_path
         manifest_path_errors = _validate_manifest_sample_path(
             declared_sample_path,
             label=label,
@@ -174,7 +195,7 @@ def _validate_manifest_sample_path(
     *,
     label: str,
     required_status: SampleStatus,
-    expected_split: SplitName,
+    expected_split: SampleSplit,
     expected_sample_id: str,
 ) -> list[str]:
     if sample_path is None:
@@ -203,7 +224,7 @@ def _validate_drive_sample_binding(
     member: object | None,
     label: str,
     status: SampleStatus,
-    split: SplitName,
+    split: SampleSplit,
     sample_id: str,
 ) -> list[str]:
     errors: list[str] = []

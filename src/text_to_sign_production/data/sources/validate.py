@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from text_to_sign_production.data._shared.identities import SampleSplit
+from text_to_sign_production.core.ids import SampleSplit
+from text_to_sign_production.data._shared.validate import is_non_empty_text, path_has_name
 from text_to_sign_production.data.sources.types import SourceCandidate, SourceValidationIssue
 
 
@@ -17,10 +18,10 @@ def validate_candidate(candidate: SourceCandidate) -> list[SourceValidationIssue
     def add(code: str, message: str) -> None:
         issues.append(SourceValidationIssue(code=code, message=message))
 
-    if not candidate.sample_id:
+    if not is_non_empty_text(candidate.sample_id):
         add("empty_sample_id", "Source candidate sample_id must be non-empty.")
 
-    if not candidate.text or not candidate.text.strip():
+    if not is_non_empty_text(candidate.text):
         add("empty_text", "Source candidate text must be non-empty.")
 
     if (
@@ -42,10 +43,10 @@ def validate_candidate(candidate: SourceCandidate) -> list[SourceValidationIssue
             f"Source candidate video metadata is unreadable: {candidate.video_metadata.error}.",
         )
 
-    if not str(candidate.keypoints_dir).strip() or not candidate.keypoints_dir.name:
+    if not path_has_name(candidate.keypoints_dir):
         add("invalid_keypoint_directory", "Source candidate keypoints_dir must be named.")
 
-    if not str(candidate.video_path).strip() or not candidate.video_path.name:
+    if not path_has_name(candidate.video_path):
         add("invalid_video_path", "Source candidate video_path must be named.")
 
     for issue_code in candidate.source_issues:

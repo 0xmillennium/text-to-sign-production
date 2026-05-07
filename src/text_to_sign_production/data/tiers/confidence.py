@@ -1,6 +1,8 @@
-"""Confidence tier threshold parsing and evaluation."""
+"""Available-landmark confidence tier threshold parsing and evaluation."""
 
 from __future__ import annotations
+
+from typing import cast
 
 from text_to_sign_production.data.metrics.types import MetricBundle
 from text_to_sign_production.data.tiers._shared.parsing import (
@@ -20,12 +22,12 @@ from text_to_sign_production.data.tiers.types import (
 )
 
 _BINDING_SPECS = BINDING_TIER_METRICS_BY_FAMILY[BindingTierFamily.CONFIDENCE]
-_THRESHOLD_KEYS = tuple(spec.threshold_attr for spec in _BINDING_SPECS)
+_THRESHOLD_KEYS = tuple(cast(str, spec.threshold_attr) for spec in _BINDING_SPECS)
 _LEVEL_KEYS = tuple(level.value for level in FilterLevel)
 
 
 def parse_confidence_thresholds(payload: object) -> dict[FilterLevel, ConfidenceThresholds]:
-    """Parse strict confidence thresholds for every filter level."""
+    """Parse strict available-landmark confidence thresholds for every filter level."""
     levels = require_mapping(payload, "confidence")
     require_exact_keys(levels, _LEVEL_KEYS, "confidence")
 
@@ -34,9 +36,9 @@ def parse_confidence_thresholds(payload: object) -> dict[FilterLevel, Confidence
         level_payload = require_mapping(levels[level.value], f"confidence.{level.value}")
         require_exact_keys(level_payload, _THRESHOLD_KEYS, f"confidence.{level.value}")
         parsed[level] = ConfidenceThresholds(
-            min_body_available_mean_confidence=require_ratio(
-                level_payload["min_body_available_mean_confidence"],
-                "confidence.min_body_available_mean_confidence",
+            min_active_span_body_available_mean_confidence=require_ratio(
+                level_payload["min_active_span_body_available_mean_confidence"],
+                "confidence.min_active_span_body_available_mean_confidence",
             ),
             min_active_span_any_hand_available_mean_confidence=require_ratio(
                 level_payload["min_active_span_any_hand_available_mean_confidence"],
@@ -51,7 +53,7 @@ def evaluate_confidence_family(
     thresholds: ConfidenceThresholds,
     applied_level: FilterLevel,
 ) -> tuple[TierMetricFailure, ...]:
-    """Evaluate confidence metrics against the applied threshold level."""
+    """Evaluate available-landmark confidence metrics against the applied level."""
     return tuple(
         failure
         for spec in _BINDING_SPECS

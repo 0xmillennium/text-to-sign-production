@@ -10,14 +10,20 @@ from text_to_sign_production.artifacts.store.types import (
     ArchivePathRef,
     ArtifactPathRef,
     ManifestPathRef,
+    ReportPathRef,
     SamplePathRef,
+    sample_split_from_value,
+    sample_status_from_value,
+    tier_membership_from_value,
+    tier_name_from_value,
+)
+from text_to_sign_production.core.ids import (
+    SampleSplit,
     SampleStatus,
-    SplitName,
     TierMembership,
     TierName,
-    split_name_from_sample_split,
 )
-from text_to_sign_production.foundation.roots import RepoRoots
+from text_to_sign_production.core.paths import RepoRoots
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,26 +34,30 @@ class AssetsTopology:
     how2sign_bfh_keypoints_root: Path
     how2sign_translations_root: Path
 
-    def translation_csv(self, split: SplitName | str) -> ArtifactPathRef:
-        split = split_name_from_sample_split(split)
+    def translation_csv(self, split: SampleSplit | str) -> ArtifactPathRef:
+        split = sample_split_from_value(split)
         path = self.how2sign_translations_root / f"how2sign_realigned_{split.value}.csv"
         return ArtifactPathRef(path)
 
-    def keypoint_split_root(self, split: SplitName | str) -> ArtifactPathRef:
-        split = split_name_from_sample_split(split)
+    def keypoint_split_root(self, split: SampleSplit | str) -> ArtifactPathRef:
+        split = sample_split_from_value(split)
         path = self.how2sign_bfh_keypoints_root / f"{split.value}_2D_keypoints"
         return ArtifactPathRef(path)
 
-    def keypoint_archive(self, split: SplitName | str) -> ArchivePathRef:
-        split = split_name_from_sample_split(split)
+    def keypoint_archive(self, split: SampleSplit | str) -> ArchivePathRef:
+        split = sample_split_from_value(split)
         path = self.how2sign_bfh_keypoints_root / f"{split.value}_2D_keypoints.tar.zst"
         return ArchivePathRef(path)
 
-    def keypoint_json_dir(self, split: SplitName | str) -> ArtifactPathRef:
+    def keypoint_extract_root(self) -> ArtifactPathRef:
+        """Root for extracting keypoint archives; archive members are relative to this path."""
+        return ArtifactPathRef(self.how2sign_bfh_keypoints_root)
+
+    def keypoint_json_dir(self, split: SampleSplit | str) -> ArtifactPathRef:
         path = self.keypoint_split_root(split).path / "openpose_output" / "json"
         return ArtifactPathRef(path)
 
-    def keypoint_video_dir(self, split: SplitName | str) -> ArtifactPathRef:
+    def keypoint_video_dir(self, split: SampleSplit | str) -> ArtifactPathRef:
         path = self.keypoint_split_root(split).path / "openpose_output" / "video"
         return ArtifactPathRef(path)
 
@@ -59,22 +69,24 @@ class ManifestsTopology:
     untiered_root: Path
     tiered_root: Path
 
-    def untiered_passed_manifest(self, split: SplitName | str) -> ManifestPathRef:
-        split = split_name_from_sample_split(split)
+    def untiered_passed_manifest(self, split: SampleSplit | str) -> ManifestPathRef:
+        split = sample_split_from_value(split)
         return ManifestPathRef(self.untiered_root / "passed" / f"{split.value}.jsonl")
 
-    def untiered_dropped_manifest(self, split: SplitName | str) -> ManifestPathRef:
-        split = split_name_from_sample_split(split)
+    def untiered_dropped_manifest(self, split: SampleSplit | str) -> ManifestPathRef:
+        split = sample_split_from_value(split)
         return ManifestPathRef(self.untiered_root / "dropped" / f"{split.value}.jsonl")
 
     def tiered_manifest(
         self,
         tier: TierName | str,
         membership: TierMembership | str,
-        split: SplitName | str,
+        split: SampleSplit | str,
     ) -> ManifestPathRef:
-        split = split_name_from_sample_split(split)
-        path = self.tiered_root / str(tier) / str(membership) / f"{split.value}.jsonl"
+        tier = tier_name_from_value(tier)
+        membership = tier_membership_from_value(membership)
+        split = sample_split_from_value(split)
+        path = self.tiered_root / tier.value / membership.value / f"{split.value}.jsonl"
         return ManifestPathRef(path)
 
 
@@ -85,40 +97,42 @@ class SamplesTopology:
     passed_root: Path
     dropped_root: Path
 
-    def passed_split_dir(self, split: SplitName | str) -> ArtifactPathRef:
-        split = split_name_from_sample_split(split)
+    def passed_split_dir(self, split: SampleSplit | str) -> ArtifactPathRef:
+        split = sample_split_from_value(split)
         return ArtifactPathRef(self.passed_root / split.value)
 
-    def dropped_split_dir(self, split: SplitName | str) -> ArtifactPathRef:
-        split = split_name_from_sample_split(split)
+    def dropped_split_dir(self, split: SampleSplit | str) -> ArtifactPathRef:
+        split = sample_split_from_value(split)
         return ArtifactPathRef(self.dropped_root / split.value)
 
-    def sample_dir(self, status: SampleStatus, split: SplitName | str) -> ArtifactPathRef:
+    def sample_dir(self, status: SampleStatus | str, split: SampleSplit | str) -> ArtifactPathRef:
+        status = sample_status_from_value(status)
         if status is SampleStatus.PASSED:
             return self.passed_split_dir(split)
         return self.dropped_split_dir(split)
 
     def sample_file(
         self,
-        status: SampleStatus,
-        split: SplitName | str,
+        status: SampleStatus | str,
+        split: SampleSplit | str,
         sample_id: str,
     ) -> SamplePathRef:
         return SamplePathRef(self.sample_dir(status, split).path / _sample_filename(sample_id))
 
-    def split_archive(self, status: SampleStatus, split: SplitName | str) -> ArchivePathRef:
-        split = split_name_from_sample_split(split)
+    def split_archive(self, status: SampleStatus | str, split: SampleSplit | str) -> ArchivePathRef:
+        split = sample_split_from_value(split)
         return ArchivePathRef(self._status_root(status) / f"{split.value}.tar.zst")
 
-    def split_extract_root(self, status: SampleStatus) -> ArtifactPathRef:
+    def split_extract_root(self, status: SampleStatus | str) -> ArtifactPathRef:
         return ArtifactPathRef(self._status_root(status))
 
-    def archive_member(self, split: SplitName | str, sample_id: str) -> ArchiveMemberPathRef:
-        split = split_name_from_sample_split(split)
+    def archive_member(self, split: SampleSplit | str, sample_id: str) -> ArchiveMemberPathRef:
+        split = sample_split_from_value(split)
         path = PurePosixPath(split.value) / _sample_filename(sample_id)
         return ArchiveMemberPathRef(path)
 
-    def _status_root(self, status: SampleStatus) -> Path:
+    def _status_root(self, status: SampleStatus | str) -> Path:
+        status = sample_status_from_value(status)
         if status is SampleStatus.PASSED:
             return self.passed_root
         return self.dropped_root
@@ -156,6 +170,48 @@ class ReportsTopology:
     modeling_root: Path
     visualization_root: Path
     evaluation_root: Path
+
+    def samples_summary(self) -> ReportPathRef:
+        return ReportPathRef(self.samples_root / "summary.md")
+
+    def samples_processing_summary(self) -> ReportPathRef:
+        return ReportPathRef(self.samples_root / "processing" / "summary.jsonl")
+
+    def samples_processing_detail(self) -> ReportPathRef:
+        return ReportPathRef(self.samples_root / "processing" / "detail.jsonl")
+
+    def samples_gate_summary(self) -> ReportPathRef:
+        return ReportPathRef(self.samples_root / "gates" / "summary.jsonl")
+
+    def samples_gate_detail(self) -> ReportPathRef:
+        return ReportPathRef(self.samples_root / "gates" / "detail.jsonl")
+
+    def samples_source_issue_summary(self) -> ReportPathRef:
+        return ReportPathRef(self.samples_root / "source_issues" / "summary.jsonl")
+
+    def samples_source_issue_detail(self) -> ReportPathRef:
+        return ReportPathRef(self.samples_root / "source_issues" / "detail.jsonl")
+
+    def samples_index(self) -> ReportPathRef:
+        return ReportPathRef(self.samples_root / "index.json")
+
+    def tiers_summary(self) -> ReportPathRef:
+        return ReportPathRef(self.tiers_root / "summary.md")
+
+    def tiers_calibration(self) -> ReportPathRef:
+        return ReportPathRef(self.tiers_root / "calibration.md")
+
+    def tiers_decision_detail(self) -> ReportPathRef:
+        return ReportPathRef(self.tiers_root / "decisions" / "detail.jsonl")
+
+    def tiers_calibration_surfaces(self) -> ReportPathRef:
+        return ReportPathRef(self.tiers_root / "calibration" / "surfaces.json")
+
+    def tiers_calibration_detail(self) -> ReportPathRef:
+        return ReportPathRef(self.tiers_root / "calibration" / "detail.json")
+
+    def tiers_index(self) -> ReportPathRef:
+        return ReportPathRef(self.tiers_root / "index.json")
 
 
 @dataclass(frozen=True, slots=True)
@@ -238,12 +294,13 @@ def build_artifact_stores(runtime_roots: RepoRoots, drive_roots: RepoRoots) -> A
 
 
 def sample_manifest_relative_path(
-    status: SampleStatus,
-    split: SplitName | str,
+    status: SampleStatus | str,
+    split: SampleSplit | str,
     sample_id: str,
 ) -> Path:
     """Return the canonical samples-root-relative manifest sample path."""
-    split = split_name_from_sample_split(split)
+    status = sample_status_from_value(status)
+    split = sample_split_from_value(split)
     return Path(status.value) / split.value / _sample_filename(sample_id)
 
 

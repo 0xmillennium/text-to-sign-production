@@ -24,6 +24,11 @@ from text_to_sign_production.modeling.data import (
 from text_to_sign_production.modeling.models import BaselinePoseOutput
 from text_to_sign_production.modeling.training.config import BaselineTrainingConfig
 
+from .events import (
+    InferenceProgressSink,
+    NoOpInferenceProgressSink,
+    SplitPredictionRecordWritten,
+)
 from .predict import load_baseline_predictor, predict_baseline_batch
 from .schemas import (
     build_prediction_manifest_row,
@@ -59,6 +64,7 @@ def write_split_predictions(
     data_root: Path | str | None = None,
     limit_prediction_samples: int | None = None,
     manifest_path_formatter: Callable[[Path], str],
+    progress_sink: InferenceProgressSink | None = None,
 ) -> SplitPredictionWriteResult:
     """Write full-BFH prediction samples and an evaluation-compatible manifest."""
 
@@ -89,7 +95,9 @@ def write_split_predictions(
     manifest_rows: list[object] = []
     sample_paths: list[Path] = []
     generated_paths: dict[Path, str] = {}
-    for record in records:
+    sink = progress_sink if progress_sink is not None else NoOpInferenceProgressSink()
+    total_records = len(records)
+    for record_index, record in enumerate(records, start=1):
         pose_sample = load_processed_pose_sample(record)
         item = ProcessedPoseItem.from_manifest_and_sample(record, pose_sample)
         batch = collate_processed_pose_samples([item])
@@ -129,6 +137,15 @@ def write_split_predictions(
                     predictor.checkpoint_path,
                     formatter=manifest_path_formatter,
                 ),
+            )
+        )
+        sink.emit(
+            SplitPredictionRecordWritten(
+                record_index=record_index,
+                total_records=total_records,
+                split=split,
+                sample_id=item.sample_id,
+                prediction_sample_path=prediction_path,
             )
         )
 

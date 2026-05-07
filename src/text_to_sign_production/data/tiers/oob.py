@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from text_to_sign_production.data.metrics.types import MetricBundle
 from text_to_sign_production.data.tiers._shared.parsing import (
     require_exact_keys,
@@ -20,7 +22,7 @@ from text_to_sign_production.data.tiers.types import (
 )
 
 _BINDING_SPECS = BINDING_TIER_METRICS_BY_FAMILY[BindingTierFamily.OOB]
-_THRESHOLD_KEYS = tuple(spec.threshold_attr for spec in _BINDING_SPECS)
+_THRESHOLD_KEYS = tuple(cast(str, spec.threshold_attr) for spec in _BINDING_SPECS)
 _LEVEL_KEYS = tuple(level.value for level in FilterLevel)
 
 
@@ -51,6 +53,5 @@ def evaluate_oob_family(
     return tuple(
         failure
         for spec in _BINDING_SPECS
-        if (failure := evaluate_binding_metric(bundle, thresholds, spec, applied_level))
-        is not None
+        if (failure := evaluate_binding_metric(bundle, thresholds, spec, applied_level)) is not None
     )

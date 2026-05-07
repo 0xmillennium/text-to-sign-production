@@ -1,4 +1,4 @@
-"""Strict loading and validation for configs/data/tiers.yaml."""
+"""Strict loading and validation for named tier policy composition."""
 
 from __future__ import annotations
 

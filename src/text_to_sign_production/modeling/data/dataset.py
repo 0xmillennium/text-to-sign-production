@@ -11,7 +11,7 @@ from zipfile import BadZipFile
 import numpy as np
 import numpy.typing as npt
 
-from text_to_sign_production.data._shared.identities import VALID_SAMPLE_SPLITS as SPLITS
+from text_to_sign_production.core.ids import VALID_SAMPLE_SPLITS as SPLITS
 from text_to_sign_production.data.pose.schema import OPENPOSE_CHANNEL_SPECS
 from text_to_sign_production.data.samples.manifests import manifest_entry_from_record
 from text_to_sign_production.data.samples.schema import PROCESSED_SCHEMA_VERSION

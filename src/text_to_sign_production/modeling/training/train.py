@@ -19,12 +19,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 from torch.utils.data import DataLoader, Sampler, Subset
 
-from text_to_sign_production.foundation.integrity import sha256_json
-from text_to_sign_production.foundation.progress import (
-    BatchProgress,
-    ProgressReporter,
-    StdoutProgressReporter,
-)
+from text_to_sign_production.core.integrity import sha256_json
 from text_to_sign_production.modeling.backbones import FlanT5TextBackbone
 from text_to_sign_production.modeling.data import (
     M0_TARGET_CHANNELS,
@@ -55,7 +50,29 @@ from .evaluate import (
     move_batch_to_device,
     run_validation_epoch,
 )
+from .events import (
+    CheckpointSaved,
+    EarlyStoppingEvaluated,
+    EpochCompleted,
+    MetricsWritten,
+    NoOpTrainingProgressSink,
+    ResumeLoaded,
+    StandardizationItemProcessed,
+    SummaryWritten,
+    TrainingBatchProcessed,
+    TrainingProgressSink,
+)
 from .losses import channel_balanced_masked_pose_mse_loss
+from .logging import (
+    CheckpointSavedLog,
+    EarlyStoppingDecisionLogged,
+    EpochStarted,
+    EpochSummaryLogged,
+    NoOpTrainingRunLogSink,
+    ResumeStateLogged,
+    RunStarted,
+    TrainingRunLogSink,
+)
 from .standardization import (
     TargetStandardization,
     standardize_batch_targets,
@@ -271,10 +288,10 @@ def run_training_epoch(
     *,
     device: torch.device,
     non_blocking: bool = False,
-    progress_label: str = "",
-    progress_total: int | None = None,
-    progress_reporter: ProgressReporter | None = None,
-    progress_interval_batches: int = 100,
+    epoch_index: int = 1,
+    epoch_count: int = 1,
+    batch_count: int | None = None,
+    progress_sink: TrainingProgressSink | None = None,
     channel_weights: Mapping[str, float] | None = None,
     target_standardization: TargetStandardization | None = None,
     mixed_precision: MixedPrecisionPolicy | None = None,
@@ -287,19 +304,25 @@ def run_training_epoch(
     total_valid_frames = 0
     channel_loss_sums = {channel: 0.0 for channel in M0_TARGET_CHANNELS}
     channel_valid_point_counts = {channel: 0 for channel in M0_TARGET_CHANNELS}
-    progress = BatchProgress(
-        label=progress_label or "train batch",
-        total=progress_total,
-        unit="batches",
-        reporter=progress_reporter or StdoutProgressReporter(),
-    )
+    sink = progress_sink if progress_sink is not None else NoOpTrainingProgressSink()
     optimizer.zero_grad(set_to_none=True)
     pending_steps = 0
     for batch_index, batch in enumerate(batches, start=1):
         device_batch = move_batch_to_device(batch, device, non_blocking=non_blocking)
         valid_frame_count = count_valid_contributing_frames(device_batch)
         if valid_frame_count == 0:
-            progress.advance()
+            sink.emit(
+                TrainingBatchProcessed(
+                    epoch_index=epoch_index,
+                    epoch_count=epoch_count,
+                    batch_index=batch_index,
+                    batch_count=batch_count,
+                    valid_frame_count=0,
+                    batch_loss=None,
+                    running_loss=None,
+                    skipped=True,
+                )
+            )
             continue
         targets = standardize_batch_targets(device_batch, target_standardization)
         model.train()
@@ -320,7 +343,7 @@ def run_training_epoch(
             scaled_loss.backward()  # type: ignore[no-untyped-call]
         pending_steps += 1
         should_step = pending_steps >= gradient_accumulation_steps or batch_index == (
-            progress_total or batch_index
+            batch_count or batch_index
         )
         if should_step:
             if max_grad_norm is not None and max_grad_norm > 0:
@@ -352,13 +375,20 @@ def run_training_epoch(
             valid_point_count = result.channel_valid_point_counts[channel]
             channel_valid_point_counts[channel] += valid_point_count
             channel_loss_sums[channel] += result.channel_losses[channel] * valid_point_count
-        progress.advance(
-            loss=f"{total_loss / max(1, total_valid_frames):.6g}",
+        sink.emit(
+            TrainingBatchProcessed(
+                epoch_index=epoch_index,
+                epoch_count=epoch_count,
+                batch_index=batch_index,
+                batch_count=batch_count,
+                valid_frame_count=result.valid_frame_count,
+                batch_loss=result.loss,
+                running_loss=total_loss / max(1, total_valid_frames),
+            )
         )
 
     if total_valid_frames == 0:
         raise ValueError("Training epoch has zero valid contributing frames.")
-    progress.finish(loss=f"{total_loss / total_valid_frames:.6g}")
 
     return TrainingEpochResult(
         loss=total_loss / total_valid_frames,
@@ -396,9 +426,13 @@ def run_baseline_training(
     train_manifest_override: Path | str | None = None,
     val_manifest_override: Path | str | None = None,
     path_formatter: Callable[[Path], str],
+    progress_sink: TrainingProgressSink | None = None,
+    log_sink: TrainingRunLogSink | None = None,
 ) -> BaselineTrainingRunResult:
     """Run a config-driven M0 baseline train/val experiment."""
 
+    progress_events = progress_sink if progress_sink is not None else NoOpTrainingProgressSink()
+    run_log = log_sink if log_sink is not None else NoOpTrainingRunLogSink()
     config = load_baseline_training_config(
         config_path,
         checkpoint_output_dir=checkpoint_output_dir,
@@ -444,15 +478,15 @@ def run_baseline_training(
     metrics_path = training_dir / TRAINING_METRICS_FILENAME
     summary_path = training_dir / TRAINING_SUMMARY_FILENAME
     live_log_path = training_dir / "live.log"
-    reporter = StdoutProgressReporter(prefix="[baseline]", log_path=live_log_path)
     if not resume:
         metrics_path.write_text("", encoding="utf-8")
         live_log_path.write_text("", encoding="utf-8")
-    reporter.report(
-        "run start",
+    run_log.emit(
+        RunStarted(
         run_mode=run_mode,
         training_surface=training_surface,
         validation_surface=validation_surface,
+        )
     )
 
     train_dataset = _limited_dataset(
@@ -492,7 +526,7 @@ def run_baseline_training(
         fit_target_standardization(
             train_dataset,
             epsilon=config.target_standardization.epsilon,
-            reporter=reporter,
+            progress_sink=progress_events,
         )
         if config.target_standardization.enabled
         else None
@@ -532,7 +566,8 @@ def run_baseline_training(
             scaler=scaler,
             expected_config_hash=config_hash,
             expected_run_mode=run_mode,
-            reporter=reporter,
+            progress_sink=progress_events,
+            log_sink=run_log,
         )
         start_epoch = resume_state["start_epoch"]
         best_metric_value = resume_state["best_metric"]
@@ -552,7 +587,7 @@ def run_baseline_training(
 
     for epoch in range(start_epoch, effective_epoch_count + 1):
         epoch_start_time = time.perf_counter()
-        reporter.report(f"epoch {epoch}/{effective_epoch_count} start")
+        run_log.emit(EpochStarted(epoch_index=epoch, epoch_count=effective_epoch_count))
         train_result = run_training_epoch(
             model,
             train_loader,
@@ -561,10 +596,10 @@ def run_baseline_training(
             scaler,
             device=device,
             non_blocking=config.training.non_blocking_transfers,
-            progress_label=f"epoch {epoch}/{effective_epoch_count} train batch",
-            progress_total=len(train_loader),
-            progress_reporter=reporter,
-            progress_interval_batches=config.training.progress_interval_batches,
+            epoch_index=epoch,
+            epoch_count=effective_epoch_count,
+            batch_count=len(train_loader),
+            progress_sink=progress_events,
             channel_weights=config.loss.channel_weights,
             target_standardization=target_standardization,
             mixed_precision=mixed_precision,
@@ -576,10 +611,10 @@ def run_baseline_training(
             val_loader,
             device=device,
             non_blocking=config.training.non_blocking_transfers,
-            progress_label=f"epoch {epoch}/{effective_epoch_count} val batch",
-            progress_total=len(val_loader),
-            progress_reporter=reporter,
-            progress_interval_batches=config.training.progress_interval_batches,
+            epoch_index=epoch,
+            epoch_count=effective_epoch_count,
+            batch_count=len(val_loader),
+            progress_sink=progress_events,
             channel_weights=config.loss.channel_weights,
             tier_by_sample_id=validation_tier_by_sample_id,
             target_standardization=target_standardization,
@@ -597,6 +632,7 @@ def run_baseline_training(
         )
         history.append(epoch_metrics)
         _append_jsonl_record(metrics_path, epoch_metrics)
+        progress_events.emit(MetricsWritten(metrics_path=metrics_path, epoch=epoch))
 
         metrics = CheckpointMetrics(
             train_loss=train_result.loss,
@@ -624,6 +660,12 @@ def run_baseline_training(
             target_standardization=(
                 None if target_standardization is None else target_standardization.to_dict()
             ),
+        )
+        progress_events.emit(
+            CheckpointSaved(checkpoint_path=last_checkpoint_path, role="last", epoch=epoch)
+        )
+        run_log.emit(
+            CheckpointSavedLog(checkpoint_path=last_checkpoint_path, role="last", epoch=epoch)
         )
         best_checkpoint_updated = should_replace_best_checkpoint(
             candidate_validation_loss=validation_result.metric,
@@ -655,6 +697,12 @@ def run_baseline_training(
                     None if target_standardization is None else target_standardization.to_dict()
                 ),
             )
+            progress_events.emit(
+                CheckpointSaved(checkpoint_path=best_checkpoint_path, role="best", epoch=epoch)
+            )
+            run_log.emit(
+                CheckpointSavedLog(checkpoint_path=best_checkpoint_path, role="best", epoch=epoch)
+            )
             patience_epochs = 0
         else:
             patience_epochs += 1
@@ -679,15 +727,57 @@ def run_baseline_training(
                 None if target_standardization is None else target_standardization.to_dict()
             ),
         )
-        elapsed_seconds = time.perf_counter() - epoch_start_time
-        reporter.report(
-            f"epoch {epoch}/{effective_epoch_count} summary",
-            train_loss=f"{train_result.loss:.6g}",
-            validation_loss=f"{validation_result.loss:.6g}",
-            validation_metric=f"{validation_result.metric:.6g}",
-            elapsed_seconds=f"{elapsed_seconds:.1f}",
-            best_checkpoint_updated="yes" if best_checkpoint_updated else "no",
+        progress_events.emit(
+            CheckpointSaved(checkpoint_path=last_checkpoint_path, role="last", epoch=epoch)
         )
+        run_log.emit(
+            CheckpointSavedLog(checkpoint_path=last_checkpoint_path, role="last", epoch=epoch)
+        )
+        elapsed_seconds = time.perf_counter() - epoch_start_time
+        progress_events.emit(
+            EpochCompleted(
+                epoch_index=epoch,
+                epoch_count=effective_epoch_count,
+                train_loss=train_result.loss,
+                validation_loss=validation_result.loss,
+                validation_metric=validation_result.metric,
+                elapsed_seconds=elapsed_seconds,
+                best_checkpoint_updated=best_checkpoint_updated,
+            )
+        )
+        run_log.emit(
+            EpochSummaryLogged(
+                epoch_index=epoch,
+                epoch_count=effective_epoch_count,
+                train_loss=train_result.loss,
+                validation_loss=validation_result.loss,
+                validation_metric=validation_result.metric,
+                elapsed_seconds=elapsed_seconds,
+                best_checkpoint_updated=best_checkpoint_updated,
+            )
+        )
+        should_stop = (
+            epoch >= config.training.min_epochs
+            and patience_epochs >= config.training.early_stopping_patience
+        )
+        progress_events.emit(
+            EarlyStoppingEvaluated(
+                epoch_index=epoch,
+                min_epochs=config.training.min_epochs,
+                patience=config.training.early_stopping_patience,
+                patience_epochs=patience_epochs,
+                should_stop=should_stop,
+                reason="patience_exhausted" if should_stop else None,
+            )
+        )
+        if should_stop:
+            run_log.emit(
+                EarlyStoppingDecisionLogged(
+                    epoch_index=epoch,
+                    patience_epochs=patience_epochs,
+                    should_stop=True,
+                )
+            )
         if on_epoch_artifacts is not None:
             epoch_artifacts = TrainingEpochArtifacts(
                 epoch=epoch,
@@ -710,13 +800,9 @@ def run_baseline_training(
                 best_epoch=best_epoch,
             )
             on_epoch_artifacts(epoch_artifacts)
-        if (
-            epoch >= config.training.min_epochs
-            and patience_epochs >= config.training.early_stopping_patience
-        ):
+        if should_stop:
             early_stopping_state["reason"] = "patience_exhausted"
             early_stopping_state["stopped_epoch"] = epoch
-            reporter.report("early stopping", epoch=epoch, patience=patience_epochs)
             break
 
     if final_train_result is None or final_validation_result is None:
@@ -809,6 +895,7 @@ def run_baseline_training(
             ),
         },
     )
+    progress_events.emit(SummaryWritten(summary_path=summary_path))
 
     return BaselineTrainingRunResult(
         summary_path=summary_path,
@@ -1024,20 +1111,16 @@ def fit_target_standardization(
     dataset: ProcessedPoseDataset | Subset[ProcessedPoseItem],
     *,
     epsilon: float,
-    reporter: ProgressReporter,
+    progress_sink: TrainingProgressSink | None = None,
 ) -> TargetStandardization:
     """Fit per-channel scalar mean/std from supervised train target points."""
 
     sums = {channel: 0.0 for channel in M0_TARGET_CHANNELS}
     square_sums = {channel: 0.0 for channel in M0_TARGET_CHANNELS}
     counts = {channel: 0 for channel in M0_TARGET_CHANNELS}
-    progress = BatchProgress(
-        label="target standardization sample",
-        total=len(dataset),
-        unit="samples",
-        reporter=reporter,
-    )
-    for item in cast(Iterable[Any], dataset):
+    sink = progress_sink if progress_sink is not None else NoOpTrainingProgressSink()
+    total_items = len(dataset)
+    for item_index, item in enumerate(cast(Iterable[Any], dataset), start=1):
         for channel in M0_TARGET_CHANNELS:
             values = torch.as_tensor(getattr(item, channel), dtype=torch.float32)
             confidence = torch.as_tensor(
@@ -1050,8 +1133,12 @@ def fit_target_standardization(
             sums[channel] += float(selected.sum().item())
             square_sums[channel] += float(selected.square().sum().item())
             counts[channel] += int(selected.numel())
-        progress.advance()
-    progress.finish()
+        sink.emit(
+            StandardizationItemProcessed(
+                item_index=item_index,
+                total_items=total_items,
+            )
+        )
     means: dict[str, float] = {}
     stds: dict[str, float] = {}
     for channel in M0_TARGET_CHANNELS:
@@ -1075,7 +1162,8 @@ def _resume_from_last_checkpoint(
     scaler: Any | None,
     expected_config_hash: str,
     expected_run_mode: str | None,
-    reporter: ProgressReporter,
+    progress_sink: TrainingProgressSink,
+    log_sink: TrainingRunLogSink,
 ) -> dict[str, Any]:
     from .checkpointing import load_training_checkpoint
 
@@ -1097,11 +1185,26 @@ def _resume_from_last_checkpoint(
     if scaler is not None and isinstance(scaler_state, Mapping):
         scaler.load_state_dict(scaler_state)
     completed_epoch = int(payload["completed_epoch"])
-    reporter.report("resume", checkpoint=last_checkpoint_path, completed_epoch=completed_epoch)
+    best_metric = payload.get("best_metric")
+    best_epoch = payload.get("best_epoch")
+    progress_sink.emit(
+        ResumeLoaded(
+            checkpoint_path=last_checkpoint_path,
+            completed_epoch=completed_epoch,
+            best_epoch=best_epoch if isinstance(best_epoch, int) else None,
+            best_metric=best_metric if isinstance(best_metric, float) else None,
+        )
+    )
+    log_sink.emit(
+        ResumeStateLogged(
+            checkpoint_path=last_checkpoint_path,
+            completed_epoch=completed_epoch,
+        )
+    )
     return {
         "start_epoch": completed_epoch + 1,
-        "best_metric": payload.get("best_metric"),
-        "best_epoch": payload.get("best_epoch"),
+        "best_metric": best_metric,
+        "best_epoch": best_epoch,
         "history": [],
     }
 

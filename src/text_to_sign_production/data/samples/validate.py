@@ -1,841 +1,321 @@
-"""Validation of sample payloads and manifest entries against contracts."""
+"""Typed semantic validation for sample payload and manifest contracts."""
 
 from __future__ import annotations
 
-import math
-from collections.abc import Mapping, Sequence
-from numbers import Integral, Real
-from typing import Any
-
-from text_to_sign_production.data._shared.identities import VALID_SAMPLE_SPLITS
-from text_to_sign_production.data.samples._shared.validation import ValidationSeverity
-from text_to_sign_production.data.samples.schema import (
-    DROPPED_ONLY_MANIFEST_KEYS,
-    PASSED_ONLY_MANIFEST_KEYS,
-    PROCESSED_SCHEMA_VERSION,
-    REQUIRED_DROPPED_MANIFEST_KEYS,
-    REQUIRED_FRAME_QUALITY_KEYS,
-    REQUIRED_PASSED_MANIFEST_KEYS,
-    REQUIRED_PAYLOAD_KEYS,
-    REQUIRED_POSE_CHANNEL_KEYS,
-    REQUIRED_SELECTED_PERSON_KEYS,
+from text_to_sign_production.data.samples._shared.validate import (
+    validate_drop_details as _validate_drop_details,
+    validate_drop_reasons as _validate_drop_reasons,
+    validate_frame_quality_summary as _validate_frame_quality_summary,
+    validate_pose_payload as _validate_pose_payload,
+    validate_selected_person_metadata as _validate_selected_person_metadata,
+)
+from text_to_sign_production.data.samples._shared.validation_primitives import (
+    add_issue as _add_issue,
+    validate_frame_count_value as _validate_frame_count_value,
+    validate_non_empty_text as _validate_non_empty_text,
+    validate_optional_fps_value as _validate_optional_fps_value,
+    validate_schema_version_value as _validate_schema_version_value,
 )
 from text_to_sign_production.data.samples.types import (
+    DroppedDebugMaterializationOutcome,
     DroppedManifestEntry,
+    DroppedMaterializationLifecycle,
+    ManifestEntry,
     PassedManifestEntry,
     ProcessedSamplePayload,
     SampleStatus,
     SampleValidationIssue,
 )
 
-
-def validate_payload_record(record: Mapping[str, Any]) -> list[SampleValidationIssue]:
-    """Validate a raw payload dictionary representation."""
-    issues: list[SampleValidationIssue] = []
-    _validate_required_keys(
-        issues,
-        record=record,
-        required_keys=REQUIRED_PAYLOAD_KEYS,
-        code="missing_payload_keys",
-        label="Payload",
-    )
-    _validate_schema_version(issues, record=record, label="Payload")
-
-    _validate_required_text_field(issues, record, "sample_id", label="Payload sample_id")
-    _validate_required_text_field(issues, record, "text", label="Payload text")
-    _validate_split(issues, record.get("split"), label="Payload split")
-
-    num_frames = _validate_frame_count(
-        issues,
-        record.get("num_frames"),
-        label="Payload num_frames",
-        allow_zero=False,
-    )
-    _validate_fps(
-        issues,
-        record.get("fps"),
-        label="Payload fps",
-        required_key_present="fps" in record,
-    )
-
-    _validate_selected_person_record(
-        issues,
-        record.get("selected_person"),
-        num_frames=num_frames,
-        label="Payload selected_person",
-    )
-    _validate_frame_quality_record(
-        issues,
-        record.get("frame_quality"),
-        num_frames=num_frames,
-        label="Payload frame_quality",
-    )
-    _validate_pose_record(
-        issues,
-        record.get("pose"),
-        num_frames=num_frames,
-        label="Payload pose",
-    )
-
-    return issues
+__all__ = ("validate_manifest_entry", "validate_payload")
 
 
 def validate_payload(payload: ProcessedSamplePayload) -> list[SampleValidationIssue]:
-    """Validate a typed processed sample payload."""
-    return validate_payload_record(payload.to_record())
-
-
-def validate_manifest_record(record: Mapping[str, Any]) -> list[SampleValidationIssue]:
-    """Validate a raw manifest entry dictionary before parsing."""
+    """Validate semantic invariants of a typed processed sample payload."""
     issues: list[SampleValidationIssue] = []
-    status = record.get("status")
 
-    if status == SampleStatus.PASSED.value:
-        _validate_passed_record(issues, record)
-    elif status == SampleStatus.DROPPED.value:
-        _validate_dropped_record(issues, record)
-    else:
-        _add_issue(
-            issues,
-            "invalid_status",
-            f"Manifest entry status must be 'passed' or 'dropped', got {status!r}.",
-        )
-        _validate_schema_version(issues, record=record, label="Manifest entry")
+    _validate_schema_version_value(issues, payload.schema_version, label="Payload")
+    _validate_non_empty_text(issues, payload.sample_id, label="Payload sample_id")
+    _validate_non_empty_text(issues, payload.text, label="Payload text")
+    num_frames = _validate_frame_count_value(
+        issues,
+        payload.num_frames,
+        label="Payload num_frames",
+        allow_zero=False,
+    )
+    _validate_optional_fps_value(issues, payload.fps, label="Payload fps")
+    _validate_selected_person_metadata(
+        issues,
+        payload.selected_person,
+        num_frames=num_frames,
+        label="Payload selected_person",
+    )
+    _validate_frame_quality_summary(
+        issues,
+        payload.frame_quality,
+        num_frames=num_frames,
+        label="Payload frame_quality",
+    )
+    _validate_pose_payload(issues, payload.pose, num_frames=num_frames, label="Payload pose")
 
     return issues
 
 
-def validate_passed_entry(entry: PassedManifestEntry) -> list[SampleValidationIssue]:
-    """Validate domain invariants of a parsed passed manifest entry."""
-    issues = validate_manifest_record(entry.to_record())
+def validate_manifest_entry(entry: ManifestEntry) -> list[SampleValidationIssue]:
+    """Validate semantic invariants of a typed manifest entry."""
+    issues: list[SampleValidationIssue] = []
+
+    if isinstance(entry, PassedManifestEntry):
+        _validate_passed_entry(issues, entry)
+    elif isinstance(entry, DroppedManifestEntry):
+        _validate_dropped_entry(issues, entry)
+    else:
+        _add_issue(
+            issues,
+            "invalid_manifest_entry_type",
+            f"Manifest entry must be typed as passed or dropped, got {type(entry).__name__}.",
+        )
+
+    return issues
+
+
+def _validate_passed_entry(
+    issues: list[SampleValidationIssue],
+    entry: PassedManifestEntry,
+) -> None:
+    _validate_schema_version_value(issues, entry.schema_version, label="Passed manifest entry")
     if entry.status != SampleStatus.PASSED:
         _add_issue(
             issues,
             "invalid_passed_entry_status",
             f"PassedManifestEntry status must be 'passed', got {entry.status!r}.",
         )
-    return issues
+
+    for value, label in (
+        (entry.sample_id, "Passed manifest sample_id"),
+        (entry.text, "Passed manifest text"),
+        (entry.sample_path, "Passed manifest sample_path"),
+        (entry.source_video_id, "Passed manifest source_video_id"),
+        (entry.source_sentence_id, "Passed manifest source_sentence_id"),
+        (entry.source_sentence_name, "Passed manifest source_sentence_name"),
+    ):
+        _validate_non_empty_text(issues, value, label=label)
+
+    num_frames = _validate_frame_count_value(
+        issues,
+        entry.num_frames,
+        label="Passed manifest num_frames",
+        allow_zero=False,
+    )
+    _validate_optional_fps_value(issues, entry.fps, label="Passed manifest fps")
+    _validate_selected_person_metadata(
+        issues,
+        entry.selected_person,
+        num_frames=num_frames,
+        label="Passed manifest selected_person",
+    )
+    _validate_frame_quality_summary(
+        issues,
+        entry.frame_quality,
+        num_frames=num_frames,
+        label="Passed manifest frame_quality",
+    )
 
 
-def validate_dropped_entry(entry: DroppedManifestEntry) -> list[SampleValidationIssue]:
-    """Validate domain invariants of a parsed dropped manifest entry."""
-    issues = validate_manifest_record(entry.to_record())
+def _validate_dropped_entry(
+    issues: list[SampleValidationIssue],
+    entry: DroppedManifestEntry,
+) -> None:
+    _validate_schema_version_value(issues, entry.schema_version, label="Dropped manifest entry")
     if entry.status != SampleStatus.DROPPED:
         _add_issue(
             issues,
             "invalid_dropped_entry_status",
             f"DroppedManifestEntry status must be 'dropped', got {entry.status!r}.",
         )
-    return issues
 
+    _validate_non_empty_text(issues, entry.sample_id, label="Dropped manifest sample_id")
+    _validate_non_empty_text(issues, entry.drop_stage, label="Dropped manifest drop_stage")
+    _validate_drop_reasons(issues, entry.drop_reasons)
+    _validate_drop_details(issues, entry.drop_details)
+    _validate_dropped_materialization(issues, entry.materialization)
 
-def _validate_passed_record(issues: list[SampleValidationIssue], record: Mapping[str, Any]) -> None:
-    _validate_required_keys(
-        issues,
-        record=record,
-        required_keys=REQUIRED_PASSED_MANIFEST_KEYS,
-        code="missing_passed_keys",
-        label="Passed manifest entry",
-    )
-    _validate_schema_version(issues, record=record, label="Passed manifest entry")
-
-    unexpected_dropped_keys = DROPPED_ONLY_MANIFEST_KEYS & set(record)
-    if unexpected_dropped_keys:
-        _add_issue(
-            issues,
-            "passed_entry_has_dropped_fields",
-            f"Passed manifest entry cannot contain dropped-only fields: "
-            f"{_format_keys(unexpected_dropped_keys)}.",
-        )
-
-    _validate_required_text_field(issues, record, "sample_id", label="Passed manifest sample_id")
-    _validate_required_text_field(issues, record, "text", label="Passed manifest text")
-    _validate_split(issues, record.get("split"), label="Passed manifest split")
-    _validate_required_text_field(
-        issues, record, "sample_path", label="Passed manifest sample_path"
-    )
-    _validate_required_text_field(
-        issues, record, "source_video_id", label="Passed manifest source_video_id"
-    )
-    _validate_required_text_field(
-        issues, record, "source_sentence_id", label="Passed manifest source_sentence_id"
-    )
-    _validate_required_text_field(
-        issues,
-        record,
-        "source_sentence_name",
-        label="Passed manifest source_sentence_name",
-    )
-
-    num_frames = _validate_frame_count(
-        issues,
-        record.get("num_frames"),
-        label="Passed manifest num_frames",
-        allow_zero=False,
-    )
-    _validate_fps(
-        issues,
-        record.get("fps"),
-        label="Passed manifest fps",
-        required_key_present="fps" in record,
-    )
-    _validate_selected_person_record(
-        issues,
-        record.get("selected_person"),
-        num_frames=num_frames,
-        label="Passed manifest selected_person",
-    )
-    _validate_frame_quality_record(
-        issues,
-        record.get("frame_quality"),
-        num_frames=num_frames,
-        label="Passed manifest frame_quality",
-    )
-
-
-def _validate_dropped_record(
-    issues: list[SampleValidationIssue],
-    record: Mapping[str, Any],
-) -> None:
-    _validate_required_keys(
-        issues,
-        record=record,
-        required_keys=REQUIRED_DROPPED_MANIFEST_KEYS,
-        code="missing_dropped_keys",
-        label="Dropped manifest entry",
-    )
-    _validate_schema_version(issues, record=record, label="Dropped manifest entry")
-
-    unexpected_passed_keys = PASSED_ONLY_MANIFEST_KEYS & set(record)
-    if unexpected_passed_keys:
-        _add_issue(
-            issues,
-            "dropped_entry_has_passed_fields",
-            f"Dropped manifest entry cannot contain passed-only fields: "
-            f"{_format_keys(unexpected_passed_keys)}.",
-        )
-
-    _validate_required_text_field(issues, record, "sample_id", label="Dropped manifest sample_id")
-    _validate_split(issues, record.get("split"), label="Dropped manifest split")
-    _validate_required_text_field(issues, record, "drop_stage", label="Dropped manifest drop_stage")
-    _validate_drop_reasons(issues, record.get("drop_reasons"))
-    _validate_drop_details(issues, record.get("drop_details"))
-
-    debug_only = _validate_debug_only(issues, record.get("debug_only"))
-    sample_path_present = "sample_path" in record and record.get("sample_path") is not None
-    if sample_path_present:
-        _validate_optional_text_value(
-            issues,
-            record.get("sample_path"),
-            label="Dropped manifest sample_path",
-        )
-        if debug_only is False:
-            _add_issue(
-                issues,
-                "materialized_dropped_sample_not_debug_only",
-                "Dropped manifest entries with sample_path must set debug_only to true.",
-            )
-    elif debug_only is True:
-        _add_issue(
-            issues,
-            "debug_only_dropped_entry_missing_sample_path",
-            "Dropped manifest entries with debug_only=true must include sample_path.",
-        )
-
-    text_present = "text" in record and record.get("text") is not None
-    if text_present:
-        _validate_optional_text_value(issues, record.get("text"), label="Dropped manifest text")
+    if entry.text is not None:
+        _validate_non_empty_text(issues, entry.text, label="Dropped manifest text")
 
     num_frames = None
-    if "num_frames" in record and record.get("num_frames") is not None:
-        num_frames = _validate_frame_count(
+    if entry.num_frames is not None:
+        num_frames = _validate_frame_count_value(
             issues,
-            record.get("num_frames"),
+            entry.num_frames,
             label="Dropped manifest num_frames",
             allow_zero=True,
         )
-    if sample_path_present and num_frames is None:
+    elif entry.materialization.payload_exists:
         _add_issue(
             issues,
             "materialized_dropped_sample_missing_num_frames",
-            "Materialized dropped entries must include num_frames.",
+            "Dropped entries with materialized payloads must include num_frames.",
         )
 
-    if "fps" in record:
-        _validate_fps(
-            issues,
-            record.get("fps"),
-            label="Dropped manifest fps",
-            required_key_present=True,
-        )
+    _validate_optional_fps_value(issues, entry.fps, label="Dropped manifest fps")
 
-    selected_person_present = (
-        "selected_person" in record and record.get("selected_person") is not None
-    )
-    if selected_person_present:
-        _validate_selected_person_record(
+    if entry.selected_person is not None:
+        _validate_selected_person_metadata(
             issues,
-            record.get("selected_person"),
+            entry.selected_person,
             num_frames=num_frames,
             label="Dropped manifest selected_person",
         )
 
-    frame_quality_present = "frame_quality" in record and record.get("frame_quality") is not None
-    if frame_quality_present:
+    if entry.frame_quality is not None:
         if num_frames is None:
             _add_issue(
                 issues,
                 "dropped_frame_quality_missing_num_frames",
                 "Dropped entries with frame_quality must include num_frames.",
             )
-        _validate_frame_quality_record(
+        _validate_frame_quality_summary(
             issues,
-            record.get("frame_quality"),
+            entry.frame_quality,
             num_frames=num_frames,
             label="Dropped manifest frame_quality",
         )
 
 
-def _validate_required_keys(
+def _validate_dropped_materialization(
     issues: list[SampleValidationIssue],
-    *,
-    record: Mapping[str, Any],
-    required_keys: frozenset[str],
-    code: str,
-    label: str,
+    materialization: DroppedMaterializationLifecycle,
 ) -> None:
-    missing_keys = required_keys - set(record)
-    if missing_keys:
-        _add_issue(
-            issues,
-            code,
-            f"{label} missing required keys: {_format_keys(missing_keys)}.",
-        )
-
-
-def _validate_schema_version(
-    issues: list[SampleValidationIssue],
-    *,
-    record: Mapping[str, Any],
-    label: str,
-) -> None:
-    if "schema_version" not in record:
-        return
-    schema_version = record.get("schema_version")
-    if schema_version != PROCESSED_SCHEMA_VERSION:
-        _add_issue(
-            issues,
-            "invalid_schema_version",
-            f"{label} schema_version must be {PROCESSED_SCHEMA_VERSION!r}, got {schema_version!r}.",
-        )
-
-
-def _validate_required_text_field(
-    issues: list[SampleValidationIssue],
-    record: Mapping[str, Any],
-    field_name: str,
-    *,
-    label: str,
-) -> None:
-    if field_name not in record:
-        return
-    _validate_optional_text_value(issues, record.get(field_name), label=label)
-
-
-def _validate_optional_text_value(
-    issues: list[SampleValidationIssue],
-    value: object,
-    *,
-    label: str,
-) -> None:
-    if not isinstance(value, str) or not value.strip():
-        _add_issue(issues, "invalid_text_field", f"{label} must be a non-empty string.")
-
-
-def _validate_split(issues: list[SampleValidationIssue], value: object, *, label: str) -> None:
-    if not isinstance(value, str) or value not in VALID_SAMPLE_SPLITS:
-        _add_issue(
-            issues,
-            "invalid_split",
-            f"{label} must be one of {_format_keys(VALID_SAMPLE_SPLITS)}, got {value!r}.",
-        )
-
-
-def _validate_frame_count(
-    issues: list[SampleValidationIssue],
-    value: object,
-    *,
-    label: str,
-    allow_zero: bool,
-) -> int | None:
-    frame_count = _int_value(value)
-    if frame_count is None:
-        _add_issue(issues, "invalid_num_frames", f"{label} must be an integer.")
-        return None
-    if frame_count < 0 or (frame_count == 0 and not allow_zero):
-        comparator = ">= 0" if allow_zero else "> 0"
-        _add_issue(
-            issues,
-            "invalid_num_frames",
-            f"{label} must be {comparator}, got {frame_count}.",
-        )
-    return frame_count
-
-
-def _validate_fps(
-    issues: list[SampleValidationIssue],
-    value: object,
-    *,
-    label: str,
-    required_key_present: bool,
-) -> None:
-    if value is None:
-        return
-    if not required_key_present:
-        return
-    fps = _float_value(value)
-    if fps is None or fps <= 0.0 or not math.isfinite(fps):
-        _add_issue(
-            issues,
-            "invalid_fps",
-            f"{label} must be a positive finite number when present, got {value!r}.",
-        )
-
-
-def _validate_selected_person_record(
-    issues: list[SampleValidationIssue],
-    value: object,
-    *,
-    num_frames: int | None,
-    label: str,
-) -> None:
-    if not isinstance(value, Mapping):
-        _add_issue(issues, "invalid_selected_person", f"{label} must be a mapping.")
-        return
-
-    _validate_required_keys(
-        issues,
-        record=value,
-        required_keys=REQUIRED_SELECTED_PERSON_KEYS,
-        code="missing_selected_person_keys",
-        label=label,
-    )
-
-    index = _validate_count_field(issues, value, "index", label=label)
-    multi_person_frame_count = _validate_count_field(
-        issues,
-        value,
-        "multi_person_frame_count",
-        label=label,
-    )
-    max_people_per_frame = _validate_count_field(
-        issues,
-        value,
-        "max_people_per_frame",
-        label=label,
-    )
-
-    if max_people_per_frame is not None and max_people_per_frame < 1:
-        _add_issue(
-            issues,
-            "invalid_selected_person",
-            f"{label}.max_people_per_frame must be >= 1.",
-        )
-    if (
-        index is not None
-        and max_people_per_frame is not None
-        and max_people_per_frame >= 1
-        and index >= max_people_per_frame
-    ):
-        _add_issue(
-            issues,
-            "invalid_selected_person",
-            f"{label}.index must be less than max_people_per_frame.",
-        )
-    if (
-        multi_person_frame_count is not None
-        and num_frames is not None
-        and multi_person_frame_count > num_frames
-    ):
-        _add_issue(
-            issues,
-            "selected_person_frame_count_mismatch",
-            f"{label}.multi_person_frame_count cannot exceed num_frames.",
-        )
-
-
-def _validate_frame_quality_record(
-    issues: list[SampleValidationIssue],
-    value: object,
-    *,
-    num_frames: int | None,
-    label: str,
-) -> None:
-    if not isinstance(value, Mapping):
-        _add_issue(issues, "invalid_frame_quality", f"{label} must be a mapping.")
-        return
-
-    _validate_required_keys(
-        issues,
-        record=value,
-        required_keys=REQUIRED_FRAME_QUALITY_KEYS,
-        code="missing_frame_quality_keys",
-        label=label,
-    )
-
-    valid_frame_count = _validate_count_field(issues, value, "valid_frame_count", label=label)
-    invalid_frame_count = _validate_count_field(
-        issues,
-        value,
-        "invalid_frame_count",
-        label=label,
-    )
-    face_missing_frame_count = _validate_count_field(
-        issues,
-        value,
-        "face_missing_frame_count",
-        label=label,
-    )
-    _validate_count_field(issues, value, "out_of_bounds_coordinate_count", label=label)
-    zeroed_count = _validate_count_field(
-        issues,
-        value,
-        "frames_with_any_zeroed_canonical_joint",
-        label=label,
-    )
-
-    if (
-        valid_frame_count is not None
-        and invalid_frame_count is not None
-        and num_frames is not None
-        and valid_frame_count + invalid_frame_count != num_frames
-    ):
-        _add_issue(
-            issues,
-            "frame_quality_count_mismatch",
-            f"{label} valid_frame_count + invalid_frame_count must equal num_frames.",
-        )
-
-    for field_name, count in (
-        ("face_missing_frame_count", face_missing_frame_count),
-        ("frames_with_any_zeroed_canonical_joint", zeroed_count),
-    ):
-        if count is not None and num_frames is not None and count > num_frames:
+    outcome = materialization.debug_materialization_outcome
+    if not materialization.debug_materialization_eligible:
+        if materialization.debug_materialization_attempted:
             _add_issue(
                 issues,
-                "frame_quality_count_mismatch",
-                f"{label}.{field_name} cannot exceed num_frames.",
+                "ineligible_dropped_materialization_attempted",
+                "Ineligible dropped entries must not attempt debug materialization.",
             )
-
-    _validate_count_mapping(
-        issues,
-        value.get("frame_issue_counts"),
-        required_keys=None,
-        num_frames=None,
-        label=f"{label}.frame_issue_counts",
-    )
-    _validate_count_mapping(
-        issues,
-        value.get("channel_nonzero_frames"),
-        required_keys=_canonical_pose_channels(),
-        num_frames=num_frames,
-        label=f"{label}.channel_nonzero_frames",
-    )
-
-
-def _validate_pose_record(
-    issues: list[SampleValidationIssue],
-    value: object,
-    *,
-    num_frames: int | None,
-    label: str,
-) -> None:
-    if not isinstance(value, Mapping):
-        _add_issue(issues, "invalid_pose", f"{label} must be a mapping.")
-        return
-
-    observed_channels = set(value)
-    canonical_channels = _canonical_pose_channels()
-    missing_channels = set(canonical_channels) - observed_channels
-    extra_channels = observed_channels - set(canonical_channels)
-    if missing_channels:
-        _add_issue(
-            issues,
-            "missing_pose_channels",
-            f"{label} missing channels: {_format_keys(missing_channels)}.",
-        )
-    if extra_channels:
-        _add_issue(
-            issues,
-            "unexpected_pose_channels",
-            f"{label} has non-canonical channels: {_format_keys(extra_channels)}.",
-        )
-
-    for channel_name in canonical_channels:
-        channel_record = value.get(channel_name)
-        _validate_pose_channel_record(
-            issues,
-            channel_record,
-            channel_name=channel_name,
-            num_frames=num_frames,
-            label=f"{label}.{channel_name}",
-        )
-
-
-def _validate_pose_channel_record(
-    issues: list[SampleValidationIssue],
-    value: object,
-    *,
-    channel_name: str,
-    num_frames: int | None,
-    label: str,
-) -> None:
-    if not isinstance(value, Mapping):
-        _add_issue(issues, "invalid_pose_channel", f"{label} must be a mapping.")
-        return
-
-    _validate_required_keys(
-        issues,
-        record=value,
-        required_keys=REQUIRED_POSE_CHANNEL_KEYS,
-        code="missing_pose_channel_keys",
-        label=label,
-    )
-
-    expected_joint_count = _pose_channel_joint_counts()[channel_name]
-
-    coordinates = value.get("coordinates")
-    confidence = value.get("confidence")
-    if coordinates is None:
-        _add_issue(issues, "missing_pose_coordinates", f"{label}.coordinates is required.")
-    if confidence is None:
-        _add_issue(issues, "missing_pose_confidence", f"{label}.confidence is required.")
-
-    coordinates_shape = _shape_of(coordinates)
-    if coordinates_shape is not None and num_frames is not None:
-        expected_coordinates_shape = (
-            num_frames,
-            expected_joint_count,
-            _pose_coordinate_dimensions(),
-        )
-        if coordinates_shape != expected_coordinates_shape:
+        if outcome is not DroppedDebugMaterializationOutcome.NOT_ATTEMPTED:
             _add_issue(
                 issues,
-                "invalid_pose_coordinates_shape",
-                f"{label}.coordinates shape must be {expected_coordinates_shape}, "
-                f"got {coordinates_shape}.",
+                "ineligible_dropped_materialization_has_attempt_outcome",
+                "Ineligible dropped entries must have materialization outcome 'not_attempted'.",
             )
 
-    confidence_shape = _shape_of(confidence)
-    if confidence_shape is not None and num_frames is not None:
-        expected_confidence_shape = (num_frames, expected_joint_count)
-        if confidence_shape != expected_confidence_shape:
+    if materialization.debug_materialization_attempted:
+        if outcome is DroppedDebugMaterializationOutcome.NOT_ATTEMPTED:
             _add_issue(
                 issues,
-                "invalid_pose_confidence_shape",
-                f"{label}.confidence shape must be {expected_confidence_shape}, "
-                f"got {confidence_shape}.",
+                "attempted_dropped_materialization_missing_outcome",
+                "Attempted dropped debug materialization must have succeeded or failed.",
             )
-
-
-def _validate_count_field(
-    issues: list[SampleValidationIssue],
-    record: Mapping[str, Any],
-    field_name: str,
-    *,
-    label: str,
-) -> int | None:
-    if field_name not in record:
-        return None
-    value = _int_value(record.get(field_name))
-    if value is None:
+    elif outcome is not DroppedDebugMaterializationOutcome.NOT_ATTEMPTED:
         _add_issue(
             issues,
-            "invalid_count_field",
-            f"{label}.{field_name} must be a non-negative integer.",
+            "unattempted_dropped_materialization_has_attempt_outcome",
+            "Unattempted dropped debug materialization must have outcome 'not_attempted'.",
         )
-        return None
-    if value < 0:
+
+    if materialization.payload_path is not None:
+        _validate_non_empty_text(
+            issues,
+            materialization.payload_path,
+            label="Dropped materialization payload_path",
+        )
+    elif materialization.payload_exists:
         _add_issue(
             issues,
-            "invalid_count_field",
-            f"{label}.{field_name} must be non-negative, got {value}.",
+            "dropped_payload_exists_without_path",
+            "Dropped materialization payload_exists=true requires payload_path.",
         )
-    return value
 
+    if materialization.archive_publishable and not materialization.payload_exists:
+        _add_issue(
+            issues,
+            "dropped_archive_publishable_without_payload",
+            "Dropped archive publishability requires an existing dropped payload artifact.",
+        )
 
-def _validate_count_mapping(
-    issues: list[SampleValidationIssue],
-    value: object,
-    *,
-    required_keys: Sequence[str] | None,
-    num_frames: int | None,
-    label: str,
-) -> None:
-    if not isinstance(value, Mapping):
-        _add_issue(issues, "invalid_count_mapping", f"{label} must be a mapping.")
-        return
-
-    observed_keys = {str(key) for key in value}
-    if required_keys is not None:
-        missing_keys = set(required_keys) - observed_keys
-        if missing_keys:
+    if outcome is DroppedDebugMaterializationOutcome.SUCCEEDED:
+        if not materialization.debug_materialization_eligible:
             _add_issue(
                 issues,
-                "missing_count_mapping_keys",
-                f"{label} missing keys: {_format_keys(missing_keys)}.",
+                "succeeded_dropped_materialization_not_eligible",
+                "Succeeded dropped debug materialization requires eligibility.",
             )
-
-    for key, raw_count in value.items():
-        if not isinstance(key, str) or not key.strip():
-            _add_issue(issues, "invalid_count_mapping_key", f"{label} keys must be non-empty.")
-        count = _int_value(raw_count)
-        if count is None or count < 0:
+        if not materialization.debug_materialization_attempted:
             _add_issue(
                 issues,
-                "invalid_count_mapping_value",
-                f"{label}.{key} must be a non-negative integer.",
+                "succeeded_dropped_materialization_not_attempted",
+                "Succeeded dropped debug materialization requires an attempt.",
             )
-        elif num_frames is not None and count > num_frames:
+        if not materialization.payload_exists or materialization.payload_path is None:
             _add_issue(
                 issues,
-                "count_mapping_frame_mismatch",
-                f"{label}.{key} cannot exceed num_frames.",
+                "succeeded_dropped_materialization_missing_payload",
+                "Succeeded dropped debug materialization requires an existing payload path.",
             )
-
-
-def _validate_drop_reasons(issues: list[SampleValidationIssue], value: object) -> None:
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
-        _add_issue(
-            issues,
-            "invalid_drop_reasons",
-            "Dropped manifest drop_reasons must be a non-empty sequence of strings.",
-        )
-        return
-    if not value:
-        _add_issue(
-            issues,
-            "invalid_drop_reasons",
-            "Dropped manifest drop_reasons must contain at least one reason.",
-        )
-        return
-
-    normalized_reasons = []
-    for reason in value:
-        if not isinstance(reason, str) or not reason.strip():
+        if not materialization.archive_publishable:
             _add_issue(
                 issues,
-                "invalid_drop_reasons",
-                "Dropped manifest drop_reasons values must be non-empty strings.",
+                "succeeded_dropped_materialization_not_archive_publishable",
+                "Succeeded dropped debug materialization must be archive-publishable.",
             )
-            continue
-        normalized_reasons.append(reason)
-
-    if len(set(normalized_reasons)) != len(normalized_reasons):
-        _add_issue(
-            issues,
-            "duplicate_drop_reasons",
-            "Dropped manifest drop_reasons must not contain duplicates.",
-        )
-
-
-def _validate_debug_only(issues: list[SampleValidationIssue], value: object) -> bool | None:
-    if not isinstance(value, bool):
-        _add_issue(
-            issues,
-            "invalid_debug_only",
-            f"Dropped manifest debug_only must be a boolean, got {value!r}.",
-        )
-        return None
-    return value
-
-
-def _validate_drop_details(issues: list[SampleValidationIssue], value: object) -> None:
-    if value is None:
-        return
-    if not isinstance(value, Mapping):
-        _add_issue(
-            issues,
-            "invalid_drop_details",
-            "Dropped manifest drop_details must be a mapping.",
-        )
-        return
-    for key, item in value.items():
-        if not isinstance(key, str) or not key.strip():
+        if materialization.failure_reason is not None:
             _add_issue(
                 issues,
-                "invalid_drop_details_key",
-                "Dropped manifest drop_details keys must be non-empty strings.",
+                "succeeded_dropped_materialization_has_failure",
+                "Succeeded dropped debug materialization must not include a failure reason.",
             )
-        if not _is_json_value(item):
+
+    if outcome is DroppedDebugMaterializationOutcome.FAILED:
+        if not materialization.debug_materialization_eligible:
             _add_issue(
                 issues,
-                "invalid_drop_details_value",
-                f"Dropped manifest drop_details[{key!r}] must be JSON-compatible.",
+                "failed_dropped_materialization_not_eligible",
+                "Failed dropped debug materialization requires eligibility.",
+            )
+        if not materialization.debug_materialization_attempted:
+            _add_issue(
+                issues,
+                "failed_dropped_materialization_not_attempted",
+                "Failed dropped debug materialization requires an attempt.",
+            )
+        if materialization.payload_exists or materialization.payload_path is not None:
+            _add_issue(
+                issues,
+                "failed_dropped_materialization_has_payload",
+                "Failed dropped debug materialization must not expose a payload path.",
+            )
+        if materialization.archive_publishable:
+            _add_issue(
+                issues,
+                "failed_dropped_materialization_archive_publishable",
+                "Failed dropped debug materialization must not be archive-publishable.",
+            )
+        if materialization.failure_reason is None:
+            _add_issue(
+                issues,
+                "failed_dropped_materialization_missing_failure",
+                "Failed dropped debug materialization requires a failure reason.",
+            )
+        else:
+            _validate_non_empty_text(
+                issues,
+                materialization.failure_reason,
+                label="Dropped materialization failure_reason",
             )
 
-
-def _is_json_value(value: object) -> bool:
-    if value is None or isinstance(value, str | bool | int):
-        return True
-    if isinstance(value, float):
-        return math.isfinite(value)
-    if isinstance(value, list):
-        return all(_is_json_value(item) for item in value)
-    if isinstance(value, dict):
-        return all(isinstance(key, str) and _is_json_value(item) for key, item in value.items())
-    return False
-
-
-def _int_value(value: object) -> int | None:
-    if isinstance(value, bool) or not isinstance(value, Integral):
-        return None
-    return int(value)
-
-
-def _float_value(value: object) -> float | None:
-    if isinstance(value, bool) or not isinstance(value, Real):
-        return None
-    return float(value)
-
-
-def _shape_of(value: object) -> tuple[int, ...] | None:
-    shape = getattr(value, "shape", None)
-    if shape is None:
-        return None
-    try:
-        return tuple(int(dimension) for dimension in shape)
-    except (TypeError, ValueError):
-        return None
-
-
-def _add_issue(issues: list[SampleValidationIssue], code: str, message: str) -> None:
-    issues.append(
-        SampleValidationIssue(
-            severity=ValidationSeverity.ERROR,
-            code=code,
-            message=message,
-        )
-    )
-
-
-def _format_keys(keys: Sequence[str] | set[str] | frozenset[str]) -> str:
-    return ", ".join(sorted(keys))
-
-
-def _canonical_pose_channels() -> tuple[str, ...]:
-    from text_to_sign_production.data.pose.schema import CANONICAL_POSE_CHANNELS
-
-    return CANONICAL_POSE_CHANNELS
-
-
-def _pose_channel_joint_counts() -> dict[str, int]:
-    from text_to_sign_production.data.pose.schema import POSE_CHANNEL_JOINT_COUNTS
-
-    return POSE_CHANNEL_JOINT_COUNTS
-
-
-def _pose_coordinate_dimensions() -> int:
-    from text_to_sign_production.data.pose.schema import POSE_COORDINATE_DIMENSIONS
-
-    return POSE_COORDINATE_DIMENSIONS
+    if outcome is DroppedDebugMaterializationOutcome.NOT_ATTEMPTED:
+        if materialization.payload_exists or materialization.payload_path is not None:
+            _add_issue(
+                issues,
+                "unattempted_dropped_materialization_has_payload",
+                "Unattempted dropped debug materialization must not expose a payload path.",
+            )
+        if materialization.archive_publishable:
+            _add_issue(
+                issues,
+                "unattempted_dropped_materialization_archive_publishable",
+                "Unattempted dropped debug materialization must not be archive-publishable.",
+            )
