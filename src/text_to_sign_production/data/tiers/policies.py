@@ -12,6 +12,7 @@ from text_to_sign_production.data.tiers._shared.parsing import (
     require_exact_keys,
     require_mapping,
 )
+from text_to_sign_production.data.tiers.roles import BINDING_TIER_FAMILIES
 from text_to_sign_production.data.tiers.types import (
     BindingTierFamily,
     FilterLevel,
@@ -20,7 +21,7 @@ from text_to_sign_production.data.tiers.types import (
 )
 
 _TIER_KEYS = tuple(tier.value for tier in TierName)
-_FAMILY_KEYS = tuple(family.value for family in BindingTierFamily)
+_FAMILY_KEYS = tuple(family.value for family in BINDING_TIER_FAMILIES)
 
 
 def load_tier_policies(path: str | Path) -> tuple[TierPolicy, ...]:
@@ -54,7 +55,7 @@ def parse_tier_policies(payload: object) -> tuple[TierPolicy, ...]:
         require_exact_keys(family_payload, _FAMILY_KEYS, f"tiers.{tier_name}.families")
 
         family_levels: dict[BindingTierFamily, FilterLevel] = {}
-        for family in BindingTierFamily:
+        for family in BINDING_TIER_FAMILIES:
             raw_level = family_payload[family.value]
             if not isinstance(raw_level, str):
                 raise ValueError(f"tiers.{tier_name}.families.{family.value} must be a string")

@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import numpy as np
 
-from text_to_sign_production.data.metrics.types import AnalysisWindowMetrics, HandMetrics
+from text_to_sign_production.data.metrics.types import ActiveSigningSpanMetrics, HandMetrics
 from text_to_sign_production.data.samples.types import PassedManifestEntry, ProcessedSamplePayload
 
 
 def compute_hand_metrics(
     payload: ProcessedSamplePayload,
     manifest: PassedManifestEntry,
-    analysis_window: AnalysisWindowMetrics,
+    active_signing_span: ActiveSigningSpanMetrics,
 ) -> HandMetrics:
-    """Compute active-window hand availability metrics."""
+    """Compute active-signing-span any-hand availability metrics."""
     left_hand_conf = np.asarray(payload.pose.left_hand.confidence)
     right_hand_conf = np.asarray(payload.pose.right_hand.confidence)
 
@@ -30,10 +30,10 @@ def compute_hand_metrics(
         raise ValueError(f"Invalid num_frames ({num_frames}) for hand metrics.")
 
     active_any_frame_available = any_frame_available[
-        analysis_window.start_frame_index : analysis_window.end_frame_index_exclusive
+        active_signing_span.start_frame_index : active_signing_span.end_frame_index_exclusive
     ]
-    if active_any_frame_available.size != analysis_window.frame_count:
-        raise ValueError("Analysis-window frame count does not match hand confidence arrays.")
+    if active_any_frame_available.size != active_signing_span.frame_count:
+        raise ValueError("Active signing span frame count does not match hand confidence arrays.")
 
     active_any_hand_available_frame_count = int(np.count_nonzero(active_any_frame_available))
     max_active_unavailable_run = _longest_false_run(active_any_frame_available)
@@ -45,13 +45,13 @@ def compute_hand_metrics(
         whole_clip_left_hand_available_frame_ratio=left_hand_available_frame_count / num_frames,
         whole_clip_right_hand_available_frame_ratio=right_hand_available_frame_count / num_frames,
         whole_clip_any_hand_available_frame_ratio=any_hand_available_frame_count / num_frames,
-        active_window_any_hand_available_frame_count=active_any_hand_available_frame_count,
-        active_window_any_hand_available_frame_ratio=(
-            active_any_hand_available_frame_count / analysis_window.frame_count
+        active_span_any_hand_available_frame_count=active_any_hand_available_frame_count,
+        active_span_any_hand_available_frame_ratio=(
+            active_any_hand_available_frame_count / active_signing_span.frame_count
         ),
-        max_active_window_any_hand_unavailable_run_count=max_active_unavailable_run,
-        max_active_window_any_hand_unavailable_run_ratio=(
-            max_active_unavailable_run / analysis_window.frame_count
+        max_active_span_any_hand_unavailable_run_count=max_active_unavailable_run,
+        max_active_span_any_hand_unavailable_run_ratio=(
+            max_active_unavailable_run / active_signing_span.frame_count
         ),
     )
 

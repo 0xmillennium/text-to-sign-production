@@ -38,9 +38,9 @@ def parse_confidence_thresholds(payload: object) -> dict[FilterLevel, Confidence
                 level_payload["min_body_available_mean_confidence"],
                 "confidence.min_body_available_mean_confidence",
             ),
-            min_active_window_any_hand_available_mean_confidence=require_ratio(
-                level_payload["min_active_window_any_hand_available_mean_confidence"],
-                "confidence.min_active_window_any_hand_available_mean_confidence",
+            min_active_span_any_hand_available_mean_confidence=require_ratio(
+                level_payload["min_active_span_any_hand_available_mean_confidence"],
+                "confidence.min_active_span_any_hand_available_mean_confidence",
             ),
         )
     return parsed

@@ -11,13 +11,15 @@ from text_to_sign_production.data._shared.identities import SampleSplit
 class MetricFamily(enum.StrEnum):
     """Metric families owned by the metric computation layer."""
 
-    ANALYSIS_WINDOW = "analysis_window"
+    ACTIVE_SIGNING_SPAN = "active_signing_span"
     OOB = "oob"
+    UPPER_BODY_SUPPORT = "upper_body_support"
     COVERAGE = "coverage"
     HAND = "hand"
     FACE = "face"
     VALID = "valid"
     CONFIDENCE = "confidence"
+    TEMPORAL_COHERENCE = "temporal_coherence"
     TEXT = "text"
     LENGTH = "length"
 
@@ -31,19 +33,23 @@ class MetricValidationIssue:
 
 
 @dataclass(frozen=True, slots=True)
-class AnalysisWindowMetrics:
-    """Clip span used for active-signing quality analysis."""
+class ActiveSigningSpanMetrics:
+    """Deterministic signing-relevant span and its diagnostics."""
 
     start_frame_index: int
     end_frame_index_exclusive: int
     frame_count: int
     frame_ratio: float
-    pre_sign_excluded_frame_count: int
-    pre_sign_excluded_frame_ratio: float
-    post_sign_excluded_frame_count: int
-    post_sign_excluded_frame_ratio: float
-    sustained_hand_evidence_frame_count: int
-    sustained_hand_evidence_frame_ratio: float
+    trimmed_prefix_frame_count: int
+    trimmed_prefix_frame_ratio: float
+    trimmed_suffix_frame_count: int
+    trimmed_suffix_frame_ratio: float
+    sustained_any_hand_evidence_frame_count: int
+    sustained_any_hand_evidence_frame_ratio: float
+    sustained_upper_body_evidence_frame_count: int
+    sustained_upper_body_evidence_frame_ratio: float
+    sustained_motion_evidence_frame_count: int
+    sustained_motion_evidence_frame_ratio: float
     source: str
 
 
@@ -57,10 +63,16 @@ class OobMetrics:
 
 
 @dataclass(frozen=True, slots=True)
-class CoverageMetrics:
-    """Landmark completeness metrics for canonical pose channels."""
+class UpperBodySupportMetrics:
+    """Binding upper-body/signing-relevant support metrics."""
 
-    signing_relevant_body_landmark_coverage_ratio: float
+    upper_body_support_landmark_coverage_ratio: float
+
+
+@dataclass(frozen=True, slots=True)
+class CoverageMetrics:
+    """Diagnostic landmark completeness metrics for canonical pose channels."""
+
     full_body_landmark_coverage_ratio: float
     left_hand_landmark_coverage_ratio: float
     right_hand_landmark_coverage_ratio: float
@@ -70,7 +82,7 @@ class CoverageMetrics:
 
 @dataclass(frozen=True, slots=True)
 class HandMetrics:
-    """Active-window hand availability metrics for a sample."""
+    """Active-signing-span hand availability metrics for a sample."""
 
     whole_clip_left_hand_available_frame_count: int
     whole_clip_right_hand_available_frame_count: int
@@ -78,10 +90,10 @@ class HandMetrics:
     whole_clip_left_hand_available_frame_ratio: float
     whole_clip_right_hand_available_frame_ratio: float
     whole_clip_any_hand_available_frame_ratio: float
-    active_window_any_hand_available_frame_count: int
-    active_window_any_hand_available_frame_ratio: float
-    max_active_window_any_hand_unavailable_run_count: int
-    max_active_window_any_hand_unavailable_run_ratio: float
+    active_span_any_hand_available_frame_count: int
+    active_span_any_hand_available_frame_ratio: float
+    max_active_span_any_hand_unavailable_run_count: int
+    max_active_span_any_hand_unavailable_run_ratio: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,9 +123,9 @@ class ConfidenceMetrics:
     """Availability-aware confidence quality metrics for a sample."""
 
     body_available_mean_confidence: float
-    active_window_left_hand_available_mean_confidence: float
-    active_window_right_hand_available_mean_confidence: float
-    active_window_any_hand_available_mean_confidence: float
+    active_span_left_hand_available_mean_confidence: float
+    active_span_right_hand_available_mean_confidence: float
+    active_span_any_hand_available_mean_confidence: float
     face_available_mean_confidence: float
     overall_available_mean_confidence: float
     body_nonzero_confidence_ratio: float
@@ -121,6 +133,15 @@ class ConfidenceMetrics:
     right_hand_nonzero_confidence_ratio: float
     face_nonzero_confidence_ratio: float
     overall_nonzero_confidence_ratio: float
+
+
+@dataclass(frozen=True, slots=True)
+class TemporalCoherenceMetrics:
+    """Active-span motion pathology metrics."""
+
+    active_span_abrupt_motion_frame_ratio: float
+    active_span_discontinuity_frame_ratio: float
+    max_active_span_frozen_run_ratio: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,12 +170,14 @@ class MetricBundle:
 
     sample_id: str
     split: SampleSplit
-    analysis_window: AnalysisWindowMetrics
+    active_signing_span: ActiveSigningSpanMetrics
     oob: OobMetrics
+    upper_body_support: UpperBodySupportMetrics
     coverage: CoverageMetrics
     hand: HandMetrics
     face: FaceMetrics
     valid: ValidMetrics
     confidence: ConfidenceMetrics
+    temporal_coherence: TemporalCoherenceMetrics
     text: TextMetrics
     length: LengthMetrics

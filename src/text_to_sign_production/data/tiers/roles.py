@@ -1,4 +1,4 @@
-"""Explicit binding and diagnostic tier metric roles."""
+"""Canonical binding and diagnostic tier metric role registry."""
 
 from __future__ import annotations
 
@@ -28,6 +28,8 @@ class TierMetricRoleSpec:
     reason_code: str | None = None
 
 
+BINDING_TIER_FAMILIES: tuple[BindingTierFamily, ...] = tuple(BindingTierFamily)
+
 BINDING_TIER_METRICS: tuple[TierMetricRoleSpec, ...] = (
     TierMetricRoleSpec(
         MetricPolicyRole.BINDING,
@@ -40,39 +42,30 @@ BINDING_TIER_METRICS: tuple[TierMetricRoleSpec, ...] = (
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.BINDING,
-        BindingTierFamily.COVERAGE.value,
-        "signing_relevant_body_landmark_coverage_ratio",
-        ("coverage", "signing_relevant_body_landmark_coverage_ratio"),
+        BindingTierFamily.UPPER_BODY_SUPPORT.value,
+        "upper_body_support_landmark_coverage_ratio",
+        ("upper_body_support", "upper_body_support_landmark_coverage_ratio"),
         ">=",
-        "min_signing_relevant_body_landmark_coverage_ratio",
-        "min_signing_relevant_body_landmark_coverage_ratio_not_met",
+        "min_upper_body_support_landmark_coverage_ratio",
+        "min_upper_body_support_landmark_coverage_ratio_not_met",
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.BINDING,
         BindingTierFamily.HAND.value,
-        "active_window_any_hand_available_frame_ratio",
-        ("hand", "active_window_any_hand_available_frame_ratio"),
+        "active_span_any_hand_available_frame_ratio",
+        ("hand", "active_span_any_hand_available_frame_ratio"),
         ">=",
-        "min_active_window_any_hand_available_frame_ratio",
-        "min_active_window_any_hand_available_frame_ratio_not_met",
+        "min_active_span_any_hand_available_frame_ratio",
+        "min_active_span_any_hand_available_frame_ratio_not_met",
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.BINDING,
         BindingTierFamily.HAND.value,
-        "max_active_window_any_hand_unavailable_run_ratio",
-        ("hand", "max_active_window_any_hand_unavailable_run_ratio"),
+        "max_active_span_any_hand_unavailable_run_ratio",
+        ("hand", "max_active_span_any_hand_unavailable_run_ratio"),
         "<=",
-        "max_active_window_any_hand_unavailable_run_ratio",
-        "max_active_window_any_hand_unavailable_run_ratio_exceeded",
-    ),
-    TierMetricRoleSpec(
-        MetricPolicyRole.BINDING,
-        BindingTierFamily.FACE.value,
-        "face_available_frame_ratio",
-        ("face", "face_available_frame_ratio"),
-        ">=",
-        "min_face_available_frame_ratio",
-        "min_face_available_frame_ratio_not_met",
+        "max_active_span_any_hand_unavailable_run_ratio",
+        "max_active_span_any_hand_unavailable_run_ratio_exceeded",
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.BINDING,
@@ -86,11 +79,47 @@ BINDING_TIER_METRICS: tuple[TierMetricRoleSpec, ...] = (
     TierMetricRoleSpec(
         MetricPolicyRole.BINDING,
         BindingTierFamily.CONFIDENCE.value,
-        "active_window_any_hand_available_mean_confidence",
-        ("confidence", "active_window_any_hand_available_mean_confidence"),
+        "active_span_any_hand_available_mean_confidence",
+        ("confidence", "active_span_any_hand_available_mean_confidence"),
         ">=",
-        "min_active_window_any_hand_available_mean_confidence",
-        "min_active_window_any_hand_available_mean_confidence_not_met",
+        "min_active_span_any_hand_available_mean_confidence",
+        "min_active_span_any_hand_available_mean_confidence_not_met",
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.BINDING,
+        BindingTierFamily.FACE.value,
+        "face_available_frame_ratio",
+        ("face", "face_available_frame_ratio"),
+        ">=",
+        "min_face_available_frame_ratio",
+        "min_face_available_frame_ratio_not_met",
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.BINDING,
+        BindingTierFamily.TEMPORAL_COHERENCE.value,
+        "active_span_abrupt_motion_frame_ratio",
+        ("temporal_coherence", "active_span_abrupt_motion_frame_ratio"),
+        "<=",
+        "max_active_span_abrupt_motion_frame_ratio",
+        "max_active_span_abrupt_motion_frame_ratio_exceeded",
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.BINDING,
+        BindingTierFamily.TEMPORAL_COHERENCE.value,
+        "active_span_discontinuity_frame_ratio",
+        ("temporal_coherence", "active_span_discontinuity_frame_ratio"),
+        "<=",
+        "max_active_span_discontinuity_frame_ratio",
+        "max_active_span_discontinuity_frame_ratio_exceeded",
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.BINDING,
+        BindingTierFamily.TEMPORAL_COHERENCE.value,
+        "max_active_span_frozen_run_ratio",
+        ("temporal_coherence", "max_active_span_frozen_run_ratio"),
+        "<=",
+        "max_active_span_frozen_run_ratio",
+        "max_active_span_frozen_run_ratio_exceeded",
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.BINDING,
@@ -133,75 +162,111 @@ BINDING_TIER_METRICS: tuple[TierMetricRoleSpec, ...] = (
 DIAGNOSTIC_TIER_METRICS: tuple[TierMetricRoleSpec, ...] = (
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
-        "analysis_window",
-        DiagnosticMetric.ANALYSIS_WINDOW_START_FRAME_INDEX.value,
-        ("analysis_window", "start_frame_index"),
+        "active_signing_span",
+        DiagnosticMetric.ACTIVE_SIGNING_SPAN_START_FRAME_INDEX.value,
+        ("active_signing_span", "start_frame_index"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
-        "analysis_window",
-        DiagnosticMetric.ANALYSIS_WINDOW_END_FRAME_INDEX_EXCLUSIVE.value,
-        ("analysis_window", "end_frame_index_exclusive"),
+        "active_signing_span",
+        DiagnosticMetric.ACTIVE_SIGNING_SPAN_END_FRAME_INDEX_EXCLUSIVE.value,
+        ("active_signing_span", "end_frame_index_exclusive"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
-        "analysis_window",
-        DiagnosticMetric.ANALYSIS_WINDOW_FRAME_COUNT.value,
-        ("analysis_window", "frame_count"),
+        "active_signing_span",
+        DiagnosticMetric.ACTIVE_SIGNING_SPAN_FRAME_COUNT.value,
+        ("active_signing_span", "frame_count"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
-        "analysis_window",
-        DiagnosticMetric.ANALYSIS_WINDOW_FRAME_RATIO.value,
-        ("analysis_window", "frame_ratio"),
+        "active_signing_span",
+        DiagnosticMetric.ACTIVE_SIGNING_SPAN_FRAME_RATIO.value,
+        ("active_signing_span", "frame_ratio"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
-        "analysis_window",
-        DiagnosticMetric.PRE_SIGN_EXCLUDED_FRAME_RATIO.value,
-        ("analysis_window", "pre_sign_excluded_frame_ratio"),
+        "active_signing_span",
+        DiagnosticMetric.TRIMMED_PREFIX_FRAME_COUNT.value,
+        ("active_signing_span", "trimmed_prefix_frame_count"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
-        "analysis_window",
-        DiagnosticMetric.POST_SIGN_EXCLUDED_FRAME_RATIO.value,
-        ("analysis_window", "post_sign_excluded_frame_ratio"),
+        "active_signing_span",
+        DiagnosticMetric.TRIMMED_PREFIX_FRAME_RATIO.value,
+        ("active_signing_span", "trimmed_prefix_frame_ratio"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
-        "analysis_window",
-        DiagnosticMetric.SUSTAINED_HAND_EVIDENCE_FRAME_RATIO.value,
-        ("analysis_window", "sustained_hand_evidence_frame_ratio"),
+        "active_signing_span",
+        DiagnosticMetric.TRIMMED_SUFFIX_FRAME_COUNT.value,
+        ("active_signing_span", "trimmed_suffix_frame_count"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
-        BindingTierFamily.COVERAGE.value,
+        "active_signing_span",
+        DiagnosticMetric.TRIMMED_SUFFIX_FRAME_RATIO.value,
+        ("active_signing_span", "trimmed_suffix_frame_ratio"),
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.DIAGNOSTIC,
+        "active_signing_span",
+        DiagnosticMetric.SUSTAINED_ANY_HAND_EVIDENCE_FRAME_RATIO.value,
+        ("active_signing_span", "sustained_any_hand_evidence_frame_ratio"),
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.DIAGNOSTIC,
+        "active_signing_span",
+        DiagnosticMetric.SUSTAINED_UPPER_BODY_EVIDENCE_FRAME_RATIO.value,
+        ("active_signing_span", "sustained_upper_body_evidence_frame_ratio"),
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.DIAGNOSTIC,
+        "active_signing_span",
+        DiagnosticMetric.SUSTAINED_MOTION_EVIDENCE_FRAME_RATIO.value,
+        ("active_signing_span", "sustained_motion_evidence_frame_ratio"),
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.DIAGNOSTIC,
+        "coverage",
         DiagnosticMetric.FULL_BODY_LANDMARK_COVERAGE_RATIO.value,
         ("coverage", "full_body_landmark_coverage_ratio"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
-        BindingTierFamily.COVERAGE.value,
+        "coverage",
         DiagnosticMetric.LEFT_HAND_LANDMARK_COVERAGE_RATIO.value,
         ("coverage", "left_hand_landmark_coverage_ratio"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
-        BindingTierFamily.COVERAGE.value,
+        "coverage",
         DiagnosticMetric.RIGHT_HAND_LANDMARK_COVERAGE_RATIO.value,
         ("coverage", "right_hand_landmark_coverage_ratio"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
-        BindingTierFamily.COVERAGE.value,
+        "coverage",
         DiagnosticMetric.ANY_HAND_LANDMARK_COVERAGE_RATIO.value,
         ("coverage", "any_hand_landmark_coverage_ratio"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
-        BindingTierFamily.COVERAGE.value,
+        "coverage",
         DiagnosticMetric.FACE_LANDMARK_COVERAGE_RATIO.value,
         ("coverage", "face_landmark_coverage_ratio"),
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.DIAGNOSTIC,
+        BindingTierFamily.HAND.value,
+        DiagnosticMetric.WHOLE_CLIP_LEFT_HAND_AVAILABLE_FRAME_RATIO.value,
+        ("hand", "whole_clip_left_hand_available_frame_ratio"),
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.DIAGNOSTIC,
+        BindingTierFamily.HAND.value,
+        DiagnosticMetric.WHOLE_CLIP_RIGHT_HAND_AVAILABLE_FRAME_RATIO.value,
+        ("hand", "whole_clip_right_hand_available_frame_ratio"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
@@ -212,14 +277,14 @@ DIAGNOSTIC_TIER_METRICS: tuple[TierMetricRoleSpec, ...] = (
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
         BindingTierFamily.CONFIDENCE.value,
-        DiagnosticMetric.ACTIVE_WINDOW_LEFT_HAND_AVAILABLE_MEAN_CONFIDENCE.value,
-        ("confidence", "active_window_left_hand_available_mean_confidence"),
+        DiagnosticMetric.ACTIVE_SPAN_LEFT_HAND_AVAILABLE_MEAN_CONFIDENCE.value,
+        ("confidence", "active_span_left_hand_available_mean_confidence"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
         BindingTierFamily.CONFIDENCE.value,
-        DiagnosticMetric.ACTIVE_WINDOW_RIGHT_HAND_AVAILABLE_MEAN_CONFIDENCE.value,
-        ("confidence", "active_window_right_hand_available_mean_confidence"),
+        DiagnosticMetric.ACTIVE_SPAN_RIGHT_HAND_AVAILABLE_MEAN_CONFIDENCE.value,
+        ("confidence", "active_span_right_hand_available_mean_confidence"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
@@ -235,6 +300,42 @@ DIAGNOSTIC_TIER_METRICS: tuple[TierMetricRoleSpec, ...] = (
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
+        BindingTierFamily.CONFIDENCE.value,
+        DiagnosticMetric.BODY_NONZERO_CONFIDENCE_RATIO.value,
+        ("confidence", "body_nonzero_confidence_ratio"),
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.DIAGNOSTIC,
+        BindingTierFamily.CONFIDENCE.value,
+        DiagnosticMetric.LEFT_HAND_NONZERO_CONFIDENCE_RATIO.value,
+        ("confidence", "left_hand_nonzero_confidence_ratio"),
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.DIAGNOSTIC,
+        BindingTierFamily.CONFIDENCE.value,
+        DiagnosticMetric.RIGHT_HAND_NONZERO_CONFIDENCE_RATIO.value,
+        ("confidence", "right_hand_nonzero_confidence_ratio"),
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.DIAGNOSTIC,
+        BindingTierFamily.CONFIDENCE.value,
+        DiagnosticMetric.FACE_NONZERO_CONFIDENCE_RATIO.value,
+        ("confidence", "face_nonzero_confidence_ratio"),
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.DIAGNOSTIC,
+        BindingTierFamily.CONFIDENCE.value,
+        DiagnosticMetric.OVERALL_NONZERO_CONFIDENCE_RATIO.value,
+        ("confidence", "overall_nonzero_confidence_ratio"),
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.DIAGNOSTIC,
+        "valid",
+        DiagnosticMetric.VALID_FRAME_COUNT.value,
+        ("valid", "valid_frame_count"),
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.DIAGNOSTIC,
         "valid",
         DiagnosticMetric.VALID_FRAME_RATIO.value,
         ("valid", "valid_frame_ratio"),
@@ -242,8 +343,20 @@ DIAGNOSTIC_TIER_METRICS: tuple[TierMetricRoleSpec, ...] = (
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
         "valid",
+        DiagnosticMetric.INVALID_FRAME_COUNT.value,
+        ("valid", "invalid_frame_count"),
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.DIAGNOSTIC,
+        "valid",
         DiagnosticMetric.INVALID_FRAME_RATIO.value,
         ("valid", "invalid_frame_ratio"),
+    ),
+    TierMetricRoleSpec(
+        MetricPolicyRole.DIAGNOSTIC,
+        "valid",
+        DiagnosticMetric.ZEROED_CANONICAL_JOINT_FRAME_COUNT.value,
+        ("valid", "zeroed_canonical_joint_frame_count"),
     ),
     TierMetricRoleSpec(
         MetricPolicyRole.DIAGNOSTIC,
@@ -271,7 +384,7 @@ BINDING_TIER_METRIC_KEYS_BY_FAMILY: dict[BindingTierFamily, frozenset[str]] = {
         for spec in BINDING_TIER_METRICS
         if spec.family == family.value
     )
-    for family in BindingTierFamily
+    for family in BINDING_TIER_FAMILIES
 }
 
 BINDING_TIER_METRICS_BY_FAMILY: dict[BindingTierFamily, tuple[TierMetricRoleSpec, ...]] = {
@@ -280,8 +393,19 @@ BINDING_TIER_METRICS_BY_FAMILY: dict[BindingTierFamily, tuple[TierMetricRoleSpec
         for spec in BINDING_TIER_METRICS
         if spec.family == family.value
     )
-    for family in BindingTierFamily
+    for family in BINDING_TIER_FAMILIES
 }
+
+
+def assert_role_registry_complete() -> None:
+    """Verify enums and binding role specs stay synchronized with this registry."""
+    missing = [
+        family.value
+        for family in BINDING_TIER_FAMILIES
+        if not BINDING_TIER_METRICS_BY_FAMILY[family]
+    ]
+    if missing:
+        raise RuntimeError(f"Binding families without metric role specs: {missing}")
 
 
 def get_metric_value(bundle: MetricBundle, spec: TierMetricRoleSpec) -> float | int | None:
@@ -334,3 +458,6 @@ def evaluate_binding_metric(
         comparison=spec.comparison,
         applied_level=applied_level,
     )
+
+
+assert_role_registry_complete()

@@ -9,17 +9,23 @@ import yaml
 
 from text_to_sign_production.data.tiers._shared.parsing import require_exact_keys, require_mapping
 from text_to_sign_production.data.tiers.confidence import parse_confidence_thresholds
-from text_to_sign_production.data.tiers.coverage import parse_coverage_thresholds
 from text_to_sign_production.data.tiers.face import parse_face_thresholds
 from text_to_sign_production.data.tiers.hand import parse_hand_thresholds
 from text_to_sign_production.data.tiers.length import parse_length_thresholds
 from text_to_sign_production.data.tiers.oob import parse_oob_thresholds
+from text_to_sign_production.data.tiers.roles import BINDING_TIER_FAMILIES
+from text_to_sign_production.data.tiers.temporal_coherence import (
+    parse_temporal_coherence_thresholds,
+)
 from text_to_sign_production.data.tiers.text import parse_text_thresholds
-from text_to_sign_production.data.tiers.types import BindingTierFamily, FilterConfig, FilterLevel
+from text_to_sign_production.data.tiers.upper_body_support import (
+    parse_upper_body_support_thresholds,
+)
+from text_to_sign_production.data.tiers.types import FilterConfig, FilterLevel
 
 ThresholdT = TypeVar("ThresholdT")
 
-_FAMILY_KEYS = tuple(family.value for family in BindingTierFamily)
+_FAMILY_KEYS = tuple(family.value for family in BINDING_TIER_FAMILIES)
 _LEVEL_ORDER = (FilterLevel.LOOSE, FilterLevel.CLEAN, FilterLevel.TIGHT)
 
 
@@ -43,10 +49,11 @@ def parse_filter_config(payload: object) -> FilterConfig:
 
     config = FilterConfig(
         oob=parse_oob_thresholds(families["oob"]),
-        coverage=parse_coverage_thresholds(families["coverage"]),
+        upper_body_support=parse_upper_body_support_thresholds(families["upper_body_support"]),
         hand=parse_hand_thresholds(families["hand"]),
-        face=parse_face_thresholds(families["face"]),
         confidence=parse_confidence_thresholds(families["confidence"]),
+        face=parse_face_thresholds(families["face"]),
+        temporal_coherence=parse_temporal_coherence_thresholds(families["temporal_coherence"]),
         text=parse_text_thresholds(families["text"]),
         length=parse_length_thresholds(families["length"]),
     )
@@ -62,19 +69,19 @@ def validate_filter_config(config: FilterConfig) -> None:
         "oob.max_out_of_bounds_ratio",
     )
     _require_nondecreasing(
-        config.coverage,
-        "min_signing_relevant_body_landmark_coverage_ratio",
-        "coverage.min_signing_relevant_body_landmark_coverage_ratio",
+        config.upper_body_support,
+        "min_upper_body_support_landmark_coverage_ratio",
+        "upper_body_support.min_upper_body_support_landmark_coverage_ratio",
     )
     _require_nondecreasing(
         config.hand,
-        "min_active_window_any_hand_available_frame_ratio",
-        "hand.min_active_window_any_hand_available_frame_ratio",
+        "min_active_span_any_hand_available_frame_ratio",
+        "hand.min_active_span_any_hand_available_frame_ratio",
     )
     _require_nonincreasing(
         config.hand,
-        "max_active_window_any_hand_unavailable_run_ratio",
-        "hand.max_active_window_any_hand_unavailable_run_ratio",
+        "max_active_span_any_hand_unavailable_run_ratio",
+        "hand.max_active_span_any_hand_unavailable_run_ratio",
     )
     _require_nondecreasing(
         config.face,
@@ -88,8 +95,23 @@ def validate_filter_config(config: FilterConfig) -> None:
     )
     _require_nondecreasing(
         config.confidence,
-        "min_active_window_any_hand_available_mean_confidence",
-        "confidence.min_active_window_any_hand_available_mean_confidence",
+        "min_active_span_any_hand_available_mean_confidence",
+        "confidence.min_active_span_any_hand_available_mean_confidence",
+    )
+    _require_nonincreasing(
+        config.temporal_coherence,
+        "max_active_span_abrupt_motion_frame_ratio",
+        "temporal_coherence.max_active_span_abrupt_motion_frame_ratio",
+    )
+    _require_nonincreasing(
+        config.temporal_coherence,
+        "max_active_span_discontinuity_frame_ratio",
+        "temporal_coherence.max_active_span_discontinuity_frame_ratio",
+    )
+    _require_nonincreasing(
+        config.temporal_coherence,
+        "max_active_span_frozen_run_ratio",
+        "temporal_coherence.max_active_span_frozen_run_ratio",
     )
     _require_nondecreasing(config.text, "min_character_count", "text.min_character_count")
     _require_nondecreasing(config.text, "min_token_count", "text.min_token_count")

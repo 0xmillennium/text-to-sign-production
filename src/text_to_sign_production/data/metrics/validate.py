@@ -22,72 +22,88 @@ def validate_metric_bundle(bundle: MetricBundle) -> list[MetricValidationIssue]:
         if val < 0:
             _add(f"invalid_{name}", f"{name} must be >= 0, got {val}")
 
-    # OOB
-    _check_count("analysis_window.start_frame_index", bundle.analysis_window.start_frame_index)
+    # Active signing span
+    span = bundle.active_signing_span
+    _check_count("active_signing_span.start_frame_index", span.start_frame_index)
     _check_count(
-        "analysis_window.end_frame_index_exclusive",
-        bundle.analysis_window.end_frame_index_exclusive,
+        "active_signing_span.end_frame_index_exclusive",
+        span.end_frame_index_exclusive,
     )
-    _check_count("analysis_window.frame_count", bundle.analysis_window.frame_count)
-    _check_ratio("analysis_window.frame_ratio", bundle.analysis_window.frame_ratio)
+    _check_count("active_signing_span.frame_count", span.frame_count)
+    _check_ratio("active_signing_span.frame_ratio", span.frame_ratio)
     _check_count(
-        "analysis_window.pre_sign_excluded_frame_count",
-        bundle.analysis_window.pre_sign_excluded_frame_count,
+        "active_signing_span.trimmed_prefix_frame_count",
+        span.trimmed_prefix_frame_count,
     )
     _check_ratio(
-        "analysis_window.pre_sign_excluded_frame_ratio",
-        bundle.analysis_window.pre_sign_excluded_frame_ratio,
+        "active_signing_span.trimmed_prefix_frame_ratio",
+        span.trimmed_prefix_frame_ratio,
     )
     _check_count(
-        "analysis_window.post_sign_excluded_frame_count",
-        bundle.analysis_window.post_sign_excluded_frame_count,
+        "active_signing_span.trimmed_suffix_frame_count",
+        span.trimmed_suffix_frame_count,
     )
     _check_ratio(
-        "analysis_window.post_sign_excluded_frame_ratio",
-        bundle.analysis_window.post_sign_excluded_frame_ratio,
+        "active_signing_span.trimmed_suffix_frame_ratio",
+        span.trimmed_suffix_frame_ratio,
     )
     _check_count(
-        "analysis_window.sustained_hand_evidence_frame_count",
-        bundle.analysis_window.sustained_hand_evidence_frame_count,
+        "active_signing_span.sustained_any_hand_evidence_frame_count",
+        span.sustained_any_hand_evidence_frame_count,
     )
     _check_ratio(
-        "analysis_window.sustained_hand_evidence_frame_ratio",
-        bundle.analysis_window.sustained_hand_evidence_frame_ratio,
+        "active_signing_span.sustained_any_hand_evidence_frame_ratio",
+        span.sustained_any_hand_evidence_frame_ratio,
     )
-    if bundle.analysis_window.end_frame_index_exclusive > bundle.length.num_frames:
-        _add("invalid_analysis_window", "analysis window end exceeds num_frames")
+    _check_count(
+        "active_signing_span.sustained_upper_body_evidence_frame_count",
+        span.sustained_upper_body_evidence_frame_count,
+    )
+    _check_ratio(
+        "active_signing_span.sustained_upper_body_evidence_frame_ratio",
+        span.sustained_upper_body_evidence_frame_ratio,
+    )
+    _check_count(
+        "active_signing_span.sustained_motion_evidence_frame_count",
+        span.sustained_motion_evidence_frame_count,
+    )
+    _check_ratio(
+        "active_signing_span.sustained_motion_evidence_frame_ratio",
+        span.sustained_motion_evidence_frame_ratio,
+    )
+    if span.end_frame_index_exclusive > bundle.length.num_frames:
+        _add("invalid_active_signing_span", "active signing span end exceeds num_frames")
+    if span.start_frame_index >= span.end_frame_index_exclusive:
+        _add("invalid_active_signing_span", "active signing span start must be before end")
+    if span.end_frame_index_exclusive - span.start_frame_index != span.frame_count:
+        _add("invalid_active_signing_span", "active signing span frame_count mismatches bounds")
     if (
-        bundle.analysis_window.start_frame_index
-        >= bundle.analysis_window.end_frame_index_exclusive
-    ):
-        _add("invalid_analysis_window", "analysis window start must be before end")
-    if (
-        bundle.analysis_window.end_frame_index_exclusive
-        - bundle.analysis_window.start_frame_index
-        != bundle.analysis_window.frame_count
-    ):
-        _add("invalid_analysis_window", "analysis window frame_count mismatches bounds")
-    if (
-        bundle.analysis_window.pre_sign_excluded_frame_count
-        + bundle.analysis_window.frame_count
-        + bundle.analysis_window.post_sign_excluded_frame_count
+        span.trimmed_prefix_frame_count
+        + span.frame_count
+        + span.trimmed_suffix_frame_count
         != bundle.length.num_frames
     ):
-        _add("invalid_analysis_window", "analysis window partitions must equal num_frames")
-    if (
-        bundle.analysis_window.sustained_hand_evidence_frame_count
-        > bundle.analysis_window.frame_count
-    ):
-        _add("invalid_analysis_window", "sustained hand evidence exceeds analysis-window frames")
+        _add("invalid_active_signing_span", "active signing span partitions must equal num_frames")
+    if span.sustained_any_hand_evidence_frame_count > span.frame_count:
+        _add("invalid_active_signing_span", "any-hand evidence exceeds active-span frames")
+    if span.sustained_upper_body_evidence_frame_count > span.frame_count:
+        _add("invalid_active_signing_span", "upper-body evidence exceeds active-span frames")
+    if span.sustained_motion_evidence_frame_count > span.frame_count:
+        _add("invalid_active_signing_span", "motion evidence exceeds active-span frames")
 
     # OOB
     _check_count("oob.out_of_bounds_coordinate_count", bundle.oob.out_of_bounds_coordinate_count)
     _check_count("oob.total_coordinate_slots", bundle.oob.total_coordinate_slots)
     _check_ratio("oob.out_of_bounds_ratio", bundle.oob.out_of_bounds_ratio)
 
-    # Coverage
+    # Upper-body support
+    _check_ratio(
+        "upper_body_support.upper_body_support_landmark_coverage_ratio",
+        bundle.upper_body_support.upper_body_support_landmark_coverage_ratio,
+    )
+
+    # Diagnostic coverage
     for name in (
-        "signing_relevant_body_landmark_coverage_ratio",
         "full_body_landmark_coverage_ratio",
         "left_hand_landmark_coverage_ratio",
         "right_hand_landmark_coverage_ratio",
@@ -110,8 +126,8 @@ def validate_metric_bundle(bundle: MetricBundle) -> list[MetricValidationIssue]:
         bundle.hand.whole_clip_any_hand_available_frame_count,
     )
     _check_count(
-        "hand.active_window_any_hand_available_frame_count",
-        bundle.hand.active_window_any_hand_available_frame_count,
+        "hand.active_span_any_hand_available_frame_count",
+        bundle.hand.active_span_any_hand_available_frame_count,
     )
     _check_ratio(
         "hand.whole_clip_left_hand_available_frame_ratio",
@@ -126,16 +142,16 @@ def validate_metric_bundle(bundle: MetricBundle) -> list[MetricValidationIssue]:
         bundle.hand.whole_clip_any_hand_available_frame_ratio,
     )
     _check_ratio(
-        "hand.active_window_any_hand_available_frame_ratio",
-        bundle.hand.active_window_any_hand_available_frame_ratio,
+        "hand.active_span_any_hand_available_frame_ratio",
+        bundle.hand.active_span_any_hand_available_frame_ratio,
     )
     _check_count(
-        "hand.max_active_window_any_hand_unavailable_run_count",
-        bundle.hand.max_active_window_any_hand_unavailable_run_count,
+        "hand.max_active_span_any_hand_unavailable_run_count",
+        bundle.hand.max_active_span_any_hand_unavailable_run_count,
     )
     _check_ratio(
-        "hand.max_active_window_any_hand_unavailable_run_ratio",
-        bundle.hand.max_active_window_any_hand_unavailable_run_ratio,
+        "hand.max_active_span_any_hand_unavailable_run_ratio",
+        bundle.hand.max_active_span_any_hand_unavailable_run_ratio,
     )
 
     if bundle.hand.whole_clip_any_hand_available_frame_count < max(
@@ -152,20 +168,20 @@ def validate_metric_bundle(bundle: MetricBundle) -> list[MetricValidationIssue]:
             "whole_clip_any_hand_available_frame_count exceeds num_frames",
         )
     if (
-        bundle.hand.active_window_any_hand_available_frame_count
-        > bundle.analysis_window.frame_count
+        bundle.hand.active_span_any_hand_available_frame_count
+        > span.frame_count
     ):
         _add(
             "invalid_any_hand_availability",
-            "active_window_any_hand_available_frame_count exceeds analysis-window frames",
+            "active_span_any_hand_available_frame_count exceeds active signing span frames",
         )
     if (
-        bundle.hand.max_active_window_any_hand_unavailable_run_count
-        > bundle.analysis_window.frame_count
+        bundle.hand.max_active_span_any_hand_unavailable_run_count
+        > span.frame_count
     ):
         _add(
             "invalid_any_hand_availability",
-            "max_active_window_any_hand_unavailable_run_count exceeds analysis-window frames",
+            "max_active_span_any_hand_unavailable_run_count exceeds active signing span frames",
         )
 
     # Face
@@ -204,9 +220,9 @@ def validate_metric_bundle(bundle: MetricBundle) -> list[MetricValidationIssue]:
     # Confidence
     for name in [
         "body_available_mean_confidence",
-        "active_window_left_hand_available_mean_confidence",
-        "active_window_right_hand_available_mean_confidence",
-        "active_window_any_hand_available_mean_confidence",
+        "active_span_left_hand_available_mean_confidence",
+        "active_span_right_hand_available_mean_confidence",
+        "active_span_any_hand_available_mean_confidence",
         "face_available_mean_confidence",
         "overall_available_mean_confidence",
         "body_nonzero_confidence_ratio",
@@ -217,6 +233,15 @@ def validate_metric_bundle(bundle: MetricBundle) -> list[MetricValidationIssue]:
     ]:
         val = getattr(bundle.confidence, name)
         _check_ratio(f"confidence.{name}", val)
+
+    # Temporal coherence
+    for name in [
+        "active_span_abrupt_motion_frame_ratio",
+        "active_span_discontinuity_frame_ratio",
+        "max_active_span_frozen_run_ratio",
+    ]:
+        val = getattr(bundle.temporal_coherence, name)
+        _check_ratio(f"temporal_coherence.{name}", val)
 
     # Text
     if bundle.text.normalized_text != " ".join(bundle.text.normalized_text.split()):

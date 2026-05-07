@@ -23,6 +23,7 @@ from text_to_sign_production.data.tiers.filters import (
 )
 from text_to_sign_production.data.tiers.policies import load_tier_policies, parse_tier_policies
 from text_to_sign_production.data.tiers.roles import (
+    BINDING_TIER_FAMILIES,
     BINDING_TIER_METRICS_BY_FAMILY,
     BINDING_TIER_METRIC_KEYS_BY_FAMILY,
     BINDING_TIER_METRICS,
@@ -43,7 +44,6 @@ from text_to_sign_production.data.tiers.types import (
     ConfidenceChannelSummaryRecord,
     ConfidenceThresholds,
     CoverageFamilySummaryRecord,
-    CoverageThresholds,
     DiagnosticMetric,
     ExcludedTierSurfaceEntry,
     FaceThresholds,
@@ -58,6 +58,7 @@ from text_to_sign_production.data.tiers.types import (
     NearThresholdSide,
     OobThresholds,
     SaturatedMetricRecord,
+    TemporalCoherenceThresholds,
     TextThresholds,
     TierBundle,
     TierCalibrationSurfaces,
@@ -70,11 +71,13 @@ from text_to_sign_production.data.tiers.types import (
     TierName,
     TierPolicy,
     TierValidationIssue,
+    UpperBodySupportThresholds,
 )
 from text_to_sign_production.data.tiers.validate import validate_tier_bundle
 
 __all__ = [
     "BindingTierFamily",
+    "BINDING_TIER_FAMILIES",
     "BINDING_TIER_METRIC_KEYS_BY_FAMILY",
     "BINDING_TIER_METRICS_BY_FAMILY",
     "BINDING_TIER_METRICS",
@@ -82,7 +85,6 @@ __all__ = [
     "CoFailureRecord",
     "ConfidenceThresholds",
     "ConfidenceChannelSummaryRecord",
-    "CoverageThresholds",
     "CoverageFamilySummaryRecord",
     "DiagnosticMetric",
     "DIAGNOSTIC_TIER_METRICS",
@@ -99,6 +101,7 @@ __all__ = [
     "NearThresholdSide",
     "OobThresholds",
     "SaturatedMetricRecord",
+    "TemporalCoherenceThresholds",
     "TextThresholds",
     "TierCalibrationSurfaces",
     "TierBundle",
@@ -112,6 +115,7 @@ __all__ = [
     "TierName",
     "TierPolicy",
     "TierValidationIssue",
+    "UpperBodySupportThresholds",
     "build_all_blocker_records",
     "build_cofailure_records",
     "build_confidence_channel_summary_records",

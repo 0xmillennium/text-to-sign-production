@@ -2,10 +2,11 @@ tiers:
   loose:
     families:
       oob: loose
-      coverage: loose
+      upper_body_support: loose
       hand: loose
-      face: loose
       confidence: loose
+      face: loose
+      temporal_coherence: loose
       text: loose
       length: loose
     max_allowed_leakage_severity: none
@@ -13,10 +14,11 @@ tiers:
   clean:
     families:
       oob: clean
-      coverage: clean
+      upper_body_support: clean
       hand: clean
-      face: clean
       confidence: clean
+      face: clean
+      temporal_coherence: clean
       text: clean
       length: clean
     max_allowed_leakage_severity: none
@@ -24,10 +26,11 @@ tiers:
   tight:
     families:
       oob: tight
-      coverage: tight
+      upper_body_support: tight
       hand: tight
-      face: tight
       confidence: tight
+      face: tight
+      temporal_coherence: tight
       text: tight
       length: tight
     max_allowed_leakage_severity: none

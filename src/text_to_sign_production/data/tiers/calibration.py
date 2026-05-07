@@ -262,9 +262,8 @@ def build_tier_delta_summary_records(tier_bundle: TierBundle) -> tuple[TierDelta
 def build_coverage_family_summary_records(
     distribution_records: Sequence[MetricDistributionRecord],
 ) -> tuple[CoverageFamilySummaryRecord, ...]:
-    """Build dedicated coverage-family summaries from distribution records."""
+    """Build dedicated diagnostic coverage summaries from distribution records."""
     coverage_metrics = {
-        "signing_relevant_body_landmark_coverage_ratio",
         "full_body_landmark_coverage_ratio",
         "left_hand_landmark_coverage_ratio",
         "right_hand_landmark_coverage_ratio",
@@ -283,8 +282,7 @@ def build_coverage_family_summary_records(
             maximum=record.maximum,
         )
         for record in distribution_records
-        if record.family == BindingTierFamily.COVERAGE.value
-        and record.metric_key in coverage_metrics
+        if record.family == "coverage" and record.metric_key in coverage_metrics
     )
 
 
@@ -294,11 +292,16 @@ def build_confidence_channel_summary_records(
     """Build dedicated channel-aware confidence summaries from distribution records."""
     confidence_metrics = {
         "body_available_mean_confidence",
-        "active_window_left_hand_available_mean_confidence",
-        "active_window_right_hand_available_mean_confidence",
-        "active_window_any_hand_available_mean_confidence",
+        "active_span_left_hand_available_mean_confidence",
+        "active_span_right_hand_available_mean_confidence",
+        "active_span_any_hand_available_mean_confidence",
         "face_available_mean_confidence",
         "overall_available_mean_confidence",
+        "body_nonzero_confidence_ratio",
+        "left_hand_nonzero_confidence_ratio",
+        "right_hand_nonzero_confidence_ratio",
+        "face_nonzero_confidence_ratio",
+        "overall_nonzero_confidence_ratio",
     }
     return tuple(
         ConfidenceChannelSummaryRecord(

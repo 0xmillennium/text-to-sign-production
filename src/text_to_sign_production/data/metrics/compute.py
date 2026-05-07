@@ -6,15 +6,23 @@ import math
 
 import numpy as np
 
-from text_to_sign_production.data.metrics.analysis_window import compute_analysis_window_metrics
+from text_to_sign_production.data.metrics.active_signing_span import (
+    compute_active_signing_span_metrics,
+)
 from text_to_sign_production.data.metrics.confidence import compute_confidence_metrics
 from text_to_sign_production.data.metrics.coverage import compute_coverage_metrics
 from text_to_sign_production.data.metrics.face import compute_face_metrics
 from text_to_sign_production.data.metrics.hand import compute_hand_metrics
 from text_to_sign_production.data.metrics.length import compute_length_metrics
 from text_to_sign_production.data.metrics.oob import compute_oob_metrics
+from text_to_sign_production.data.metrics.temporal_coherence import (
+    compute_temporal_coherence_metrics,
+)
 from text_to_sign_production.data.metrics.text import compute_text_metrics
 from text_to_sign_production.data.metrics.types import MetricBundle
+from text_to_sign_production.data.metrics.upper_body_support import (
+    compute_upper_body_support_metrics,
+)
 from text_to_sign_production.data.metrics.valid import compute_valid_metrics
 from text_to_sign_production.data.pose.schema import CANONICAL_POSE_CHANNELS
 from text_to_sign_production.data.samples.types import PassedManifestEntry, ProcessedSamplePayload
@@ -63,26 +71,30 @@ def build_metric_bundle(
                 f"payload={payload_nonzero}, manifest={manifest_nonzero}"
             )
 
-    analysis_window = compute_analysis_window_metrics(payload)
+    active_signing_span = compute_active_signing_span_metrics(payload)
     oob = compute_oob_metrics(payload, manifest)
+    upper_body_support = compute_upper_body_support_metrics(payload)
     coverage = compute_coverage_metrics(payload, manifest)
-    hand = compute_hand_metrics(payload, manifest, analysis_window)
+    hand = compute_hand_metrics(payload, manifest, active_signing_span)
     face = compute_face_metrics(payload, manifest)
     valid = compute_valid_metrics(payload, manifest)
-    confidence = compute_confidence_metrics(payload, analysis_window)
+    confidence = compute_confidence_metrics(payload, active_signing_span)
+    temporal_coherence = compute_temporal_coherence_metrics(payload, active_signing_span)
     text = compute_text_metrics(payload)
     length = compute_length_metrics(payload, text)
 
     return MetricBundle(
         sample_id=payload.sample_id,
         split=payload.split,
-        analysis_window=analysis_window,
+        active_signing_span=active_signing_span,
         oob=oob,
+        upper_body_support=upper_body_support,
         coverage=coverage,
         hand=hand,
         face=face,
         valid=valid,
         confidence=confidence,
+        temporal_coherence=temporal_coherence,
         text=text,
         length=length,
     )

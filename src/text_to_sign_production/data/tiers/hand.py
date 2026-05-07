@@ -34,13 +34,13 @@ def parse_hand_thresholds(payload: object) -> dict[FilterLevel, HandThresholds]:
         level_payload = require_mapping(levels[level.value], f"hand.{level.value}")
         require_exact_keys(level_payload, _THRESHOLD_KEYS, f"hand.{level.value}")
         parsed[level] = HandThresholds(
-            min_active_window_any_hand_available_frame_ratio=require_ratio(
-                level_payload["min_active_window_any_hand_available_frame_ratio"],
-                "hand.min_active_window_any_hand_available_frame_ratio",
+            min_active_span_any_hand_available_frame_ratio=require_ratio(
+                level_payload["min_active_span_any_hand_available_frame_ratio"],
+                "hand.min_active_span_any_hand_available_frame_ratio",
             ),
-            max_active_window_any_hand_unavailable_run_ratio=require_ratio(
-                level_payload["max_active_window_any_hand_unavailable_run_ratio"],
-                "hand.max_active_window_any_hand_unavailable_run_ratio",
+            max_active_span_any_hand_unavailable_run_ratio=require_ratio(
+                level_payload["max_active_span_any_hand_unavailable_run_ratio"],
+                "hand.max_active_span_any_hand_unavailable_run_ratio",
             ),
         )
     return parsed

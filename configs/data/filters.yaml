@@ -7,43 +7,57 @@ families:
     tight:
       max_out_of_bounds_ratio: 0.01
 
-  coverage:
+  upper_body_support:
     loose:
-      min_signing_relevant_body_landmark_coverage_ratio: 0.50
+      min_upper_body_support_landmark_coverage_ratio: 0.50
     clean:
-      min_signing_relevant_body_landmark_coverage_ratio: 0.58
+      min_upper_body_support_landmark_coverage_ratio: 0.58
     tight:
-      min_signing_relevant_body_landmark_coverage_ratio: 0.62
+      min_upper_body_support_landmark_coverage_ratio: 0.62
 
   hand:
     loose:
-      min_active_window_any_hand_available_frame_ratio: 0.50
-      max_active_window_any_hand_unavailable_run_ratio: 0.50
+      min_active_span_any_hand_available_frame_ratio: 0.50
+      max_active_span_any_hand_unavailable_run_ratio: 0.50
     clean:
-      min_active_window_any_hand_available_frame_ratio: 0.70
-      max_active_window_any_hand_unavailable_run_ratio: 0.30
+      min_active_span_any_hand_available_frame_ratio: 0.70
+      max_active_span_any_hand_unavailable_run_ratio: 0.30
     tight:
-      min_active_window_any_hand_available_frame_ratio: 0.85
-      max_active_window_any_hand_unavailable_run_ratio: 0.15
+      min_active_span_any_hand_available_frame_ratio: 0.85
+      max_active_span_any_hand_unavailable_run_ratio: 0.15
 
   face:
     loose:
       min_face_available_frame_ratio: 0.50
     clean:
-      min_face_available_frame_ratio: 0.70
+      min_face_available_frame_ratio: 0.50
     tight:
-      min_face_available_frame_ratio: 0.85
+      min_face_available_frame_ratio: 0.50
 
   confidence:
     loose:
       min_body_available_mean_confidence: 0.20
-      min_active_window_any_hand_available_mean_confidence: 0.20
+      min_active_span_any_hand_available_mean_confidence: 0.20
     clean:
       min_body_available_mean_confidence: 0.37
-      min_active_window_any_hand_available_mean_confidence: 0.28
+      min_active_span_any_hand_available_mean_confidence: 0.28
     tight:
       min_body_available_mean_confidence: 0.43
-      min_active_window_any_hand_available_mean_confidence: 0.38
+      min_active_span_any_hand_available_mean_confidence: 0.38
+
+  temporal_coherence:
+    loose:
+      max_active_span_abrupt_motion_frame_ratio: 0.40
+      max_active_span_discontinuity_frame_ratio: 0.40
+      max_active_span_frozen_run_ratio: 0.95
+    clean:
+      max_active_span_abrupt_motion_frame_ratio: 0.30
+      max_active_span_discontinuity_frame_ratio: 0.30
+      max_active_span_frozen_run_ratio: 0.92
+    tight:
+      max_active_span_abrupt_motion_frame_ratio: 0.20
+      max_active_span_discontinuity_frame_ratio: 0.20
+      max_active_span_frozen_run_ratio: 0.90
 
   text:
     loose:

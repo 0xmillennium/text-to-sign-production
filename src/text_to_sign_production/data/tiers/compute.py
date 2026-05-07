@@ -10,12 +10,15 @@ from text_to_sign_production.data.leakages.types import LeakageSampleSummary
 from text_to_sign_production.data.metrics.types import MetricBundle
 from text_to_sign_production.data.samples.types import PassedManifestEntry
 from text_to_sign_production.data.tiers.confidence import evaluate_confidence_family
-from text_to_sign_production.data.tiers.coverage import evaluate_coverage_family
 from text_to_sign_production.data.tiers.face import evaluate_face_family
 from text_to_sign_production.data.tiers.hand import evaluate_hand_family
 from text_to_sign_production.data.tiers.leakage import evaluate_leakage_policy
 from text_to_sign_production.data.tiers.length import evaluate_length_family
 from text_to_sign_production.data.tiers.oob import evaluate_oob_family
+from text_to_sign_production.data.tiers.roles import BINDING_TIER_FAMILIES
+from text_to_sign_production.data.tiers.temporal_coherence import (
+    evaluate_temporal_coherence_family,
+)
 from text_to_sign_production.data.tiers.text import evaluate_text_family
 from text_to_sign_production.data.tiers.types import (
     BindingTierFamily,
@@ -27,14 +30,27 @@ from text_to_sign_production.data.tiers.types import (
     TierName,
     TierPolicy,
 )
+from text_to_sign_production.data.tiers.upper_body_support import (
+    evaluate_upper_body_support_family,
+)
 
 SampleKey = tuple[SampleSplit, str]
 ThresholdT = TypeVar("ThresholdT")
 TierDecisionProgressCallback = Callable[..., None]
 
 _TIER_ORDER: tuple[TierName, ...] = tuple(TierName)
-_FAMILY_ORDER: tuple[BindingTierFamily, ...] = tuple(BindingTierFamily)
-_FAMILY_DISPLAY_ORDER: tuple[str, ...] = tuple(family.value for family in BindingTierFamily)
+_FAMILY_ORDER: tuple[BindingTierFamily, ...] = BINDING_TIER_FAMILIES
+_FAMILY_DISPLAY_ORDER: tuple[str, ...] = tuple(family.value for family in _FAMILY_ORDER)
+_FAMILY_EVALUATORS = {
+    BindingTierFamily.OOB: evaluate_oob_family,
+    BindingTierFamily.UPPER_BODY_SUPPORT: evaluate_upper_body_support_family,
+    BindingTierFamily.HAND: evaluate_hand_family,
+    BindingTierFamily.CONFIDENCE: evaluate_confidence_family,
+    BindingTierFamily.FACE: evaluate_face_family,
+    BindingTierFamily.TEMPORAL_COHERENCE: evaluate_temporal_coherence_family,
+    BindingTierFamily.TEXT: evaluate_text_family,
+    BindingTierFamily.LENGTH: evaluate_length_family,
+}
 
 
 def build_tier_bundle(
@@ -194,13 +210,8 @@ def _require_exact_family_levels(
 
 
 def _require_filter_config_levels(filter_config: FilterConfig) -> None:
-    _require_exact_filter_levels(filter_config.oob, "oob")
-    _require_exact_filter_levels(filter_config.coverage, "coverage")
-    _require_exact_filter_levels(filter_config.hand, "hand")
-    _require_exact_filter_levels(filter_config.face, "face")
-    _require_exact_filter_levels(filter_config.confidence, "confidence")
-    _require_exact_filter_levels(filter_config.text, "text")
-    _require_exact_filter_levels(filter_config.length, "length")
+    for family in _FAMILY_ORDER:
+        _require_exact_filter_levels(getattr(filter_config, family.value), family.value)
 
 
 def _require_exact_filter_levels(
@@ -226,31 +237,12 @@ def _evaluate_metric_failures(
 ) -> tuple[TierMetricFailure, ...]:
     _require_exact_family_levels(family_levels, "applied policy")
 
-    oob_level = family_levels[BindingTierFamily.OOB]
-    coverage_level = family_levels[BindingTierFamily.COVERAGE]
-    hand_level = family_levels[BindingTierFamily.HAND]
-    face_level = family_levels[BindingTierFamily.FACE]
-    confidence_level = family_levels[BindingTierFamily.CONFIDENCE]
-    text_level = family_levels[BindingTierFamily.TEXT]
-    length_level = family_levels[BindingTierFamily.LENGTH]
-
-    return (
-        *evaluate_oob_family(bundle, filter_config.oob[oob_level], oob_level),
-        *evaluate_coverage_family(
-            bundle,
-            filter_config.coverage[coverage_level],
-            coverage_level,
-        ),
-        *evaluate_hand_family(bundle, filter_config.hand[hand_level], hand_level),
-        *evaluate_face_family(bundle, filter_config.face[face_level], face_level),
-        *evaluate_confidence_family(
-            bundle,
-            filter_config.confidence[confidence_level],
-            confidence_level,
-        ),
-        *evaluate_text_family(bundle, filter_config.text[text_level], text_level),
-        *evaluate_length_family(bundle, filter_config.length[length_level], length_level),
-    )
+    failures: list[TierMetricFailure] = []
+    for family in _FAMILY_ORDER:
+        level = family_levels[family]
+        thresholds = getattr(filter_config, family.value)[level]
+        failures.extend(_FAMILY_EVALUATORS[family](bundle, thresholds, level))
+    return tuple(failures)
 
 
 def _display_families(families: set[BindingTierFamily]) -> list[str]:

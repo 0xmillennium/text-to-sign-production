@@ -6,6 +6,7 @@ from collections.abc import Callable
 
 from text_to_sign_production.data.leakages.severity import LEAKAGE_SEVERITY_RANK
 from text_to_sign_production.data.tiers.roles import (
+    BINDING_TIER_FAMILIES,
     BINDING_TIER_METRIC_KEYS_BY_FAMILY,
     BINDING_TIER_METRICS_BY_FAMILY,
 )
@@ -19,7 +20,7 @@ from text_to_sign_production.data.tiers.types import (
 )
 
 _TIER_NAMES: tuple[TierName, ...] = tuple(TierName)
-_FAMILY_NAMES: tuple[BindingTierFamily, ...] = tuple(BindingTierFamily)
+_FAMILY_NAMES: tuple[BindingTierFamily, ...] = BINDING_TIER_FAMILIES
 _FAMILY_DISPLAY_NAMES: tuple[str, ...] = tuple(family.value for family in BindingTierFamily)
 
 _METRIC_RULES: dict[BindingTierFamily, dict[str, tuple[str, str]]] = {

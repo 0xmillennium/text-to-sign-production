@@ -1,31 +1,17 @@
-"""Coverage metrics computation."""
+"""Diagnostic coverage metrics computation."""
 
 from __future__ import annotations
-
-from typing import Final
 
 import numpy as np
 
 from text_to_sign_production.data.metrics.types import CoverageMetrics
 from text_to_sign_production.data.samples.types import PassedManifestEntry, ProcessedSamplePayload
 
-SIGNING_RELEVANT_BODY_LANDMARK_INDICES: Final[tuple[int, ...]] = (
-    0,  # Nose
-    1,  # Neck
-    2,  # Right shoulder
-    3,  # Right elbow
-    4,  # Right wrist
-    5,  # Left shoulder
-    6,  # Left elbow
-    7,  # Left wrist
-    8,  # Mid hip / torso anchor
-)
-
 
 def compute_coverage_metrics(
     payload: ProcessedSamplePayload, manifest: PassedManifestEntry
 ) -> CoverageMetrics:
-    """Compute landmark completeness metrics independent of temporal availability."""
+    """Compute report-only landmark completeness metrics."""
     num_frames = payload.num_frames
     if num_frames <= 0:
         raise ValueError(f"Invalid num_frames ({num_frames}) for coverage metrics.")
@@ -43,9 +29,6 @@ def compute_coverage_metrics(
     right_hand_ratio = _coverage_ratio(right_hand_conf, right_hand_available)
 
     return CoverageMetrics(
-        signing_relevant_body_landmark_coverage_ratio=_coverage_ratio(
-            body_conf[:, SIGNING_RELEVANT_BODY_LANDMARK_INDICES]
-        ),
         full_body_landmark_coverage_ratio=_coverage_ratio(body_conf),
         left_hand_landmark_coverage_ratio=left_hand_ratio,
         right_hand_landmark_coverage_ratio=right_hand_ratio,
