@@ -3,11 +3,13 @@ from text_to_sign_production.workflows.samples.processing.execute import (
 )
 from text_to_sign_production.workflows.samples.processing.models import (
     SamplesExecutionBundle,
+    SamplesPayloadOutput,
     SamplesSplitProcessingResult,
 )
 
 __all__ = [
     "SamplesSplitProcessingResult",
     "SamplesExecutionBundle",
+    "SamplesPayloadOutput",
     "execute_samples_processing",
 ]

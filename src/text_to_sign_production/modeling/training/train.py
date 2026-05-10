@@ -62,7 +62,6 @@ from .events import (
     TrainingBatchProcessed,
     TrainingProgressSink,
 )
-from .losses import channel_balanced_masked_pose_mse_loss
 from .logging import (
     CheckpointSavedLog,
     EarlyStoppingDecisionLogged,
@@ -73,6 +72,7 @@ from .logging import (
     RunStarted,
     TrainingRunLogSink,
 )
+from .losses import channel_balanced_masked_pose_mse_loss
 from .standardization import (
     TargetStandardization,
     standardize_batch_targets,
@@ -483,9 +483,9 @@ def run_baseline_training(
         live_log_path.write_text("", encoding="utf-8")
     run_log.emit(
         RunStarted(
-        run_mode=run_mode,
-        training_surface=training_surface,
-        validation_surface=validation_surface,
+            run_mode=run_mode,
+            training_surface=training_surface,
+            validation_surface=validation_surface,
         )
     )
 

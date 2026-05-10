@@ -35,6 +35,11 @@ def _validate_config_layout_alignment(
         raise SamplesWorkflowInvariantError("layout runtime gates config path is misaligned")
     if plan.execution_inputs.gates_config_path != layout.runtime.gates_config_path:
         raise SamplesWorkflowInvariantError("plan gates config path is misaligned")
+    if (
+        plan.execution_inputs.translation_canonical_text_column
+        != config.translation_canonical_text_column
+    ):
+        raise SamplesWorkflowInvariantError("translation canonical text column is misaligned")
 
 
 def _validate_split_alignment(

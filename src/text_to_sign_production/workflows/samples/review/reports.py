@@ -33,7 +33,10 @@ from text_to_sign_production.workflows.samples.review.sections import (
     build_processing_detail_records,
     build_processing_summary_records,
     build_processing_summary_sections,
+    build_report_sections,
+    build_report_table_records,
     build_runtime_verification_sections,
+    build_samples_report,
     build_source_issue_detail_records,
     build_source_issue_summary_records,
 )
@@ -51,6 +54,7 @@ def write_samples_reports(
     summary_sections = (
         *build_runtime_verification_sections(bundle.workflow_result.runtime_verification),
         *build_processing_summary_sections(bundle),
+        *build_report_sections(bundle),
         *build_output_summary_sections(bundle.workflow_result),
         *build_final_review_sections(bundle),
     )
@@ -110,6 +114,8 @@ def write_samples_reports(
         artifacts.index_json_path,
         {
             "workflow": "samples",
+            "samples_report": build_samples_report(bundle),
+            "samples_report_tables": build_report_table_records(bundle),
             "reports": {
                 "summary_markdown_path": artifacts.summary_markdown_path,
                 "processing_summary_jsonl_path": artifacts.processing_summary_jsonl_path,

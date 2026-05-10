@@ -135,8 +135,8 @@ def _render_archive_create(operation: ArchiveCreateOperation) -> RenderedShellCo
         f"tmp_archive={_shell_quote(temporary_archive_path)}",
         f"{member_var_name}=",
         "_cleanup() {",
-        f"  if [ -n \"${{{member_var_name}:-}}\" ]; then rm -f -- \"${member_var_name}\"; fi",
-        "  rm -f -- \"$tmp_archive\"",
+        f'  if [ -n "${{{member_var_name}:-}}" ]; then rm -f -- "${member_var_name}"; fi',
+        '  rm -f -- "$tmp_archive"',
         "}",
         "trap _cleanup EXIT",
     ]
@@ -149,21 +149,21 @@ def _render_archive_create(operation: ArchiveCreateOperation) -> RenderedShellCo
                 "fi",
             ]
         )
-    lines.append("rm -f -- \"$tmp_archive\"")
+    lines.append('rm -f -- "$tmp_archive"')
     lines.extend(_render_member_file_script(member_var_name, operation.members))
     lines.append(
         "python -m tqdm "
         f"--total {_shell_quote(str(len(operation.members)))} "
         "--unit member "
         f"--desc {_shell_quote(operation.label)} "
-        f"< \"${member_var_name}\" | "
+        f'< "${member_var_name}" | '
         "tar --use-compress-program=zstd "
-        f"-cf \"$tmp_archive\" -C {_shell_quote(operation.source_root)} "
+        f'-cf "$tmp_archive" -C {_shell_quote(operation.source_root)} '
         "--files-from -"
     )
     if operation.overwrite_policy == "replace":
         lines.append(f"rm -f -- {_shell_quote(archive_path)}")
-    lines.append(f"mv -f -- \"$tmp_archive\" {_shell_quote(archive_path)}")
+    lines.append(f'mv -f -- "$tmp_archive" {_shell_quote(archive_path)}')
 
     return RenderedShellCommand(
         label=operation.label,
@@ -186,7 +186,7 @@ def _render_archive_verify(operation: ArchiveVerifyOperation) -> RenderedShellCo
         f"{expected_var_name}=",
         "observed_members_file=",
         "_cleanup() {",
-        f"  if [ -n \"${{{expected_var_name}:-}}\" ]; then rm -f -- \"${expected_var_name}\"; fi",
+        f'  if [ -n "${{{expected_var_name}:-}}" ]; then rm -f -- "${expected_var_name}"; fi',
         '  if [ -n "${observed_members_file:-}" ]; then rm -f -- "$observed_members_file"; fi',
         "}",
         "trap _cleanup EXIT",
@@ -195,7 +195,7 @@ def _render_archive_verify(operation: ArchiveVerifyOperation) -> RenderedShellCo
     lines.extend(
         [
             "observed_members_file=$(mktemp)",
-            f"LC_ALL=C sort \"${expected_var_name}\" -o \"${expected_var_name}\"",
+            f'LC_ALL=C sort "${expected_var_name}" -o "${expected_var_name}"',
             "tar --use-compress-program=zstd "
             f"-tf {_shell_quote(operation.archive_path)} "
             "| sed 's#^\\./##' "
@@ -203,8 +203,8 @@ def _render_archive_verify(operation: ArchiveVerifyOperation) -> RenderedShellCo
             f"--total {_shell_quote(str(len(operation.expected_members)))} "
             "--unit member "
             f"--desc {_shell_quote(operation.label)} "
-            "| LC_ALL=C sort > \"$observed_members_file\"",
-            f"diff -u \"${expected_var_name}\" \"$observed_members_file\"",
+            '| LC_ALL=C sort > "$observed_members_file"',
+            f'diff -u "${expected_var_name}" "$observed_members_file"',
         ]
     )
 
@@ -242,8 +242,7 @@ def _render_member_file_script(member_var_name: str, members: tuple[str, ...]) -
 def _display_command_for_operation(operation: WorkflowOperation) -> str:
     if isinstance(operation, FileCopyOperation):
         return (
-            f"copy {_shell_quote(operation.source_path)} "
-            f"-> {_shell_quote(operation.target_path)}"
+            f"copy {_shell_quote(operation.source_path)} -> {_shell_quote(operation.target_path)}"
         )
     if isinstance(operation, ArchiveExtractOperation):
         return (

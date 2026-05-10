@@ -3,43 +3,39 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from text_to_sign_production.data.gates import ProcessingDecision
-from text_to_sign_production.data.samples import (
+from text_to_sign_production.core.ids import SampleStatus
+from text_to_sign_production.core.models import (
     DroppedManifestEntry,
-    DroppedMaterializationLifecycle,
+    GateDecisionBundle,
     PassedManifestEntry,
-    ProcessedSamplePayload,
+    PreparedSample,
 )
-from text_to_sign_production.data.sources import (
-    SourceCandidate,
-    SourceMatchResult,
-    TranslationRow,
-)
+from text_to_sign_production.data.gate.sources import SourceMatchResult, TranslationSourceRecord
 from text_to_sign_production.workflows.samples.contracts import SamplesWorkflowResult
 
 
 @dataclass(frozen=True, slots=True)
 class SamplesSourceBundle:
-    translation: TranslationRow
-    video_path: Path
+    translation: TranslationSourceRecord
     match: SourceMatchResult
-    candidate: SourceCandidate | None
 
 
 @dataclass(frozen=True, slots=True)
-class SamplesPayloadMaterialization:
-    payload: ProcessedSamplePayload | None
-    payload_path: Path | None
-    payload_relative_path: str | None
-    dropped_materialization: DroppedMaterializationLifecycle | None
-    not_attempted_reason: str | None = None
+class SamplesPayloadOutput:
+    sample: PreparedSample
+    path: Path
+    payload_ref: str
+    status: SampleStatus
 
 
 @dataclass(frozen=True, slots=True)
 class SamplesSplitProcessingResult:
     split: str
     source_matches: tuple[SourceMatchResult, ...]
-    decisions: tuple[ProcessingDecision, ...]
+    prepared_samples: tuple[PreparedSample, ...]
+    gate_bundles: tuple[GateDecisionBundle, ...]
+    passed_payloads: tuple[SamplesPayloadOutput, ...]
+    dropped_debug_payloads: tuple[SamplesPayloadOutput, ...]
     passed_entries: tuple[PassedManifestEntry, ...]
     dropped_entries: tuple[DroppedManifestEntry, ...]
 
@@ -60,3 +56,11 @@ class SamplesSplitProcessingResult:
 class SamplesExecutionBundle:
     workflow_result: SamplesWorkflowResult
     split_results: tuple[SamplesSplitProcessingResult, ...]
+
+
+__all__ = [
+    "SamplesExecutionBundle",
+    "SamplesPayloadOutput",
+    "SamplesSourceBundle",
+    "SamplesSplitProcessingResult",
+]

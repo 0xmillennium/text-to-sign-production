@@ -23,12 +23,12 @@ from text_to_sign_production.modeling.data import (
 )
 from text_to_sign_production.modeling.training.config import load_baseline_training_config
 
-from .evidence import write_baseline_evidence_bundle
 from .events import (
     InferenceProgressSink,
     NoOpInferenceProgressSink,
     QualitativeSampleExported,
 )
+from .evidence import write_baseline_evidence_bundle
 from .paths import portable_path
 from .schemas import (
     build_prediction_sample_payload,

@@ -30,6 +30,13 @@ class TiersTieredManifestOutput:
 
 @dataclass(frozen=True, slots=True)
 class TiersWorkflowOutputSummary:
+    loaded_passed_sample_count: int
+    quality_fact_count: int
+    quality_context_count: int
+    quality_metric_bundle_count: int
+    leakage_sample_summary_count: int
+    tier_decision_count: int
+    quality_report_count: int
     tiered_manifest_outputs: tuple[TiersTieredManifestOutput, ...]
     report_artifacts: TiersReportArtifacts
 

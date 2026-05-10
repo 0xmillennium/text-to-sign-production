@@ -73,8 +73,7 @@ def validate_sample_archive_relative_path(relative_path: str | Path) -> list[str
 
     if len(parts) != 3 or parts[0] != "samples":
         return [
-            "Sample archive relative path must have shape "
-            "samples/<passed|dropped>/<split>.tar.zst."
+            "Sample archive relative path must have shape samples/<passed|dropped>/<split>.tar.zst."
         ]
 
     _, status, filename = parts

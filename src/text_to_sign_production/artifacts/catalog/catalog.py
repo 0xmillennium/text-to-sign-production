@@ -8,16 +8,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, cast
 
+from text_to_sign_production.artifacts.catalog.projections import (
+    dropped_manifest_projection_from_record,
+    passed_manifest_projection_from_record,
+    tiered_manifest_projection_from_record,
+)
 from text_to_sign_production.artifacts.catalog.types import (
     SampleHandle,
     SampleRef,
     SamplesCatalog,
     TieredCatalog,
     TieredSampleHandle,
-)
-from text_to_sign_production.artifacts.catalog.projections import (
-    dropped_manifest_projection_from_record,
-    passed_manifest_projection_from_record,
 )
 from text_to_sign_production.artifacts.catalog.validate import (
     validate_samples_catalog,
@@ -34,6 +35,8 @@ from text_to_sign_production.core.ids import SampleSplit, SampleStatus, TierMemb
 
 _CATALOG_SPLITS = (SampleSplit.TRAIN, SampleSplit.VAL, SampleSplit.TEST)
 _SPLIT_ORDER = {split: index for index, split in enumerate(_CATALOG_SPLITS)}
+
+
 @dataclass(frozen=True, slots=True)
 class CatalogProgressEvent:
     split: SampleSplit
@@ -67,7 +70,7 @@ def load_passed_samples_catalog(
                 manifest=projection,
                 runtime_sample=resolve_samples_relative(
                     stores.runtime,
-                    projection.sample_path,
+                    _required_payload_ref(projection.payload_ref, manifest_path),
                 ),
                 drive_archive=stores.drive.samples.split_archive(
                     SampleStatus.PASSED,
@@ -104,10 +107,10 @@ def load_dropped_samples_catalog(
             runtime_sample: SamplePathRef | None = None
             drive_archive: ArchivePathRef | None = None
             drive_archive_member: ArchiveMemberPathRef | None = None
-            if projection.sample_path is not None:
+            if projection.payload_ref is not None:
                 runtime_sample = resolve_samples_relative(
                     stores.runtime,
-                    projection.sample_path,
+                    projection.payload_ref,
                 )
             if projection.archive_publishable:
                 drive_archive = stores.drive.samples.split_archive(SampleStatus.DROPPED, split)
@@ -134,7 +137,7 @@ def load_tiered_catalog(
     membership: TierMembership | str,
     splits: Iterable[SampleSplit | str] | None = None,
 ) -> TieredCatalog:
-    """Load tiered manifests into a logical catalog."""
+    """Load tiered manifests as passed-row projections plus tier context."""
 
     tier = TierName(str(tier))
     membership = TierMembership(str(membership))
@@ -142,7 +145,7 @@ def load_tiered_catalog(
     for split in _catalog_splits(splits):
         manifest_path = stores.runtime.manifests.tiered_manifest(tier, membership, split).path
         for record in _read_jsonl_records(manifest_path):
-            projection = passed_manifest_projection_from_record(record, manifest_path)
+            projection = tiered_manifest_projection_from_record(record, manifest_path)
             ref = SampleRef(split=split, sample_id=projection.sample_id)
             _require_new_ref(items, ref, manifest_path)
             items[ref] = TieredSampleHandle(
@@ -152,7 +155,7 @@ def load_tiered_catalog(
                 manifest=projection,
                 runtime_sample=resolve_samples_relative(
                     stores.runtime,
-                    projection.sample_path,
+                    _required_payload_ref(projection.payload_ref, manifest_path),
                 ),
                 drive_archive=stores.drive.samples.split_archive(
                     SampleStatus.PASSED,
@@ -245,6 +248,12 @@ def _read_jsonl_records(path: Path) -> Iterator[Mapping[str, Any]]:
                 yield cast(Mapping[str, Any], raw)
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"Manifest file not found: {path}") from exc
+
+
+def _required_payload_ref(value: str | None, path: Path) -> str:
+    if value is None:
+        raise ValueError(f"Passed manifest {path} must declare payload_ref.")
+    return value
 
 
 def _require_new_ref(

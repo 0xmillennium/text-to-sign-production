@@ -12,10 +12,10 @@ import numpy as np
 import numpy.typing as npt
 
 from text_to_sign_production.core.ids import VALID_SAMPLE_SPLITS as SPLITS
-from text_to_sign_production.data.pose.schema import OPENPOSE_CHANNEL_SPECS
-from text_to_sign_production.data.samples.manifests import manifest_entry_from_record
-from text_to_sign_production.data.samples.schema import PROCESSED_SCHEMA_VERSION
-from text_to_sign_production.data.samples.types import PassedManifestEntry
+from text_to_sign_production.legacy_data.pose.schema import OPENPOSE_CHANNEL_SPECS
+from text_to_sign_production.legacy_data.samples.manifests import manifest_entry_from_record
+from text_to_sign_production.legacy_data.samples.schema import PROCESSED_SCHEMA_VERSION
+from text_to_sign_production.legacy_data.samples.types import PassedManifestEntry
 
 from .schemas import (
     M0_TARGET_CHANNELS,

@@ -42,6 +42,7 @@ def build_samples_runtime_plan(
 def _build_execution_inputs(layout: SamplesLayout) -> SamplesWorkflowExecutionInputs:
     return SamplesWorkflowExecutionInputs(
         gates_config_path=layout.runtime.gates_config_path,
+        translation_canonical_text_column=layout.config.translation_canonical_text_column,
         split_inputs=tuple(
             SamplesSplitRuntimeInputs(
                 split=runtime_split.split,

@@ -1,57 +1,66 @@
 from __future__ import annotations
 
+from text_to_sign_production.core.ids import SampleStatus
+from text_to_sign_production.core.models import (
+    DroppedManifestEntry,
+    GateDecisionBundle,
+    PassedManifestEntry,
+    PreparedSample,
+)
 from text_to_sign_production.core.progress import (
     ProgressSession,
     ProgressStageSpec,
-    ProgressTaskHandle,
 )
-from text_to_sign_production.data.gates import (
-    GatesConfig,
-    ProcessingDecision,
-    ProcessingStatus,
-    evaluate_sample_processing,
-    evaluate_unmatched_source,
-)
-from text_to_sign_production.data.pose import (
+from text_to_sign_production.data.gate.pose import (
     FrameFileListing,
+    PersonSelectionPolicy,
     PoseBuildOutput,
+    build_pose_input,
+    build_pose_output,
+    build_tracking_result,
     discover_frame_files,
+    parse_frame_file,
 )
-from text_to_sign_production.data.samples import DroppedManifestEntry, PassedManifestEntry
-from text_to_sign_production.data.sources import (
+from text_to_sign_production.data.dataset.build import build_prepared_sample
+from text_to_sign_production.data.gate.policies import (
+    GatesConfig,
+    evaluate_sample_gates,
+)
+from text_to_sign_production.data.gate.sources import (
     SourceCandidate,
-    SourceMatchResult,
-    load_translation_rows,
+    TranslationSourceRecord,
+    assemble_candidate,
+    load_translation_records,
 )
 from text_to_sign_production.workflows.samples.constants import (
     SAMPLES_STAGE_DECISION_COMPUTE,
-    SAMPLES_STAGE_POSE_BUILD,
     SAMPLES_STAGE_SOURCE_BUILD,
     SAMPLES_WORKFLOW_NAME,
 )
 from text_to_sign_production.workflows.samples.contracts import (
     SamplesSplitRuntimeInputs,
     SamplesWorkflowConfig,
-    SamplesWorkflowInvariantError,
 )
 from text_to_sign_production.workflows.samples.layout import SamplesLayout
 from text_to_sign_production.workflows.samples.processing.manifests import (
-    build_decision_dropped_entry,
-    build_passed_manifest_entry,
+    build_candidate_pose_dropped_entry,
+    build_gate_dropped_entry,
+    build_passed_workflow_entry,
     build_unmatched_dropped_entry,
 )
 from text_to_sign_production.workflows.samples.processing.models import (
+    SamplesPayloadOutput,
     SamplesSourceBundle,
     SamplesSplitProcessingResult,
 )
 from text_to_sign_production.workflows.samples.processing.payloads import (
-    build_dropped_payload_materialization,
-    build_passed_payload_materialization,
-    build_pose_output,
+    write_prepared_sample_workflow_payload,
 )
 from text_to_sign_production.workflows.samples.processing.sources import (
     build_samples_source_bundle,
 )
+
+SAMPLE_SCHEMA_VERSION = "prepared_sample.v1"
 
 
 def process_samples_split(
@@ -62,15 +71,57 @@ def process_samples_split(
     gates_config: GatesConfig,
     progress_session: ProgressSession | None = None,
 ) -> SamplesSplitProcessingResult:
-    source_matches: list[SourceMatchResult] = []
-    decisions: list[ProcessingDecision] = []
+    translations = load_translation_records(
+        split_inputs.translation_csv_path,
+        canonical_text_column=config.translation_canonical_text_column,
+    )
+    source_bundles = _build_source_bundles(
+        split_inputs=split_inputs,
+        translations=translations,
+        progress_session=progress_session,
+    )
+    source_matches = tuple(bundle.match for bundle in source_bundles)
+
+    prepared_samples: list[PreparedSample] = []
+    gate_bundles: list[GateDecisionBundle] = []
+    passed_payloads: list[SamplesPayloadOutput] = []
+    dropped_debug_payloads: list[SamplesPayloadOutput] = []
     passed_entries: list[PassedManifestEntry] = []
     dropped_entries: list[DroppedManifestEntry] = []
-    translations = tuple(load_translation_rows(split_inputs.translation_csv_path))
-    source_bundles: list[SamplesSourceBundle] = []
 
-    source_total = len(translations)
-    if progress_session is not None and source_total > 0:
+    _process_source_bundles(
+        config=config,
+        layout=layout,
+        gates_config=gates_config,
+        source_bundles=source_bundles,
+        prepared_samples=prepared_samples,
+        gate_bundles=gate_bundles,
+        passed_payloads=passed_payloads,
+        dropped_debug_payloads=dropped_debug_payloads,
+        passed_entries=passed_entries,
+        dropped_entries=dropped_entries,
+        progress_session=progress_session,
+    )
+    return SamplesSplitProcessingResult(
+        split=split_inputs.split,
+        source_matches=source_matches,
+        prepared_samples=tuple(prepared_samples),
+        gate_bundles=tuple(gate_bundles),
+        passed_payloads=tuple(passed_payloads),
+        dropped_debug_payloads=tuple(dropped_debug_payloads),
+        passed_entries=tuple(passed_entries),
+        dropped_entries=tuple(dropped_entries),
+    )
+
+
+def _build_source_bundles(
+    *,
+    split_inputs: SamplesSplitRuntimeInputs,
+    translations: tuple[TranslationSourceRecord, ...],
+    progress_session: ProgressSession | None,
+) -> list[SamplesSourceBundle]:
+    source_bundles: list[SamplesSourceBundle] = []
+    if progress_session is not None and translations:
         with progress_session.task(
             _split_progress_spec(
                 stage_id=SAMPLES_STAGE_SOURCE_BUILD,
@@ -79,7 +130,7 @@ def process_samples_split(
                 operation_kind="source_build",
                 total_semantics="translation rows in split",
             ),
-            total=source_total,
+            total=len(translations),
         ) as source_progress:
             for translation in translations:
                 source_bundles.append(
@@ -97,228 +148,169 @@ def process_samples_split(
             )
             for translation in translations
         ]
+    return source_bundles
 
-    source_matches.extend(source_bundle.match for source_bundle in source_bundles)
-    frames_by_sample_id = _discover_matched_frames(source_bundles)
-    pose_outputs = _build_pose_outputs(
-        config=config,
-        source_bundles=source_bundles,
-        frames_by_sample_id=frames_by_sample_id,
-        split=split_inputs.split,
-        progress_session=progress_session,
-    )
 
-    decision_total = len(source_bundles)
-    if progress_session is not None and decision_total > 0:
+def _process_source_bundles(
+    *,
+    config: SamplesWorkflowConfig,
+    layout: SamplesLayout,
+    gates_config: GatesConfig,
+    source_bundles: list[SamplesSourceBundle],
+    prepared_samples: list[PreparedSample],
+    gate_bundles: list[GateDecisionBundle],
+    passed_payloads: list[SamplesPayloadOutput],
+    dropped_debug_payloads: list[SamplesPayloadOutput],
+    passed_entries: list[PassedManifestEntry],
+    dropped_entries: list[DroppedManifestEntry],
+    progress_session: ProgressSession | None,
+) -> None:
+    total = len(source_bundles)
+    if progress_session is not None and total > 0:
         with progress_session.task(
             _split_progress_spec(
                 stage_id=SAMPLES_STAGE_DECISION_COMPUTE,
-                label=f"decision/materialization [{split_inputs.split}]",
+                label="prepared sample/gate/write",
                 unit="sample",
-                operation_kind="decision_materialization",
+                operation_kind="prepared_sample_gate_write",
                 total_semantics="translation rows in split",
                 allowed_counters=("passed", "dropped", "pass_rate", "drop_rate"),
             ),
-            total=decision_total,
-        ) as decision_progress:
-            _compute_decisions_and_outputs(
+            total=total,
+        ) as progress_task:
+            for source_bundle in source_bundles:
+                _process_one_source_bundle(
+                    config=config,
+                    layout=layout,
+                    gates_config=gates_config,
+                    source_bundle=source_bundle,
+                    prepared_samples=prepared_samples,
+                    gate_bundles=gate_bundles,
+                    passed_payloads=passed_payloads,
+                    dropped_debug_payloads=dropped_debug_payloads,
+                    passed_entries=passed_entries,
+                    dropped_entries=dropped_entries,
+                )
+                progress_task.advance(
+                    counters=_decision_progress_counters(
+                        passed=len(passed_entries),
+                        dropped=len(dropped_entries),
+                        total=total,
+                    )
+                )
+    else:
+        for source_bundle in source_bundles:
+            _process_one_source_bundle(
                 config=config,
-                gates_config=gates_config,
                 layout=layout,
-                source_bundles=source_bundles,
-                frames_by_sample_id=frames_by_sample_id,
-                pose_outputs=pose_outputs,
-                decisions=decisions,
+                gates_config=gates_config,
+                source_bundle=source_bundle,
+                prepared_samples=prepared_samples,
+                gate_bundles=gate_bundles,
+                passed_payloads=passed_payloads,
+                dropped_debug_payloads=dropped_debug_payloads,
                 passed_entries=passed_entries,
                 dropped_entries=dropped_entries,
-                progress_task=decision_progress,
             )
-    else:
-        _compute_decisions_and_outputs(
-            config=config,
-            gates_config=gates_config,
-            layout=layout,
-            source_bundles=source_bundles,
-            frames_by_sample_id=frames_by_sample_id,
-            pose_outputs=pose_outputs,
-            decisions=decisions,
-            passed_entries=passed_entries,
-            dropped_entries=dropped_entries,
-            progress_task=None,
-        )
 
-    return SamplesSplitProcessingResult(
-        split=split_inputs.split,
-        source_matches=tuple(source_matches),
-        decisions=tuple(decisions),
-        passed_entries=tuple(passed_entries),
-        dropped_entries=tuple(dropped_entries),
+
+def _process_one_source_bundle(
+    *,
+    config: SamplesWorkflowConfig,
+    layout: SamplesLayout,
+    gates_config: GatesConfig,
+    source_bundle: SamplesSourceBundle,
+    prepared_samples: list[PreparedSample],
+    gate_bundles: list[GateDecisionBundle],
+    passed_payloads: list[SamplesPayloadOutput],
+    dropped_debug_payloads: list[SamplesPayloadOutput],
+    passed_entries: list[PassedManifestEntry],
+    dropped_entries: list[DroppedManifestEntry],
+) -> None:
+    if not source_bundle.match.matched:
+        dropped_entries.append(build_unmatched_dropped_entry(source_bundle.match))
+        return
+
+    candidate = assemble_candidate(source_bundle.match)
+    pose_output = _build_pose_output(
+        candidate=candidate,
+        person_selection_policy=config.person_selection_policy,
+    )
+    if pose_output is None:
+        dropped_entries.append(build_candidate_pose_dropped_entry(candidate=candidate))
+        return
+
+    sample = build_prepared_sample(
+        candidate,
+        pose_output,
+        schema_version=SAMPLE_SCHEMA_VERSION,
+    )
+    prepared_samples.append(sample)
+    gate = evaluate_sample_gates(sample, gates_config)
+    gate_bundles.append(gate)
+
+    if gate.final_status is SampleStatus.PASSED:
+        payload = write_prepared_sample_workflow_payload(
+            sample=sample,
+            status=SampleStatus.PASSED,
+            layout=layout,
+        )
+        passed_payloads.append(payload)
+        passed_entries.append(
+            build_passed_workflow_entry(sample=sample, gate=gate, payload=payload)
+        )
+        return
+
+    debug_payload = _maybe_write_dropped_debug_payload(config=config, layout=layout, sample=sample)
+    if debug_payload is not None:
+        dropped_debug_payloads.append(debug_payload)
+    dropped_entries.append(
+        build_gate_dropped_entry(
+            sample=sample,
+            debug_ref=None if debug_payload is None else debug_payload.payload_ref,
+        )
     )
 
 
-def _compute_decisions_and_outputs(
+def _build_pose_output(
     *,
-    config: SamplesWorkflowConfig,
-    gates_config: GatesConfig,
-    layout: SamplesLayout,
-    source_bundles: list[SamplesSourceBundle],
-    frames_by_sample_id: dict[str, FrameFileListing],
-    pose_outputs: dict[str, PoseBuildOutput],
-    decisions: list[ProcessingDecision],
-    passed_entries: list[PassedManifestEntry],
-    dropped_entries: list[DroppedManifestEntry],
-    progress_task: ProgressTaskHandle | None,
-) -> None:
-    decision_total = len(source_bundles)
-    passed_count = 0
-    dropped_count = 0
-    for source_bundle in source_bundles:
-        if not source_bundle.match.matched:
-            decision = evaluate_unmatched_source(source_bundle.match)
-            decisions.append(decision)
-            dropped_entries.append(
-                build_unmatched_dropped_entry(match=source_bundle.match, decision=decision)
-            )
-            dropped_count += 1
-            if progress_task is not None:
-                progress_task.advance(
-                    counters=_decision_progress_counters(
-                        passed=passed_count,
-                        dropped=dropped_count,
-                        total=decision_total,
-                    )
-                )
-            continue
-
-        candidate = _matched_candidate(source_bundle)
-        frames = frames_by_sample_id[candidate.sample_id]
-        pose_output = pose_outputs.get(candidate.sample_id)
-
-        decision = evaluate_sample_processing(
-            config=gates_config,
+    candidate: SourceCandidate,
+    person_selection_policy: PersonSelectionPolicy,
+) -> PoseBuildOutput | None:
+    frame_listing = discover_frame_files(candidate)
+    if not _pose_eligible(candidate, frame_listing):
+        return None
+    parsed_frames = tuple(
+        parse_frame_file(path, frame_index=index) for index, path in enumerate(frame_listing.files)
+    )
+    tracking = build_tracking_result(parsed_frames, person_selection_policy)
+    return build_pose_output(
+        build_pose_input(
             candidate=candidate,
-            frames_listing=frames,
-            pose_output=pose_output,
+            frame_listing=frame_listing,
+            parsed_frames=parsed_frames,
+            tracking=tracking,
         )
-        decisions.append(decision)
-
-        if decision.status is ProcessingStatus.PROCESSED:
-            if pose_output is None:
-                raise SamplesWorkflowInvariantError("Processed samples require pose output")
-            payload_materialization = build_passed_payload_materialization(
-                candidate=candidate,
-                pose_output=pose_output,
-                layout=layout,
-            )
-            passed_entries.append(
-                build_passed_manifest_entry(
-                    candidate=candidate,
-                    payload_materialization=payload_materialization,
-                )
-            )
-            passed_count += 1
-        else:
-            payload_materialization = build_dropped_payload_materialization(
-                config=config,
-                candidate=candidate,
-                pose_output=pose_output,
-                decision=decision,
-                layout=layout,
-            )
-            dropped_entries.append(
-                build_decision_dropped_entry(
-                    candidate=candidate,
-                    decision=decision,
-                    materialization=payload_materialization,
-                )
-            )
-            dropped_count += 1
-
-        if progress_task is not None:
-            progress_task.advance(
-                counters=_decision_progress_counters(
-                    passed=passed_count,
-                    dropped=dropped_count,
-                    total=decision_total,
-                )
-            )
+    )
 
 
-def _discover_matched_frames(
-    source_bundles: list[SamplesSourceBundle],
-) -> dict[str, FrameFileListing]:
-    frames_by_sample_id: dict[str, FrameFileListing] = {}
-    for source_bundle in source_bundles:
-        if not source_bundle.match.matched:
-            continue
-        candidate = _matched_candidate(source_bundle)
-        frames_by_sample_id[candidate.sample_id] = discover_frame_files(candidate.keypoints_dir)
-    return frames_by_sample_id
-
-
-def _build_pose_outputs(
+def _maybe_write_dropped_debug_payload(
     *,
     config: SamplesWorkflowConfig,
-    source_bundles: list[SamplesSourceBundle],
-    frames_by_sample_id: dict[str, FrameFileListing],
-    split: str,
-    progress_session: ProgressSession | None,
-) -> dict[str, PoseBuildOutput]:
-    pose_jobs = []
-    pose_total = 0
-    for source_bundle in source_bundles:
-        if not source_bundle.match.matched:
-            continue
-        candidate = _matched_candidate(source_bundle)
-        frames = frames_by_sample_id[candidate.sample_id]
-        if _pose_eligible(candidate, frames):
-            pose_jobs.append((candidate, frames))
-            pose_total += _pose_frame_step_total(candidate)
-
-    pose_outputs: dict[str, PoseBuildOutput] = {}
-    if progress_session is not None and pose_total > 0:
-        with progress_session.task(
-            _split_progress_spec(
-                stage_id=SAMPLES_STAGE_POSE_BUILD,
-                label=f"pose build [{split}]",
-                unit="frame_step",
-                operation_kind="pose_build",
-                total_semantics="parse plus tensor frame steps for pose-eligible samples",
-            ),
-            total=pose_total,
-        ) as pose_progress:
-            for candidate, frames in pose_jobs:
-                pose_outputs[candidate.sample_id] = build_pose_output(
-                    candidate=candidate,
-                    frames=frames,
-                    person_selection_policy=config.person_selection_policy,
-                    progress_task=pose_progress,
-                )
-    else:
-        for candidate, frames in pose_jobs:
-            pose_outputs[candidate.sample_id] = build_pose_output(
-                candidate=candidate,
-                frames=frames,
-                person_selection_policy=config.person_selection_policy,
-                progress_task=None,
-            )
-    return pose_outputs
-
-
-def _matched_candidate(source_bundle: SamplesSourceBundle) -> SourceCandidate:
-    candidate = source_bundle.candidate
-    if candidate is None:
-        raise SamplesWorkflowInvariantError("Matched source bundle must include a candidate")
-    return candidate
+    layout: SamplesLayout,
+    sample: PreparedSample,
+) -> SamplesPayloadOutput | None:
+    if not config.materialize_dropped_debug_payloads:
+        return None
+    return write_prepared_sample_workflow_payload(
+        sample=sample,
+        status=SampleStatus.DROPPED,
+        layout=layout,
+    )
 
 
 def _pose_eligible(candidate: SourceCandidate, frames: FrameFileListing) -> bool:
     return candidate.structurally_viable and not frames.missing and frames.frame_count > 0
-
-
-def _pose_frame_step_total(candidate: SourceCandidate) -> int:
-    """Match data.pose progress semantics: parse + tensor steps per declared frame."""
-    return 2 * candidate.frame_count
 
 
 def _split_progress_spec(
@@ -362,3 +354,6 @@ def _format_percent(count: int, total: int) -> str:
     if total <= 0:
         return "0.0%"
     return f"{count / total * 100:.1f}%"
+
+
+__all__ = ["SAMPLE_SCHEMA_VERSION", "process_samples_split"]

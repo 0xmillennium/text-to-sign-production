@@ -12,6 +12,7 @@ from text_to_sign_production.workflows.samples.review.sections import (
     build_final_review_sections,
     build_output_summary_sections,
     build_processing_summary_sections,
+    build_report_sections,
     build_runtime_plan_sections,
     build_runtime_restore_sections,
     build_runtime_verification_sections,
@@ -51,4 +52,4 @@ def review_outputs(
 def review_final(
     bundle: SamplesExecutionBundle,
 ) -> tuple[WorkflowReviewSection, ...]:
-    return build_final_review_sections(bundle)
+    return (*build_report_sections(bundle), *build_final_review_sections(bundle))

@@ -30,23 +30,31 @@ class SampleRef:
 
 @dataclass(frozen=True, slots=True)
 class SampleManifestProjection:
-    """Artifact-owned projection of manifest facts needed for physical lookup."""
+    """Artifact-owned projection of manifest facts needed for physical lookup.
+
+    ``projected_status`` is derived by the projection loader from the manifest
+    surface being read. It is not a required field in the manifest row contract.
+    """
 
     sample_id: str
     split: SampleSplit
-    status: SampleStatus
-    sample_path: str | None
+    projected_status: SampleStatus
+    payload_ref: str | None
     payload_declared_present: bool
     archive_publishable: bool
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "split", SampleSplit(str(self.split)))
-        object.__setattr__(self, "status", SampleStatus(str(self.status)))
+        object.__setattr__(
+            self,
+            "projected_status",
+            SampleStatus(str(self.projected_status)),
+        )
 
 
 @dataclass(frozen=True, slots=True)
 class SampleHandle:
-    """Logical handle for a passed or dropped sample manifest item."""
+    """Logical handle for a sample row on a passed/dropped catalog surface."""
 
     ref: SampleRef
     status: SampleStatus
@@ -63,7 +71,7 @@ class SampleHandle:
 
 @dataclass(frozen=True, slots=True)
 class TieredSampleHandle:
-    """Logical handle for a tiered manifest item backed by a passed sample."""
+    """Logical handle for a tiered manifest item backed by a passed row projection."""
 
     ref: SampleRef
     tier: TierName
@@ -80,7 +88,7 @@ class TieredSampleHandle:
 
 @dataclass(frozen=True, slots=True)
 class SamplesCatalog:
-    """Logical catalog for one sample status surface."""
+    """Logical catalog for one projection-derived sample status surface."""
 
     status: SampleStatus
     items: dict[SampleRef, SampleHandle]
@@ -91,7 +99,7 @@ class SamplesCatalog:
 
 @dataclass(frozen=True, slots=True)
 class TieredCatalog:
-    """Logical catalog for one tier and membership surface."""
+    """Logical catalog for one tier/membership projection surface."""
 
     tier: TierName
     membership: TierMembership

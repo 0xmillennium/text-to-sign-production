@@ -14,17 +14,17 @@ def passed_manifest_projection_from_record(
     record: Mapping[str, Any],
     path: Path,
 ) -> SampleManifestProjection:
-    """Parse artifact-relevant fields from a passed manifest record."""
-    status = _status_from_record(record, path)
-    if status is not SampleStatus.PASSED:
-        raise TypeError(f"Expected passed manifest record in {path}, got {status.value!r}.")
+    """Parse artifact-relevant fields from a passed manifest record.
 
-    sample_path = _required_text(record, "sample_path", path)
+    The passed status is derived from the manifest surface. The row contract is
+    the root ``PassedManifestEntry`` shape and does not need to carry status.
+    """
+    payload_ref = _required_text(record, "payload_ref", path)
     return SampleManifestProjection(
         sample_id=_required_text(record, "sample_id", path),
         split=_split_from_record(record, path),
-        status=SampleStatus.PASSED,
-        sample_path=sample_path,
+        projected_status=SampleStatus.PASSED,
+        payload_ref=payload_ref,
         payload_declared_present=True,
         archive_publishable=True,
     )
@@ -34,28 +34,27 @@ def dropped_manifest_projection_from_record(
     record: Mapping[str, Any],
     path: Path,
 ) -> SampleManifestProjection:
-    """Parse artifact-relevant fields from a dropped manifest record."""
-    status = _status_from_record(record, path)
-    if status is not SampleStatus.DROPPED:
-        raise TypeError(f"Expected dropped manifest record in {path}, got {status.value!r}.")
+    """Parse artifact-relevant fields from a dropped manifest record.
 
-    materialization = _required_mapping(record, "materialization", path)
+    The dropped status is derived from the manifest surface. It is projection
+    metadata only, not manifest row authority.
+    """
     return SampleManifestProjection(
         sample_id=_required_text(record, "sample_id", path),
         split=_split_from_record(record, path),
-        status=SampleStatus.DROPPED,
-        sample_path=_optional_text(materialization, "payload_path", path),
-        payload_declared_present=_required_bool(materialization, "payload_exists", path),
-        archive_publishable=_required_bool(materialization, "archive_publishable", path),
+        projected_status=SampleStatus.DROPPED,
+        payload_ref=_optional_text(record, "debug_ref", path),
+        payload_declared_present=record.get("debug_ref") is not None,
+        archive_publishable=record.get("debug_ref") is not None,
     )
 
 
-def _status_from_record(record: Mapping[str, Any], path: Path) -> SampleStatus:
-    value = _required_text(record, "status", path)
-    try:
-        return SampleStatus(value)
-    except ValueError as exc:
-        raise ValueError(f"Manifest {path} has invalid status {value!r}.") from exc
+def tiered_manifest_projection_from_record(
+    record: Mapping[str, Any],
+    path: Path,
+) -> SampleManifestProjection:
+    """Parse a tiered manifest row as passed-row semantics plus tier context."""
+    return passed_manifest_projection_from_record(record, path)
 
 
 def _split_from_record(record: Mapping[str, Any], path: Path) -> SampleSplit:
@@ -84,27 +83,8 @@ def _optional_text(record: Mapping[str, Any], key: str, path: Path) -> str | Non
     return value
 
 
-def _required_bool(record: Mapping[str, Any], key: str, path: Path) -> bool:
-    if key not in record:
-        raise KeyError(f"Manifest {path} record is missing {key!r}.")
-    value = record[key]
-    if not isinstance(value, bool):
-        raise TypeError(f"Manifest {path} field {key!r} must be a boolean.")
-    return value
-
-
-def _required_mapping(record: Mapping[str, Any], key: str, path: Path) -> Mapping[str, Any]:
-    if key not in record:
-        raise KeyError(f"Manifest {path} record is missing {key!r}.")
-    value = record[key]
-    if not isinstance(value, Mapping):
-        raise TypeError(f"Manifest {path} field {key!r} must be an object.")
-    if any(not isinstance(item_key, str) for item_key in value):
-        raise TypeError(f"Manifest {path} field {key!r} must contain string keys.")
-    return value
-
-
 __all__ = [
     "dropped_manifest_projection_from_record",
     "passed_manifest_projection_from_record",
+    "tiered_manifest_projection_from_record",
 ]

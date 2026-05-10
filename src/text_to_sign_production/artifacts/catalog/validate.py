@@ -19,12 +19,12 @@ from text_to_sign_production.artifacts.store.types import (
     ArchivePathRef,
     SamplePathRef,
 )
-from text_to_sign_production.core.ids import SampleSplit, SampleStatus
 from text_to_sign_production.artifacts.store.validate import (
     validate_sample_archive_member_path,
     validate_sample_archive_relative_path,
     validate_samples_relative_path,
 )
+from text_to_sign_production.core.ids import SampleSplit, SampleStatus
 
 
 def validate_samples_catalog(catalog: SamplesCatalog, stores: ArtifactStores) -> list[str]:
@@ -41,33 +41,29 @@ def validate_samples_catalog(catalog: SamplesCatalog, stores: ArtifactStores) ->
             errors.append(f"{label}: manifest sample_id must match ref sample_id.")
         if handle.manifest.split != ref.split:
             errors.append(f"{label}: manifest split must match ref split.")
-        if handle.manifest.status is not catalog.status:
-            errors.append(f"{label}: manifest status must match catalog status.")
-        declared_sample_path = handle.manifest.sample_path
-        if catalog.status is SampleStatus.PASSED and declared_sample_path is None:
-            errors.append(f"{label}: passed manifest entry must declare a sample path.")
+        if handle.manifest.projected_status is not catalog.status:
+            errors.append(f"{label}: manifest projected status must match catalog status.")
+        declared_payload_ref = handle.manifest.payload_ref
+        if catalog.status is SampleStatus.PASSED and declared_payload_ref is None:
+            errors.append(f"{label}: passed manifest entry must declare a payload ref.")
         if handle.manifest.archive_publishable and not handle.manifest.payload_declared_present:
             errors.append(
                 f"{label}: archive-publishable payload must be declared physically present."
             )
-        if handle.manifest.archive_publishable and declared_sample_path is None:
-            errors.append(f"{label}: archive-publishable payload must declare a sample path.")
-        if declared_sample_path is None:
+        if handle.manifest.archive_publishable and declared_payload_ref is None:
+            errors.append(f"{label}: archive-publishable payload must declare a payload ref.")
+        if declared_payload_ref is None:
             if handle.runtime_sample is not None:
-                errors.append(
-                    f"{label}: runtime_sample must be absent when manifest omits it."
-                )
+                errors.append(f"{label}: runtime_sample must be absent when manifest omits it.")
             if handle.drive_archive is not None:
-                errors.append(
-                    f"{label}: drive_archive must be absent when manifest omits it."
-                )
+                errors.append(f"{label}: drive_archive must be absent when manifest omits it.")
             if handle.drive_archive_member is not None:
                 errors.append(
                     f"{label}: drive_archive_member must be absent when manifest omits it."
                 )
         else:
-            manifest_path_errors = _validate_manifest_sample_path(
-                declared_sample_path,
+            manifest_path_errors = _validate_manifest_payload_ref(
+                declared_payload_ref,
                 label=label,
                 required_status=catalog.status,
                 expected_split=ref.split,
@@ -79,7 +75,7 @@ def validate_samples_catalog(catalog: SamplesCatalog, stores: ArtifactStores) ->
                     stores=stores,
                     sample=handle.runtime_sample,
                     label=label,
-                    declared_sample_path=declared_sample_path,
+                    declared_payload_ref=declared_payload_ref,
                     manifest_path_is_valid=not manifest_path_errors,
                 )
             )
@@ -125,26 +121,27 @@ def validate_tiered_catalog(catalog: TieredCatalog, stores: ArtifactStores) -> l
             errors.append(f"{label}: manifest sample_id must match ref sample_id.")
         if handle.manifest.split != ref.split:
             errors.append(f"{label}: manifest split must match ref split.")
-        if handle.manifest.status is not SampleStatus.PASSED:
+        if handle.manifest.projected_status is not SampleStatus.PASSED:
             errors.append(f"{label}: tiered manifest projection must be passed.")
-        declared_sample_path = handle.manifest.sample_path
-        manifest_path_errors = _validate_manifest_sample_path(
-            declared_sample_path,
+        declared_payload_ref = handle.manifest.payload_ref
+        manifest_path_errors = _validate_manifest_payload_ref(
+            declared_payload_ref,
             label=label,
             required_status=SampleStatus.PASSED,
             expected_split=ref.split,
             expected_sample_id=ref.sample_id,
         )
         errors.extend(manifest_path_errors)
-        errors.extend(
-            _validate_runtime_sample_binding(
-                stores=stores,
-                sample=handle.runtime_sample,
-                label=label,
-                declared_sample_path=declared_sample_path,
-                manifest_path_is_valid=not manifest_path_errors,
+        if declared_payload_ref is not None:
+            errors.extend(
+                _validate_runtime_sample_binding(
+                    stores=stores,
+                    sample=handle.runtime_sample,
+                    label=label,
+                    declared_payload_ref=declared_payload_ref,
+                    manifest_path_is_valid=not manifest_path_errors,
+                )
             )
-        )
         errors.extend(
             _validate_drive_sample_binding(
                 stores=stores,
@@ -164,12 +161,12 @@ def _validate_runtime_sample_binding(
     stores: ArtifactStores,
     sample: object | None,
     label: str,
-    declared_sample_path: str,
+    declared_payload_ref: str,
     manifest_path_is_valid: bool,
 ) -> list[str]:
     errors: list[str] = []
     if sample is None:
-        errors.append(f"{label}: runtime_sample must resolve the manifest-declared path.")
+        errors.append(f"{label}: runtime_sample must resolve the manifest-declared payload ref.")
         return errors
     if not isinstance(sample, SamplePathRef):
         errors.append(f"{label}: runtime_sample must be a SamplePathRef.")
@@ -184,24 +181,24 @@ def _validate_runtime_sample_binding(
         )
 
     if manifest_path_is_valid:
-        expected_sample = resolve_samples_relative(stores.runtime, declared_sample_path)
+        expected_sample = resolve_samples_relative(stores.runtime, declared_payload_ref)
         if sample != expected_sample:
-            errors.append(f"{label}: runtime_sample must match manifest sample_path.")
+            errors.append(f"{label}: runtime_sample must match manifest payload_ref.")
     return errors
 
 
-def _validate_manifest_sample_path(
-    sample_path: str | None,
+def _validate_manifest_payload_ref(
+    payload_ref: str | None,
     *,
     label: str,
     required_status: SampleStatus,
     expected_split: SampleSplit,
     expected_sample_id: str,
 ) -> list[str]:
-    if sample_path is None:
-        return [f"{label}: manifest entry must declare a sample path."]
+    if payload_ref is None:
+        return [f"{label}: manifest entry must declare a payload ref."]
 
-    errors = [f"{label}: {error}" for error in validate_samples_relative_path(sample_path)]
+    errors = [f"{label}: {error}" for error in validate_samples_relative_path(payload_ref)]
     if errors:
         return errors
 
@@ -210,10 +207,8 @@ def _validate_manifest_sample_path(
         expected_split,
         expected_sample_id,
     )
-    if Path(sample_path) != expected_path:
-        errors.append(
-            f"{label}: manifest sample_path must be {expected_path.as_posix()}."
-        )
+    if Path(payload_ref) != expected_path:
+        errors.append(f"{label}: manifest payload_ref must be {expected_path.as_posix()}.")
     return errors
 
 

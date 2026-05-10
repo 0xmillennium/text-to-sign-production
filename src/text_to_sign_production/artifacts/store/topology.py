@@ -64,7 +64,7 @@ class AssetsTopology:
 
 @dataclass(frozen=True, slots=True)
 class ManifestsTopology:
-    """Physical manifests topology."""
+    """Physical manifests topology for checkpoint inputs and tier-stage outputs."""
 
     untiered_root: Path
     tiered_root: Path
@@ -92,7 +92,7 @@ class ManifestsTopology:
 
 @dataclass(frozen=True, slots=True)
 class SamplesTopology:
-    """Physical samples topology."""
+    """Physical PreparedSample checkpoint payload topology."""
 
     passed_root: Path
     dropped_root: Path
@@ -117,6 +117,7 @@ class SamplesTopology:
         split: SampleSplit | str,
         sample_id: str,
     ) -> SamplePathRef:
+        """Return the PreparedSample checkpoint payload path for one sample."""
         return SamplePathRef(self.sample_dir(status, split).path / _sample_filename(sample_id))
 
     def split_archive(self, status: SampleStatus | str, split: SampleSplit | str) -> ArchivePathRef:
@@ -162,7 +163,7 @@ class EvaluationsTopology:
 
 @dataclass(frozen=True, slots=True)
 class ReportsTopology:
-    """Physical reports topology."""
+    """Physical report topology; samples paths are samples-stage projections only."""
 
     root: Path
     samples_root: Path
@@ -196,21 +197,27 @@ class ReportsTopology:
         return ReportPathRef(self.samples_root / "index.json")
 
     def tiers_summary(self) -> ReportPathRef:
+        """Tier-stage quality summary report."""
         return ReportPathRef(self.tiers_root / "summary.md")
 
     def tiers_calibration(self) -> ReportPathRef:
+        """Tier-stage calibration and policy report."""
         return ReportPathRef(self.tiers_root / "calibration.md")
 
     def tiers_decision_detail(self) -> ReportPathRef:
+        """Tier-stage per-sample quality and decision detail report."""
         return ReportPathRef(self.tiers_root / "decisions" / "detail.jsonl")
 
     def tiers_calibration_surfaces(self) -> ReportPathRef:
+        """Tier-stage aggregate calibration surface payload."""
         return ReportPathRef(self.tiers_root / "calibration" / "surfaces.json")
 
     def tiers_calibration_detail(self) -> ReportPathRef:
+        """Tier-stage detailed calibration payload."""
         return ReportPathRef(self.tiers_root / "calibration" / "detail.json")
 
     def tiers_index(self) -> ReportPathRef:
+        """Tier-stage report index."""
         return ReportPathRef(self.tiers_root / "index.json")
 
 

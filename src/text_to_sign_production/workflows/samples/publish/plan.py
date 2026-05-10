@@ -329,7 +329,7 @@ def _dropped_archive_members(bundle: SamplesExecutionBundle, split: str) -> tupl
         for split_result in bundle.split_results
         if split_result.split == split
         for entry in split_result.dropped_entries
-        if entry.materialization.archive_publishable
+        if entry.debug_ref is not None
     )
 
 

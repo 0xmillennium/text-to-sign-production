@@ -28,8 +28,7 @@ def display_review_sections(
             print(f"{item_index}. {_render_console_text(item.label)}")
             for field in item.fields:
                 print(
-                    f"   {_render_console_text(field.label)}: "
-                    f"{_render_console_text(field.value)}"
+                    f"   {_render_console_text(field.label)}: {_render_console_text(field.value)}"
                 )
 
 

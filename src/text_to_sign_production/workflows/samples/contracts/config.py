@@ -6,8 +6,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
-from text_to_sign_production.data.pose.people import DEFAULT_PERSON_SELECTION_POLICY
-from text_to_sign_production.data.pose.types import PersonSelectionPolicy
+from text_to_sign_production.data.gate.pose import (
+    DEFAULT_PERSON_SELECTION_POLICY,
+    PersonSelectionPolicy,
+)
 
 
 class SamplesWorkflowError(Exception):
@@ -27,6 +29,7 @@ class SamplesWorkflowConfig:
     project_root: Path
     drive_project_root: Path
     splits: tuple[str, ...]
+    translation_canonical_text_column: str
     gates_config_relpath: Path = Path("configs/data/gates.yaml")
     person_selection_policy: PersonSelectionPolicy = DEFAULT_PERSON_SELECTION_POLICY
     materialize_dropped_debug_payloads: bool = False
@@ -49,6 +52,14 @@ class SamplesWorkflowConfig:
             _coerce_person_selection_policy(self.person_selection_policy),
         )
         object.__setattr__(self, "splits", _coerce_splits(self.splits))
+        object.__setattr__(
+            self,
+            "translation_canonical_text_column",
+            _coerce_required_text(
+                self.translation_canonical_text_column,
+                "translation_canonical_text_column",
+            ),
+        )
         object.__setattr__(
             self,
             "materialize_dropped_debug_payloads",
@@ -113,6 +124,12 @@ def _coerce_splits(value: object) -> tuple[str, ...]:
 def _coerce_split_item(value: object) -> str:
     if not isinstance(value, str):
         raise SamplesWorkflowInputError("split names must be strings")
+    return value.strip()
+
+
+def _coerce_required_text(value: object, field_name: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise SamplesWorkflowInputError(f"{field_name} must be a non-empty string")
     return value.strip()
 
 

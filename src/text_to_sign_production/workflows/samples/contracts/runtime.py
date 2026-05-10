@@ -28,6 +28,7 @@ class SamplesSplitRuntimeInputs:
 @dataclass(frozen=True, slots=True)
 class SamplesWorkflowExecutionInputs:
     gates_config_path: Path
+    translation_canonical_text_column: str
     split_inputs: tuple[SamplesSplitRuntimeInputs, ...]
 
     def __post_init__(self) -> None:
@@ -56,6 +57,8 @@ class SamplesRuntimeAssetCheck:
     label: str
     path: Path
     exists: bool
+    valid: bool = True
+    message: str | None = None
 
     def __post_init__(self) -> None:
         _validate_non_empty_text("label", self.label)
@@ -71,7 +74,7 @@ class SamplesRuntimeVerification:
 
     @property
     def succeeded(self) -> bool:
-        return all(check.exists for check in self.checks)
+        return all(check.exists and check.valid for check in self.checks)
 
     def missing_paths(self) -> tuple[Path, ...]:
         return tuple(check.path for check in self.checks if not check.exists)

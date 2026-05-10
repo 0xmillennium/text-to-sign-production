@@ -1,0 +1,235 @@
+"""Pose tensor construction from parsed frames."""
+
+from __future__ import annotations
+
+from collections import Counter
+from dataclasses import dataclass
+from typing import Literal, Protocol
+
+import numpy as np
+
+from text_to_sign_production.legacy_data.pose.parser import parse_frame
+from text_to_sign_production.legacy_data.pose.people import (
+    build_person_metadata,
+    resolve_person_tracking,
+)
+from text_to_sign_production.legacy_data.pose.schema import (
+    CANONICAL_POSE_CHANNELS,
+    OPENPOSE_CHANNEL_SPECS,
+)
+from text_to_sign_production.legacy_data.pose.types import (
+    ParsedFrameResult,
+    PoseBuildDiagnostics,
+    PoseBuildInput,
+    PoseBuildOutput,
+)
+from text_to_sign_production.legacy_data.samples.types import (
+    BfhPosePayload,
+    FrameQualitySummary,
+    PoseChannelPayload,
+)
+
+PoseProgressPhase = Literal["parse", "tensors"]
+
+
+@dataclass(frozen=True, slots=True)
+class PoseProgressEvent:
+    sample_id: str
+    phase: PoseProgressPhase
+    completed: int
+    total: int
+    people: int | None = None
+
+
+class PoseProgressSink(Protocol):
+    def update_pose_progress(self, event: PoseProgressEvent) -> None: ...
+
+
+def _empty_channel_tensor(
+    num_frames: int,
+    channel: str,
+) -> tuple[np.ndarray, np.ndarray]:
+    _, point_count = OPENPOSE_CHANNEL_SPECS[channel]
+    return (
+        np.zeros((num_frames, point_count, 2), dtype=np.float32),
+        np.zeros((num_frames, point_count), dtype=np.float32),
+    )
+
+
+def build_pose_tensors(
+    build_input: PoseBuildInput,
+    *,
+    progress_sink: PoseProgressSink | None = None,
+) -> PoseBuildOutput:
+    """Build pose tensors and facts for a candidate."""
+
+    candidate = build_input.candidate
+    frames = build_input.frames
+    num_frames = candidate.frame_count
+
+    coord_tensors = {}
+    confidence_tensors = {}
+    for channel in OPENPOSE_CHANNEL_SPECS:
+        coord_tensors[channel], confidence_tensors[channel] = _empty_channel_tensor(
+            num_frames, channel
+        )
+
+    people_per_frame = np.zeros((num_frames,), dtype=np.int16)
+    frame_valid_mask = np.zeros((num_frames,), dtype=np.bool_)
+
+    issue_counter: Counter[str] = Counter()
+    face_missing_frame_count = 0
+    out_of_bounds_coordinate_count = 0
+    frames_with_any_zeroed_canonical_joint = 0
+    multi_person_frame_count = 0
+    max_people_per_frame = 0
+
+    unrecoverable_error: str | None = None
+    parsed_frames: list[ParsedFrameResult] = []
+    progress_count = 0
+
+    for frame_path in frames.files:
+        try:
+            parsed_frames.append(parse_frame(frame_path))
+        except OSError as exc:
+            unrecoverable_error = f"{exc.__class__.__name__}:{exc}"
+            issue_counter["unrecoverable_frame_read_error"] += 1
+            break
+        finally:
+            progress_count += 1
+            if progress_sink is not None:
+                progress_sink.update_pose_progress(
+                    PoseProgressEvent(
+                        sample_id=candidate.sample_id,
+                        phase="parse",
+                        completed=progress_count,
+                        total=2 * num_frames,
+                    )
+                )
+
+    person_tracking = resolve_person_tracking(
+        parsed_frames,
+        build_input.person_selection_policy,
+    )
+    person_selection = person_tracking.anchor_selection
+    target_person_index = person_selection.target_index
+
+    for index, parsed in enumerate(parsed_frames):
+        people_count = len(parsed.people)
+        people_per_frame[index] = people_count
+        max_people_per_frame = max(max_people_per_frame, people_count)
+        if people_count > 1:
+            multi_person_frame_count += 1
+
+        issue_counter.update(parsed.issue_codes)
+
+        selected_person_index = person_tracking.selected_person_indices[index]
+        if selected_person_index < 0 or selected_person_index >= people_count:
+            frame_valid_mask[index] = False
+            issue_counter["target_person_missing"] += 1
+            progress_count += 1
+            if progress_sink is not None:
+                progress_sink.update_pose_progress(
+                    PoseProgressEvent(
+                        sample_id=candidate.sample_id,
+                        phase="tensors",
+                        completed=progress_count,
+                        total=2 * num_frames,
+                        people=people_count,
+                    )
+                )
+            continue
+
+        person = parsed.people[selected_person_index]
+        frame_valid_mask[index] = person.person_valid
+
+        if person.face_missing:
+            face_missing_frame_count += 1
+        if person.has_any_zeroed_canonical_joint:
+            frames_with_any_zeroed_canonical_joint += 1
+
+        out_of_bounds_coordinate_count += person.out_of_bounds_coordinate_count
+        issue_counter.update(person.issue_codes)
+
+        for channel in OPENPOSE_CHANNEL_SPECS:
+            coord_tensors[channel][index] = person.coords[channel]
+            confidence_tensors[channel][index] = person.confidences[channel]
+
+        progress_count += 1
+        if progress_sink is not None:
+            progress_sink.update_pose_progress(
+                PoseProgressEvent(
+                    sample_id=candidate.sample_id,
+                    phase="tensors",
+                    completed=progress_count,
+                    total=2 * num_frames,
+                    people=people_count,
+                )
+            )
+
+    channel_nonzero_frames = {
+        channel: int(np.count_nonzero(np.any(confidence_tensors[channel] > 0.0, axis=1)))
+        for channel in CANONICAL_POSE_CHANNELS
+    }
+
+    selected_person = build_person_metadata(
+        target_index=target_person_index,
+        multi_person_frame_count=multi_person_frame_count,
+        max_people_per_frame=max_people_per_frame,
+    )
+
+    frame_valid_count = int(frame_valid_mask.sum())
+    frame_quality = FrameQualitySummary(
+        valid_frame_count=frame_valid_count,
+        invalid_frame_count=num_frames - frame_valid_count,
+        face_missing_frame_count=face_missing_frame_count,
+        out_of_bounds_coordinate_count=out_of_bounds_coordinate_count,
+        frames_with_any_zeroed_canonical_joint=frames_with_any_zeroed_canonical_joint,
+        tracked_target_missing_frame_count=person_tracking.tracked_target_missing_frame_count,
+        tracked_target_missing_frame_ratio=person_tracking.tracked_target_missing_frame_ratio,
+        person_tracking_continuity_break_count=person_tracking.continuity_break_count,
+        person_tracking_continuity_break_ratio=person_tracking.continuity_break_ratio,
+        person_tracking_reanchor_count=person_tracking.reanchor_count,
+        person_tracking_reanchor_ratio=person_tracking.reanchor_ratio,
+        frame_issue_counts={str(key): int(value) for key, value in sorted(issue_counter.items())},
+        channel_nonzero_frames=channel_nonzero_frames,
+    )
+
+    pose_payload = BfhPosePayload(
+        body=PoseChannelPayload(
+            coordinates=coord_tensors["body"], confidence=confidence_tensors["body"]
+        ),
+        left_hand=PoseChannelPayload(
+            coordinates=coord_tensors["left_hand"], confidence=confidence_tensors["left_hand"]
+        ),
+        right_hand=PoseChannelPayload(
+            coordinates=coord_tensors["right_hand"], confidence=confidence_tensors["right_hand"]
+        ),
+        face=PoseChannelPayload(
+            coordinates=coord_tensors["face"], confidence=confidence_tensors["face"]
+        ),
+    )
+
+    diagnostics = PoseBuildDiagnostics(
+        person_selection_policy=build_input.person_selection_policy,
+        person_selection_fallback_used=person_selection.fallback_used,
+        person_selection_fallback_reason=person_selection.fallback_reason,
+        person_selection_candidate_scores=person_selection.candidate_scores,
+        tracked_person_indices=person_tracking.selected_person_indices,
+        person_tracking_continuity_break_count=person_tracking.continuity_break_count,
+        person_tracking_continuity_break_ratio=person_tracking.continuity_break_ratio,
+        person_tracking_reanchor_count=person_tracking.reanchor_count,
+        person_tracking_reanchor_ratio=person_tracking.reanchor_ratio,
+        tracked_target_missing_frame_count=person_tracking.tracked_target_missing_frame_count,
+        tracked_target_missing_frame_ratio=person_tracking.tracked_target_missing_frame_ratio,
+        unrecoverable_error=unrecoverable_error,
+    )
+
+    return PoseBuildOutput(
+        pose=pose_payload,
+        frame_quality=frame_quality,
+        selected_person=selected_person,
+        people_per_frame=people_per_frame,
+        frame_valid_mask=frame_valid_mask,
+        diagnostics=diagnostics,
+    )

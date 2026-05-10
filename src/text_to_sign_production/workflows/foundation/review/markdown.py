@@ -48,9 +48,7 @@ def markdown_table(
 
     rendered_headers = " | ".join(_escape_markdown_text(header) for header in headers)
     divider = " | ".join("---" for _ in headers)
-    rendered_rows = tuple(
-        " | ".join(markdown_value(value) for value in row) for row in row_values
-    )
+    rendered_rows = tuple(" | ".join(markdown_value(value) for value in row) for row in row_values)
     return "\n".join(
         (
             f"| {rendered_headers} |",
@@ -64,8 +62,7 @@ def render_review_field_lines(
     fields: Iterable[WorkflowReviewField],
 ) -> tuple[str, ...]:
     return tuple(
-        f"{_escape_markdown_text(field.label)}: {markdown_value(field.value)}"
-        for field in fields
+        f"{_escape_markdown_text(field.label)}: {markdown_value(field.value)}" for field in fields
     )
 
 
@@ -99,8 +96,7 @@ def render_review_sections_markdown(
     heading_level: int = 2,
 ) -> str:
     rendered_sections = tuple(
-        render_review_section_markdown(section, heading_level=heading_level)
-        for section in sections
+        render_review_section_markdown(section, heading_level=heading_level) for section in sections
     )
     if not rendered_sections:
         return f"{_markdown_heading('Review', heading_level)}\n\n- none"

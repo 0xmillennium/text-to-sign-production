@@ -149,9 +149,7 @@ def _event_line_parts(event: TrainingRunLogEvent) -> tuple[str, Mapping[str, obj
 
 def _render_line(prefix: str, message: str, fields: Mapping[str, object]) -> str:
     field_parts = [
-        f"{key}={value}"
-        for key, value in fields.items()
-        if value is not None and str(value) != ""
+        f"{key}={value}" for key, value in fields.items() if value is not None and str(value) != ""
     ]
     body = message if not field_parts else f"{message} " + " ".join(field_parts)
     stripped_prefix = prefix.strip()

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from text_to_sign_production.core.progress import ProgressSession, TqdmProgressSink
-from text_to_sign_production.data.gates import load_gates_config
+from text_to_sign_production.data.gate.policies import load_gates_config
 from text_to_sign_production.workflows.samples.constants import SAMPLES_WORKFLOW_NAME
 from text_to_sign_production.workflows.samples.contracts import (
     SamplesManifestOutput,
@@ -55,11 +55,7 @@ def execute_samples_processing(
         ),
         split_results=split_results,
     )
-    write_samples_manifests(
-        layout=layout,
-        execution_bundle=execution_bundle,
-        progress_session=progress_session,
-    )
+    write_samples_manifests(layout=layout, execution_bundle=execution_bundle)
     return execution_bundle
 
 
