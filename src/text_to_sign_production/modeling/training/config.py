@@ -21,7 +21,7 @@ from text_to_sign_production.modeling.contracts import (
     PREDICTION_SCHEMA_VERSION,
     validate_channel_weights,
 )
-from text_to_sign_production.modeling.data import M0_CHANNEL_POLICY, M0_TARGET_CHANNELS
+from text_to_sign_production.modeling.data.legacy import M0_CHANNEL_POLICY, M0_TARGET_CHANNELS
 
 SUPPORTED_OPTIMIZERS = frozenset({"adamw"})
 

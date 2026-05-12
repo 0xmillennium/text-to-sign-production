@@ -51,16 +51,16 @@ class NonManualVisibilityTierThresholds:
 class ConfidenceTierThresholds:
     """Confidence thresholds for one filter level."""
 
-    min_active_span_body_available_mean_confidence: float
-    min_active_span_any_hand_available_mean_confidence: float
+    min_active_span_body_observed_mean_confidence: float
+    min_active_span_any_hand_observed_mean_confidence: float
 
 
 @dataclass(frozen=True, slots=True)
 class KinematicNaturalnessTierThresholds:
     """Kinematic naturalness thresholds for one filter level."""
 
-    max_active_span_abrupt_motion_frame_ratio: float
-    max_active_span_discontinuity_frame_ratio: float
+    max_comparable_transition_abrupt_ratio: float
+    max_comparable_transition_discontinuity_ratio: float
     max_active_span_frozen_run_ratio: float
 
 
@@ -91,7 +91,7 @@ class NonManualQualityTierThresholds:
     min_active_span_upper_face_landmark_coverage_ratio: float
     min_active_span_lower_face_landmark_coverage_ratio: float
     max_active_span_face_detail_dropout_run_ratio: float
-    min_active_span_manual_face_overlap_frame_ratio: float
+    min_active_span_face_available_given_manual_frame_ratio: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,7 +99,6 @@ class GeometryTierThresholds:
     """Geometry consistency thresholds for one filter level."""
 
     max_active_span_upper_body_bone_length_outlier_frame_ratio: float
-    max_active_span_representative_hand_bone_length_outlier_frame_ratio: float
     max_active_span_cross_channel_scale_outlier_frame_ratio: float
 
 
@@ -297,17 +296,17 @@ def parse_tier_filters_config_mapping(value: object) -> TierFiltersConfig:
                 families["confidence"],
                 "confidence",
                 (
-                    "min_active_span_body_available_mean_confidence",
-                    "min_active_span_any_hand_available_mean_confidence",
+                    "min_active_span_body_observed_mean_confidence",
+                    "min_active_span_any_hand_observed_mean_confidence",
                 ),
                 lambda item: ConfidenceTierThresholds(
-                    min_active_span_body_available_mean_confidence=_require_ratio(
-                        item["min_active_span_body_available_mean_confidence"],
-                        "confidence.min_active_span_body_available_mean_confidence",
+                    min_active_span_body_observed_mean_confidence=_require_ratio(
+                        item["min_active_span_body_observed_mean_confidence"],
+                        "confidence.min_active_span_body_observed_mean_confidence",
                     ),
-                    min_active_span_any_hand_available_mean_confidence=_require_ratio(
-                        item["min_active_span_any_hand_available_mean_confidence"],
-                        "confidence.min_active_span_any_hand_available_mean_confidence",
+                    min_active_span_any_hand_observed_mean_confidence=_require_ratio(
+                        item["min_active_span_any_hand_observed_mean_confidence"],
+                        "confidence.min_active_span_any_hand_observed_mean_confidence",
                     ),
                 ),
             )
@@ -317,18 +316,18 @@ def parse_tier_filters_config_mapping(value: object) -> TierFiltersConfig:
                 families["kinematic_naturalness"],
                 "kinematic_naturalness",
                 (
-                    "max_active_span_abrupt_motion_frame_ratio",
-                    "max_active_span_discontinuity_frame_ratio",
+                    "max_comparable_transition_abrupt_ratio",
+                    "max_comparable_transition_discontinuity_ratio",
                     "max_active_span_frozen_run_ratio",
                 ),
                 lambda item: KinematicNaturalnessTierThresholds(
-                    max_active_span_abrupt_motion_frame_ratio=_require_ratio(
-                        item["max_active_span_abrupt_motion_frame_ratio"],
-                        "kinematic_naturalness.max_active_span_abrupt_motion_frame_ratio",
+                    max_comparable_transition_abrupt_ratio=_require_ratio(
+                        item["max_comparable_transition_abrupt_ratio"],
+                        "kinematic_naturalness.max_comparable_transition_abrupt_ratio",
                     ),
-                    max_active_span_discontinuity_frame_ratio=_require_ratio(
-                        item["max_active_span_discontinuity_frame_ratio"],
-                        "kinematic_naturalness.max_active_span_discontinuity_frame_ratio",
+                    max_comparable_transition_discontinuity_ratio=_require_ratio(
+                        item["max_comparable_transition_discontinuity_ratio"],
+                        "kinematic_naturalness.max_comparable_transition_discontinuity_ratio",
                     ),
                     max_active_span_frozen_run_ratio=_require_ratio(
                         item["max_active_span_frozen_run_ratio"],
@@ -401,7 +400,7 @@ def parse_tier_filters_config_mapping(value: object) -> TierFiltersConfig:
                     "min_active_span_upper_face_landmark_coverage_ratio",
                     "min_active_span_lower_face_landmark_coverage_ratio",
                     "max_active_span_face_detail_dropout_run_ratio",
-                    "min_active_span_manual_face_overlap_frame_ratio",
+                    "min_active_span_face_available_given_manual_frame_ratio",
                 ),
                 lambda item: NonManualQualityTierThresholds(
                     min_active_span_face_landmark_coverage_ratio=_require_ratio(
@@ -420,9 +419,9 @@ def parse_tier_filters_config_mapping(value: object) -> TierFiltersConfig:
                         item["max_active_span_face_detail_dropout_run_ratio"],
                         "non_manual_quality.max_active_span_face_detail_dropout_run_ratio",
                     ),
-                    min_active_span_manual_face_overlap_frame_ratio=_require_ratio(
-                        item["min_active_span_manual_face_overlap_frame_ratio"],
-                        "non_manual_quality.min_active_span_manual_face_overlap_frame_ratio",
+                    min_active_span_face_available_given_manual_frame_ratio=_require_ratio(
+                        item["min_active_span_face_available_given_manual_frame_ratio"],
+                        "non_manual_quality.min_active_span_face_available_given_manual_frame_ratio",
                     ),
                 ),
             )
@@ -433,17 +432,12 @@ def parse_tier_filters_config_mapping(value: object) -> TierFiltersConfig:
                 "geometry",
                 (
                     "max_active_span_upper_body_bone_length_outlier_frame_ratio",
-                    "max_active_span_representative_hand_bone_length_outlier_frame_ratio",
                     "max_active_span_cross_channel_scale_outlier_frame_ratio",
                 ),
                 lambda item: GeometryTierThresholds(
                     max_active_span_upper_body_bone_length_outlier_frame_ratio=_require_ratio(
                         item["max_active_span_upper_body_bone_length_outlier_frame_ratio"],
                         "geometry.max_active_span_upper_body_bone_length_outlier_frame_ratio",
-                    ),
-                    max_active_span_representative_hand_bone_length_outlier_frame_ratio=_require_ratio(
-                        item["max_active_span_representative_hand_bone_length_outlier_frame_ratio"],
-                        "geometry.max_active_span_representative_hand_bone_length_outlier_frame_ratio",
                     ),
                     max_active_span_cross_channel_scale_outlier_frame_ratio=_require_ratio(
                         item["max_active_span_cross_channel_scale_outlier_frame_ratio"],

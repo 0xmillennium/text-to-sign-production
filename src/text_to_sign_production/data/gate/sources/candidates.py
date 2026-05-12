@@ -11,9 +11,9 @@ from text_to_sign_production.data.gate.sources.types import (
 
 
 def sample_id_from_translation(translation: TranslationSourceRecord) -> str:
-    """Return the canonical sample identity for a translation source record."""
+    """Return the physical sample identity for a translation source record."""
     if translation.identity is None:
-        return translation.sentence_id
+        return translation.sentence_name
     return translation.identity.keypoint.sample_key.value
 
 
@@ -51,7 +51,6 @@ def assemble_candidate(match: SourceMatchResult) -> SourceCandidate:
         video_metadata=video.metadata,
         source_issues=match.source_issues,
         identity=match.candidate_identity,
-        canonical_normalized_text=translation.canonical_normalized_text,
     )
 
 

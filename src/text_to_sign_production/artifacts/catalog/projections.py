@@ -7,7 +7,12 @@ from pathlib import Path
 from typing import Any
 
 from text_to_sign_production.artifacts.catalog.types import SampleManifestProjection
-from text_to_sign_production.core.ids import SampleSplit, SampleStatus
+from text_to_sign_production.core.ids import SampleStatus
+from text_to_sign_production.core.models import DroppedManifestEntry, PassedManifestEntry
+from text_to_sign_production.data.dataset.manifests import (
+    dropped_entry_from_record,
+    passed_entry_from_record,
+)
 
 
 def passed_manifest_projection_from_record(
@@ -19,12 +24,19 @@ def passed_manifest_projection_from_record(
     The passed status is derived from the manifest surface. The row contract is
     the root ``PassedManifestEntry`` shape and does not need to carry status.
     """
-    payload_ref = _required_text(record, "payload_ref", path)
+    entry = passed_entry_from_record(record)
+    return passed_manifest_projection_from_entry(entry)
+
+
+def passed_manifest_projection_from_entry(
+    entry: PassedManifestEntry,
+) -> SampleManifestProjection:
+    """Project artifact lookup facts from a dataset-owned passed manifest entry."""
     return SampleManifestProjection(
-        sample_id=_required_text(record, "sample_id", path),
-        split=_split_from_record(record, path),
+        sample_id=entry.sample_id,
+        split=entry.split,
         projected_status=SampleStatus.PASSED,
-        payload_ref=payload_ref,
+        payload_ref=entry.payload_ref,
         payload_declared_present=True,
         archive_publishable=True,
     )
@@ -39,13 +51,21 @@ def dropped_manifest_projection_from_record(
     The dropped status is derived from the manifest surface. It is projection
     metadata only, not manifest row authority.
     """
+    entry = dropped_entry_from_record(record)
+    return dropped_manifest_projection_from_entry(entry)
+
+
+def dropped_manifest_projection_from_entry(
+    entry: DroppedManifestEntry,
+) -> SampleManifestProjection:
+    """Project artifact lookup facts from a dataset-owned dropped manifest entry."""
     return SampleManifestProjection(
-        sample_id=_required_text(record, "sample_id", path),
-        split=_split_from_record(record, path),
+        sample_id=entry.sample_id,
+        split=entry.split,
         projected_status=SampleStatus.DROPPED,
-        payload_ref=_optional_text(record, "debug_ref", path),
-        payload_declared_present=record.get("debug_ref") is not None,
-        archive_publishable=record.get("debug_ref") is not None,
+        payload_ref=entry.debug_ref,
+        payload_declared_present=entry.debug_ref is not None,
+        archive_publishable=entry.debug_ref is not None,
     )
 
 
@@ -57,34 +77,10 @@ def tiered_manifest_projection_from_record(
     return passed_manifest_projection_from_record(record, path)
 
 
-def _split_from_record(record: Mapping[str, Any], path: Path) -> SampleSplit:
-    value = _required_text(record, "split", path)
-    try:
-        return SampleSplit(value)
-    except ValueError as exc:
-        raise ValueError(f"Manifest {path} has invalid split {value!r}.") from exc
-
-
-def _required_text(record: Mapping[str, Any], key: str, path: Path) -> str:
-    if key not in record:
-        raise KeyError(f"Manifest {path} record is missing {key!r}.")
-    value = record[key]
-    if not isinstance(value, str) or not value:
-        raise TypeError(f"Manifest {path} field {key!r} must be a non-empty string.")
-    return value
-
-
-def _optional_text(record: Mapping[str, Any], key: str, path: Path) -> str | None:
-    value = record.get(key)
-    if value is None:
-        return None
-    if not isinstance(value, str) or not value:
-        raise TypeError(f"Manifest {path} field {key!r} must be a non-empty string or null.")
-    return value
-
-
 __all__ = [
     "dropped_manifest_projection_from_record",
+    "dropped_manifest_projection_from_entry",
+    "passed_manifest_projection_from_entry",
     "passed_manifest_projection_from_record",
     "tiered_manifest_projection_from_record",
 ]

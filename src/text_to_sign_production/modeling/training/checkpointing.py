@@ -15,7 +15,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
 from text_to_sign_production.modeling.contracts import CONFIDENCE_POLICY, LENGTH_POLICY
-from text_to_sign_production.modeling.data import M0_CHANNEL_POLICY, M0_TARGET_CHANNELS
+from text_to_sign_production.modeling.data.legacy import M0_CHANNEL_POLICY, M0_TARGET_CHANNELS
 
 CHECKPOINT_SCHEMA_VERSION = "t2sp-baseline-checkpoint-v2"
 RUN_SUMMARY_FILENAME = "run_summary.json"

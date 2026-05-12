@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any
 
 from text_to_sign_production.workflows.foundation.review.contracts import (
+    RenderableValue,
     WorkflowReviewSection,
 )
 
@@ -32,7 +32,7 @@ def display_review_sections(
                 )
 
 
-def _display_block_title(title: object, *, leading_blank: bool = False) -> None:
+def _display_block_title(title: str, *, leading_blank: bool = False) -> None:
     rendered_title = _render_console_text(title)
     if leading_blank:
         print()
@@ -40,7 +40,11 @@ def _display_block_title(title: object, *, leading_blank: bool = False) -> None:
     print("-" * len(rendered_title))
 
 
-def _render_console_text(value: Any) -> str:
+def _render_console_text(value: RenderableValue) -> str:
     if value is None:
         return "none"
+    if isinstance(value, tuple):
+        return "; ".join(_render_console_text(item) for item in value)
+    if isinstance(value, bool):
+        return "yes" if value else "no"
     return str(value)

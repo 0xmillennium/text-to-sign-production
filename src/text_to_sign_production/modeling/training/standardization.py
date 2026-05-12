@@ -8,7 +8,7 @@ from typing import Any
 
 import torch
 
-from text_to_sign_production.modeling.data import M0_TARGET_CHANNELS, ProcessedPoseBatch
+from text_to_sign_production.modeling.data.legacy import M0_TARGET_CHANNELS, ProcessedPoseBatch
 
 
 @dataclass(frozen=True, slots=True)

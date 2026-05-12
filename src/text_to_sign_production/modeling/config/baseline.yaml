@@ -14,8 +14,9 @@ baseline:
   prediction_manifest_schema_version: t2sp-baseline-prediction-manifest-v1
 
 data:
-  train_manifest: data/processed/v1/manifests/train.jsonl
-  val_manifest: data/processed/v1/manifests/val.jsonl
+  # Current dataset authority: gate-produced untiered passed manifests.
+  train_manifest: data/manifests/untiered/passed/train.jsonl
+  val_manifest: data/manifests/untiered/passed/val.jsonl
   train_split: train
   val_split: val
   prediction_splits:

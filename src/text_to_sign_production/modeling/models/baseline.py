@@ -10,7 +10,7 @@ import torch
 from torch import nn
 
 from text_to_sign_production.modeling.backbones.base import TextBackbone
-from text_to_sign_production.modeling.data import M0_TARGET_CHANNEL_SHAPES
+from text_to_sign_production.modeling.data.legacy import M0_TARGET_CHANNEL_SHAPES
 
 from .decoder import SimplePoseDecoder
 from .heads import PoseChannelHead

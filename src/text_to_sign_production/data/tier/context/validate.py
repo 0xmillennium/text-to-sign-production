@@ -29,6 +29,7 @@ def validate_active_span_context(context: ActiveSpanContext) -> tuple[ContextVal
             )
         )
     for name, mask in (
+        ("frame valid", context.frame_valid_mask),
         ("raw evidence", context.raw_evidence_mask),
         ("stabilized evidence", context.stabilized_evidence_mask),
         ("bridged evidence", context.bridged_evidence_mask),
@@ -41,6 +42,60 @@ def validate_active_span_context(context: ActiveSpanContext) -> tuple[ContextVal
                     f"{name} mask length must match frame count.",
                 )
             )
+    if _same_length(
+        context.raw_evidence_mask,
+        context.stabilized_evidence_mask,
+        expected=context.frame_count,
+    ) and any(
+        stabilized and not raw
+        for raw, stabilized in zip(
+            context.raw_evidence_mask,
+            context.stabilized_evidence_mask,
+            strict=True,
+        )
+    ):
+        issues.append(
+            _issue(
+                ContextValidationCode.ACTIVE_STAGE_INVARIANT_VIOLATION,
+                "Stabilized evidence may only remove true values from raw evidence.",
+            )
+        )
+    if _same_length(
+        context.stabilized_evidence_mask,
+        context.bridged_evidence_mask,
+        expected=context.frame_count,
+    ) and any(
+        stabilized and not bridged
+        for stabilized, bridged in zip(
+            context.stabilized_evidence_mask,
+            context.bridged_evidence_mask,
+            strict=True,
+        )
+    ):
+        issues.append(
+            _issue(
+                ContextValidationCode.ACTIVE_STAGE_INVARIANT_VIOLATION,
+                "Bridged evidence may only add true values to stabilized evidence.",
+            )
+        )
+    if _same_length(
+        context.frame_valid_mask,
+        context.padded_active_mask,
+        expected=context.frame_count,
+    ) and any(
+        padded and not valid
+        for valid, padded in zip(
+            context.frame_valid_mask,
+            context.padded_active_mask,
+            strict=True,
+        )
+    ):
+        issues.append(
+            _issue(
+                ContextValidationCode.ACTIVE_STAGE_INVARIANT_VIOLATION,
+                "Padded active mask may only be true inside valid frames.",
+            )
+        )
     if context.active_frame_mask != context.padded_active_mask:
         issues.append(
             _issue(
@@ -103,6 +158,42 @@ def validate_active_span_context(context: ActiveSpanContext) -> tuple[ContextVal
             _issue(
                 ContextValidationCode.ACTIVE_COUNT_MISMATCH,
                 "Active frame count must equal active mask population.",
+            )
+        )
+    for field_name, mask, count in (
+        (
+            "raw_evidence_frame_count",
+            context.raw_evidence_mask,
+            context.raw_evidence_frame_count,
+        ),
+        (
+            "stabilized_evidence_frame_count",
+            context.stabilized_evidence_mask,
+            context.stabilized_evidence_frame_count,
+        ),
+        (
+            "bridged_evidence_frame_count",
+            context.bridged_evidence_mask,
+            context.bridged_evidence_frame_count,
+        ),
+        (
+            "padded_active_frame_count",
+            context.padded_active_mask,
+            context.padded_active_frame_count,
+        ),
+    ):
+        if count != sum(1 for value in mask if value):
+            issues.append(
+                _issue(
+                    ContextValidationCode.ACTIVE_COUNT_MISMATCH,
+                    f"{field_name} must equal its mask population.",
+                )
+            )
+    if not context.fallback_used and not any(context.active_frame_mask):
+        issues.append(
+            _issue(
+                ContextValidationCode.ACTIVE_STAGE_INVARIANT_VIOLATION,
+                "Active mask must not be empty unless active-span fallback was used.",
             )
         )
     return tuple(issues)
@@ -172,7 +263,10 @@ def validate_face_region_context(
         ("active face", context.active_face_available_mask),
         ("active upper face", context.active_upper_face_supported_mask),
         ("active lower face", context.active_lower_face_supported_mask),
-        ("manual face overlap", context.manual_face_overlap_ready_mask),
+        (
+            "face available given manual frame",
+            context.face_available_given_manual_frame_mask,
+        ),
     ):
         if len(mask) != frame_count:
             issues.append(
@@ -182,6 +276,10 @@ def validate_face_region_context(
                 )
             )
     return tuple(issues)
+
+
+def _same_length(*masks: tuple[bool, ...], expected: int) -> bool:
+    return all(len(mask) == expected for mask in masks)
 
 
 def validate_geometry_reference_context(

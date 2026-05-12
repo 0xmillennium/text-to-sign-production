@@ -1,24 +1,25 @@
-"""Processed-v1 manifest and `.npz` loading for M0 full-BFH baseline modeling."""
+"""Legacy M0 adapter over canonical dataset manifests and PreparedSample payloads.
+
+This module is not a semantic owner for prepared samples or manifest rows. It
+adapts the current data/dataset contracts into the M0 modeling batch shape.
+"""
 
 from __future__ import annotations
 
-import json
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, cast
-from zipfile import BadZipFile
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
 
 from text_to_sign_production.core.ids import VALID_SAMPLE_SPLITS as SPLITS
-from text_to_sign_production.legacy_data.pose.schema import OPENPOSE_CHANNEL_SPECS
-from text_to_sign_production.legacy_data.samples.manifests import manifest_entry_from_record
-from text_to_sign_production.legacy_data.samples.schema import PROCESSED_SCHEMA_VERSION
-from text_to_sign_production.legacy_data.samples.types import PassedManifestEntry
+from text_to_sign_production.core.models import PassedManifestEntry, PreparedSample
+from text_to_sign_production.data.dataset import PREPARED_SAMPLE_SCHEMA_VERSION
+from text_to_sign_production.data.dataset.manifests import read_passed_manifest_jsonl
+from text_to_sign_production.data.dataset.payloads import load_prepared_sample_payload
 
 from .schemas import (
-    M0_TARGET_CHANNELS,
     ConfidenceArray,
     IntegerArray,
     MaskArray,
@@ -58,11 +59,11 @@ def _processed_manifest_record_from_entry(
             f"Processed manifest record {entry.sample_id!r} in {manifest_path} has leading "
             "or trailing whitespace in sample_id."
         )
-    if entry.schema_version != PROCESSED_SCHEMA_VERSION:
+    if entry.schema_version != PREPARED_SAMPLE_SCHEMA_VERSION:
         raise ProcessedModelingDataError(
             "Processed manifest record "
             f"{sample_id!r} uses schema {entry.schema_version!r}; "
-            f"expected {PROCESSED_SCHEMA_VERSION!r}."
+            f"expected {PREPARED_SAMPLE_SCHEMA_VERSION!r}."
         )
     split = entry.split.value
     _validate_split(split, context=f"Processed manifest record {sample_id!r}")
@@ -71,14 +72,14 @@ def _processed_manifest_record_from_entry(
             f"Processed manifest record {sample_id!r} has split {split!r}; "
             f"expected {expected_split!r}."
         )
-    if entry.num_frames < 0:
+    if entry.frame_count < 0:
         raise ProcessedModelingDataError(
             f"Processed manifest record {sample_id!r} has negative num_frames."
         )
 
     try:
         resolved_sample_path = _validate_processed_sample_path(
-            entry.sample_path,
+            entry.payload_ref,
             split=split,
             sample_id=sample_id,
             data_root=data_root,
@@ -90,7 +91,7 @@ def _processed_manifest_record_from_entry(
     if not resolved_sample_path.is_file():
         raise FileNotFoundError(
             "Processed sample file referenced by manifest record "
-            f"{sample_id!r} does not exist: {entry.sample_path}"
+            f"{sample_id!r} does not exist: {entry.payload_ref}"
         )
 
     return ProcessedModelingManifestRecord(
@@ -98,58 +99,16 @@ def _processed_manifest_record_from_entry(
         split=split,
         text=entry.text,
         fps=entry.fps,
-        num_frames=entry.num_frames,
+        num_frames=entry.frame_count,
         sample_path=resolved_sample_path,
-        sample_path_value=entry.sample_path,
+        sample_path_value=entry.payload_ref,
         processed_schema_version=entry.schema_version,
-        selected_person_index=entry.selected_person.index,
-        multi_person_frame_count=entry.selected_person.multi_person_frame_count,
-        max_people_per_frame=entry.selected_person.max_people_per_frame,
-        frame_valid_count=entry.frame_quality.valid_frame_count,
-        frame_invalid_count=entry.frame_quality.invalid_frame_count,
+        selected_person_index=-1,
+        multi_person_frame_count=0,
+        max_people_per_frame=1,
+        frame_valid_count=entry.valid_frame_count,
+        frame_invalid_count=entry.frame_count - entry.valid_frame_count,
     )
-
-
-def _parse_processed_manifest_entry(
-    record: Mapping[str, Any],
-    *,
-    manifest_path: Path,
-    line_number: int,
-) -> PassedManifestEntry:
-    try:
-        entry = manifest_entry_from_record(record)
-    except Exception as exc:
-        sample_id = str(record.get("sample_id", "<unknown>"))
-        raise ProcessedModelingDataError(
-            f"Could not parse processed manifest record on line {line_number} "
-            f"({sample_id!r}) in {manifest_path}: {exc}"
-        ) from exc
-    if not isinstance(entry, PassedManifestEntry):
-        raise ProcessedModelingDataError(
-            f"Processed manifest record on line {line_number} in {manifest_path} "
-            f"is not a passed entry: {entry.sample_id!r}."
-        )
-    return entry
-
-
-def _iter_processed_manifest_records(path: Path) -> Iterator[tuple[int, dict[str, Any]]]:
-    with path.open("r", encoding="utf-8") as handle:
-        for line_number, line in enumerate(handle, start=1):
-            stripped = line.strip()
-            if not stripped:
-                continue
-            try:
-                payload = json.loads(stripped)
-            except json.JSONDecodeError as exc:
-                raise ProcessedModelingDataError(
-                    f"Processed manifest {path} line {line_number} is not valid JSON: {exc.msg}"
-                ) from exc
-            if not isinstance(payload, dict):
-                raise ProcessedModelingDataError(
-                    f"Processed manifest {path} line {line_number} must contain a JSON object, "
-                    f"got {type(payload).__name__}."
-                )
-            yield line_number, payload
 
 
 def read_processed_modeling_manifest(
@@ -171,12 +130,7 @@ def read_processed_modeling_manifest(
 
     records: list[ProcessedModelingManifestRecord] = []
     seen_sample_ids: set[str] = set()
-    for line_number, raw_record in _iter_processed_manifest_records(path):
-        entry = _parse_processed_manifest_entry(
-            raw_record,
-            manifest_path=path,
-            line_number=line_number,
-        )
+    for entry in read_passed_manifest_jsonl(path):
         manifest_record = _processed_manifest_record_from_entry(
             entry,
             manifest_path=path,
@@ -196,10 +150,10 @@ def read_processed_modeling_manifest(
 def _infer_data_root_from_manifest(path: Path) -> Path:
     resolved = path.expanduser().resolve()
     for parent in resolved.parents:
-        if parent.name == "data":
-            return parent
+        if parent.name == "manifests":
+            return parent.parent / "samples"
     raise ProcessedModelingDataError(
-        f"Could not infer project data root from processed manifest path: {path}"
+        f"Could not infer samples root from processed manifest path: {path}"
     )
 
 
@@ -211,6 +165,8 @@ def _validate_processed_sample_path(
     data_root: Path,
 ) -> Path:
     path = Path(sample_path)
+    if not path.parts or path.parts[0] not in {"passed", "dropped"}:
+        path = Path("passed") / path
     resolved = path if path.is_absolute() else data_root / path
     resolved = resolved.expanduser().resolve()
     if resolved.suffix != ".npz":
@@ -224,167 +180,33 @@ def _validate_processed_sample_path(
     return resolved
 
 
-def _sample_array(
-    sample: Any,
-    key: str,
-    *,
-    sample_path: Path,
-) -> npt.NDArray[Any]:
-    if key not in sample.files:
-        raise ProcessedModelingDataError(
-            f"Processed sample {sample_path} is missing required array {key!r}."
-        )
-    return cast(npt.NDArray[Any], sample[key])
-
-
-def _require_scalar_value(sample: Any, key: str, *, sample_path: Path) -> Any:
-    array = _sample_array(sample, key, sample_path=sample_path)
-    if tuple(array.shape) != ():
-        raise ProcessedModelingDataError(
-            f"Processed sample array {key!r} in {sample_path} has shape "
-            f"{tuple(array.shape)}; expected scalar ()."
-        )
-    return array.item()
-
-
-def _load_pose_channel(
-    sample: Any,
-    channel: str,
-    *,
-    record: ProcessedModelingManifestRecord,
-) -> PoseArray:
-    array = _sample_array(sample, channel, sample_path=record.sample_path)
-    expected_shape = (record.num_frames, OPENPOSE_CHANNEL_SPECS[channel][1], 2)
-    observed_shape = tuple(array.shape)
-    if observed_shape != expected_shape:
-        raise ProcessedModelingDataError(
-            f"Processed sample array {channel!r} for {record.sample_id!r} has shape "
-            f"{observed_shape}; expected {expected_shape}."
-        )
-    return cast(PoseArray, np.asarray(array, dtype=np.float32))
-
-
-def _load_confidence_channel(
-    sample: Any,
-    channel: str,
-    *,
-    record: ProcessedModelingManifestRecord,
-) -> ConfidenceArray:
-    confidence_key = f"{channel}_confidence"
-    array = _sample_array(sample, confidence_key, sample_path=record.sample_path)
-    expected_shape = (record.num_frames, OPENPOSE_CHANNEL_SPECS[channel][1])
-    observed_shape = tuple(array.shape)
-    if observed_shape != expected_shape:
-        raise ProcessedModelingDataError(
-            f"Processed sample array {confidence_key!r} for {record.sample_id!r} has shape "
-            f"{observed_shape}; expected {expected_shape}."
-        )
-    return cast(ConfidenceArray, np.asarray(array, dtype=np.float32))
-
-
-def _load_people_per_frame(
-    sample: Any,
-    *,
-    record: ProcessedModelingManifestRecord,
-) -> IntegerArray:
-    array = _sample_array(sample, "people_per_frame", sample_path=record.sample_path)
-    expected_shape = (record.num_frames,)
-    observed_shape = tuple(array.shape)
-    if observed_shape != expected_shape:
-        raise ProcessedModelingDataError(
-            f"Processed sample array 'people_per_frame' for {record.sample_id!r} has shape "
-            f"{observed_shape}; expected {expected_shape}."
-        )
-    if not np.issubdtype(array.dtype, np.integer):
-        raise ProcessedModelingDataError(
-            f"Processed sample array 'people_per_frame' for {record.sample_id!r} has dtype "
-            f"{array.dtype}; expected an integer dtype."
-        )
-    return cast(IntegerArray, np.asarray(array))
-
-
 def load_processed_pose_sample(
     record: ProcessedModelingManifestRecord,
 ) -> ProcessedPoseSample:
     """Load the processed `.npz` referenced by one modeling manifest record."""
-
-    try:
-        with np.load(record.sample_path, allow_pickle=False) as sample:
-            payload_schema_version = str(
-                _require_scalar_value(
-                    sample,
-                    "processed_schema_version",
-                    sample_path=record.sample_path,
-                )
-            )
-            if payload_schema_version != PROCESSED_SCHEMA_VERSION:
-                raise ProcessedModelingDataError(
-                    f"Processed sample {record.sample_path} uses schema "
-                    f"{payload_schema_version!r}; expected {PROCESSED_SCHEMA_VERSION!r}."
-                )
-
-            payload_selected_person_index = int(
-                _require_scalar_value(
-                    sample,
-                    "selected_person_index",
-                    sample_path=record.sample_path,
-                )
-            )
-            if payload_selected_person_index != record.selected_person_index:
-                raise ProcessedModelingDataError(
-                    "Processed sample selected_person_index does not match manifest record "
-                    f"{record.sample_id!r}: payload={payload_selected_person_index} "
-                    f"manifest={record.selected_person_index}."
-                )
-
-            channel_arrays = {
-                channel: _load_pose_channel(sample, channel, record=record)
-                for channel in M0_TARGET_CHANNELS
-            }
-            confidence_arrays = {
-                channel: _load_confidence_channel(sample, channel, record=record)
-                for channel in M0_TARGET_CHANNELS
-            }
-            people_per_frame = _load_people_per_frame(sample, record=record)
-
-            frame_valid_mask = _sample_array(
-                sample,
-                "frame_valid_mask",
-                sample_path=record.sample_path,
-            )
-            expected_mask_shape = (record.num_frames,)
-            if tuple(frame_valid_mask.shape) != expected_mask_shape:
-                raise ProcessedModelingDataError(
-                    f"Processed sample frame_valid_mask for {record.sample_id!r} has shape "
-                    f"{tuple(frame_valid_mask.shape)}; expected {expected_mask_shape}."
-                )
-            if frame_valid_mask.dtype != np.dtype(np.bool_):
-                raise ProcessedModelingDataError(
-                    f"Processed sample frame_valid_mask for {record.sample_id!r} "
-                    f"has dtype {frame_valid_mask.dtype}; expected bool."
-                )
-            frame_valid_array = cast(MaskArray, np.asarray(frame_valid_mask, dtype=np.bool_))
-            frame_valid_count = int(np.count_nonzero(frame_valid_array))
-            if frame_valid_count != record.frame_valid_count:
-                raise ProcessedModelingDataError(
-                    "Processed sample frame_valid_mask valid count does not match manifest "
-                    f"record {record.sample_id!r}: payload={frame_valid_count} "
-                    f"manifest={record.frame_valid_count}."
-                )
-            frame_invalid_count = int(frame_valid_array.shape[0] - frame_valid_count)
-            if frame_invalid_count != record.frame_invalid_count:
-                raise ProcessedModelingDataError(
-                    "Processed sample frame_valid_mask invalid count does not match manifest "
-                    f"record {record.sample_id!r}: payload={frame_invalid_count} "
-                    f"manifest={record.frame_invalid_count}."
-                )
-
-    except ProcessedModelingDataError:
-        raise
-    except (BadZipFile, EOFError, OSError, ValueError) as exc:
+    prepared = _load_aligned_prepared_sample(record)
+    payload_schema_version = prepared.schema_version
+    channel_arrays = _prepared_coordinate_arrays(prepared)
+    confidence_arrays = _prepared_confidence_arrays(prepared)
+    people_per_frame = _people_per_frame(prepared)
+    frame_valid_array = cast(
+        MaskArray,
+        np.asarray(prepared.pose.valid_frame_mask, dtype=np.bool_),
+    )
+    frame_valid_count = int(np.count_nonzero(frame_valid_array))
+    if frame_valid_count != record.frame_valid_count:
         raise ProcessedModelingDataError(
-            f"Processed sample file could not be read as .npz: {record.sample_path}: {exc}"
-        ) from exc
+            "PreparedSample frame_valid_mask valid count does not match manifest "
+            f"record {record.sample_id!r}: payload={frame_valid_count} "
+            f"manifest={record.frame_valid_count}."
+        )
+    frame_invalid_count = int(frame_valid_array.shape[0] - frame_valid_count)
+    if frame_invalid_count != record.frame_invalid_count:
+        raise ProcessedModelingDataError(
+            "PreparedSample frame_valid_mask invalid count does not match manifest "
+            f"record {record.sample_id!r}: payload={frame_invalid_count} "
+            f"manifest={record.frame_invalid_count}."
+        )
 
     return ProcessedPoseSample(
         processed_schema_version=payload_schema_version,
@@ -398,8 +220,72 @@ def load_processed_pose_sample(
         face_confidence=confidence_arrays["face"],
         frame_valid_mask=frame_valid_array,
         people_per_frame=people_per_frame,
-        selected_person_index=record.selected_person_index,
+        selected_person_index=_representative_selected_person_index(prepared),
     )
+
+
+def _load_aligned_prepared_sample(record: ProcessedModelingManifestRecord) -> PreparedSample:
+    try:
+        sample = load_prepared_sample_payload(record.sample_path)
+    except (OSError, ValueError) as exc:
+        raise ProcessedModelingDataError(
+            f"PreparedSample payload could not be loaded for modeling: {record.sample_path}: {exc}"
+        ) from exc
+    if sample.schema_version != PREPARED_SAMPLE_SCHEMA_VERSION:
+        raise ProcessedModelingDataError(
+            f"PreparedSample {record.sample_path} uses schema {sample.schema_version!r}; "
+            f"expected {PREPARED_SAMPLE_SCHEMA_VERSION!r}."
+        )
+    if sample.source.sample_id != record.sample_id or sample.source.split.value != record.split:
+        raise ProcessedModelingDataError(
+            "PreparedSample identity does not match modeling manifest record "
+            f"{record.split}/{record.sample_id}."
+        )
+    if sample.pose.frame_count != record.num_frames:
+        raise ProcessedModelingDataError(
+            "PreparedSample frame_count does not match modeling manifest record "
+            f"{record.sample_id!r}: payload={sample.pose.frame_count} "
+            f"manifest={record.num_frames}."
+        )
+    return sample
+
+
+def _prepared_coordinate_arrays(sample: PreparedSample) -> dict[str, PoseArray]:
+    return {
+        "body": _coordinates(sample.pose.body_xyc),
+        "left_hand": _coordinates(sample.pose.left_hand_xyc),
+        "right_hand": _coordinates(sample.pose.right_hand_xyc),
+        "face": _coordinates(sample.pose.face_xyc),
+    }
+
+
+def _prepared_confidence_arrays(sample: PreparedSample) -> dict[str, ConfidenceArray]:
+    return {
+        "body": _confidence(sample.pose.body_xyc),
+        "left_hand": _confidence(sample.pose.left_hand_xyc),
+        "right_hand": _confidence(sample.pose.right_hand_xyc),
+        "face": _confidence(sample.pose.face_xyc),
+    }
+
+
+def _coordinates(xyc: npt.NDArray[np.float32]) -> PoseArray:
+    return cast(PoseArray, np.asarray(xyc[..., :2], dtype=np.float32))
+
+
+def _confidence(xyc: npt.NDArray[np.float32]) -> ConfidenceArray:
+    return cast(ConfidenceArray, np.asarray(xyc[..., 2], dtype=np.float32))
+
+
+def _people_per_frame(sample: PreparedSample) -> IntegerArray:
+    values = [0 if index is None else 1 for index in sample.pose.selected_person_indices]
+    return cast(IntegerArray, np.asarray(values, dtype=np.int16))
+
+
+def _representative_selected_person_index(sample: PreparedSample) -> int:
+    for index in sample.pose.selected_person_indices:
+        if index is not None:
+            return index
+    return -1
 
 
 class ProcessedPoseDataset:

@@ -11,15 +11,44 @@ from zipfile import ZIP_DEFLATED, BadZipFile, ZipFile, ZipInfo
 
 import numpy as np
 
-from text_to_sign_production.core.ids import SampleSplit
+from text_to_sign_production.core.ids import CoordinateSpace, SampleSplit, SourceIssueCode
 from text_to_sign_production.core.models import PoseTruth, PreparedSample, SourceTruth
-from text_to_sign_production.data.gate.pose import CoordinateSpace
 from text_to_sign_production.data.dataset.validate import validate_prepared_sample
-from text_to_sign_production.data.gate.sources import SourceIssueCode
+
+PREPARED_SAMPLE_PAYLOAD_SCHEMA_VERSION = "prepared_sample.v3"
+
+_METADATA_KEYS = frozenset({"schema_version", "source", "pose"})
+_SOURCE_METADATA_KEYS = frozenset(
+    {
+        "sample_id",
+        "split",
+        "text",
+        "fps",
+        "source_video_id",
+        "source_sentence_id",
+        "source_sentence_name",
+        "source_issue_codes",
+    }
+)
+_POSE_METADATA_KEYS = frozenset(
+    {
+        "coordinate_space",
+        "frame_count",
+        "selected_person_indices",
+        "tracked_target_missing_frame_count",
+        "continuity_break_count",
+        "reanchor_count",
+        "body_nonzero_frame_count",
+        "face_nonzero_frame_count",
+        "left_hand_nonzero_frame_count",
+        "right_hand_nonzero_frame_count",
+    }
+)
 
 
 def write_prepared_sample_payload(path: str | Path, sample: PreparedSample) -> None:
     """Write one PreparedSample as a compressed NPZ artifact."""
+    _schema_version(sample.schema_version)
     issues = validate_prepared_sample(sample)
     if issues:
         raise ValueError(f"Invalid prepared sample payload: {issues}")
@@ -74,7 +103,6 @@ def _metadata(sample: PreparedSample) -> dict[str, Any]:
             "sample_id": sample.source.sample_id,
             "split": sample.source.split.value,
             "text": sample.source.text,
-            "canonical_normalized_text": sample.source.canonical_normalized_text,
             "fps": sample.source.fps,
             "source_video_id": sample.source.source_video_id,
             "source_sentence_id": sample.source.source_sentence_id,
@@ -109,18 +137,18 @@ def _sample_from_metadata_and_arrays(
     metadata: Mapping[str, Any],
     arrays: Mapping[str, Any],
 ) -> PreparedSample:
+    _require_exact_keys(metadata, _METADATA_KEYS, "metadata")
+    schema_version = _schema_version(metadata["schema_version"])
     source = _require_mapping(metadata["source"], "source")
     pose = _require_mapping(metadata["pose"], "pose")
+    _require_exact_keys(source, _SOURCE_METADATA_KEYS, "source")
+    _require_exact_keys(pose, _POSE_METADATA_KEYS, "pose")
     return PreparedSample(
-        schema_version=_text(metadata["schema_version"], "schema_version"),
+        schema_version=schema_version,
         source=SourceTruth(
             sample_id=_text(source["sample_id"], "source.sample_id"),
             split=SampleSplit(_text(source["split"], "source.split")),
             text=_text(source["text"], "source.text"),
-            canonical_normalized_text=_text(
-                source["canonical_normalized_text"],
-                "source.canonical_normalized_text",
-            ),
             fps=_float(source["fps"], "source.fps"),
             source_video_id=_text(source["source_video_id"], "source.source_video_id"),
             source_sentence_id=_text(
@@ -190,6 +218,32 @@ def _require_mapping(value: object, label: str) -> Mapping[str, Any]:
     return cast(Mapping[str, Any], value)
 
 
+def _require_exact_keys(
+    value: Mapping[str, Any],
+    expected_keys: frozenset[str],
+    label: str,
+) -> None:
+    observed_keys = frozenset(value)
+    missing = sorted(expected_keys.difference(observed_keys))
+    extra = sorted(observed_keys.difference(expected_keys))
+    if missing or extra:
+        raise ValueError(
+            f"{label} keys do not match the payload contract: "
+            f"missing={missing}, extra={extra}"
+        )
+
+
+def _schema_version(value: object) -> str:
+    schema_version = _text(value, "schema_version")
+    if schema_version != PREPARED_SAMPLE_PAYLOAD_SCHEMA_VERSION:
+        raise ValueError(
+            "Prepared sample payload schema_version is unsupported: "
+            f"expected {PREPARED_SAMPLE_PAYLOAD_SCHEMA_VERSION!r}, "
+            f"observed {schema_version!r}."
+        )
+    return schema_version
+
+
 def _list(value: object, label: str) -> list[Any]:
     if not isinstance(value, list):
         raise ValueError(f"{label} must be a list.")
@@ -215,6 +269,7 @@ def _float(value: object, label: str) -> float:
 
 
 __all__ = [
+    "PREPARED_SAMPLE_PAYLOAD_SCHEMA_VERSION",
     "load_prepared_sample_payload",
     "write_prepared_sample_payload",
 ]

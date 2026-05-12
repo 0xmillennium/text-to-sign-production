@@ -116,9 +116,9 @@ def _build_sample_summaries(
                     pairs,
                     LeakageRelation.SAME_SOURCE_SENTENCE,
                 ),
-                exact_normalized_text_match_count=_relation_count(
+                exact_text_match_count=_relation_count(
                     pairs,
-                    LeakageRelation.EXACT_NORMALIZED_TEXT,
+                    LeakageRelation.EXACT_TEXT,
                 ),
                 same_source_video_match_count=_relation_count(
                     pairs,

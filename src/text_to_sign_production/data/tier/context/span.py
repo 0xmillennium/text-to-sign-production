@@ -5,6 +5,12 @@ from __future__ import annotations
 import numpy as np
 
 from text_to_sign_production.core.models import PreparedSample
+from text_to_sign_production.data.tier.context.masks import (
+    bridge_short_false_gaps,
+    mask_bounds,
+    pad_true_runs,
+    remove_short_true_runs,
+)
 from text_to_sign_production.data.tier.context.types import (
     ActiveSpanContext,
     ArticulatorSource,
@@ -20,6 +26,10 @@ _ARTICULATOR_ORDER: tuple[ArticulatorSource, ...] = (
     ArticulatorSource.RIGHT_HAND,
     ArticulatorSource.BODY,
 )
+_MIN_ACTIVE_EVIDENCE_RUN = 2
+_MAX_ACTIVE_GAP_BRIDGE = 2
+_ACTIVE_EDGE_PAD = 1
+_SOURCE_STICKINESS_MARGIN = 0.05
 
 
 def build_active_span_context(
@@ -29,29 +39,37 @@ def build_active_span_context(
     """Derive active-span masks from PreparedSample pose truth and facts."""
     frame_count = quality_facts.frame.frame_count
     frame_valid = np.asarray(sample.pose.valid_frame_mask, dtype=np.bool_)[:frame_count]
-    left_available = _channel_available(sample.pose.left_hand_xyc)
-    right_available = _channel_available(sample.pose.right_hand_xyc)
-    body_available = _upper_body_available(sample.pose.body_xyc)
+    left_available = _channel_available(sample.pose.left_hand_xyc)[:frame_count]
+    right_available = _channel_available(sample.pose.right_hand_xyc)[:frame_count]
+    body_available = _upper_body_available(sample.pose.body_xyc)[:frame_count]
     raw = frame_valid & (left_available | right_available | body_available)
-    if not np.any(raw):
-        raw = frame_valid
-    active = np.asarray(raw, dtype=np.bool_)
-    indices = np.flatnonzero(active)
-    start = int(indices[0]) if indices.size else 0
-    end = int(indices[-1]) + 1 if indices.size else 0
+    stabilized = remove_short_true_runs(raw, min_run_length=_MIN_ACTIVE_EVIDENCE_RUN)
+    bridged = bridge_short_false_gaps(stabilized, max_gap_length=_MAX_ACTIVE_GAP_BRIDGE)
+    padded = pad_true_runs(bridged, pad=_ACTIVE_EDGE_PAD, support_mask=frame_valid)
+    fallback_used = False
+    if not np.any(padded):
+        fallback_used = True
+        padded = np.array(raw if np.any(raw) else frame_valid, copy=True)
+    active = np.asarray(padded, dtype=np.bool_)
+    start, end = mask_bounds(active)
     transitions = active[:-1] & active[1:] if frame_count > 1 else np.zeros((0,), dtype=np.bool_)
-    mask = tuple(bool(value) for value in active.tolist())
     return ActiveSpanContext(
         frame_count=frame_count,
         start_frame_index=start,
         end_frame_index_exclusive=end,
-        raw_evidence_mask=mask,
-        stabilized_evidence_mask=mask,
-        bridged_evidence_mask=mask,
-        padded_active_mask=mask,
-        active_frame_mask=mask,
+        frame_valid_mask=_to_bool_tuple(frame_valid),
+        raw_evidence_mask=_to_bool_tuple(raw),
+        stabilized_evidence_mask=_to_bool_tuple(stabilized),
+        bridged_evidence_mask=_to_bool_tuple(bridged),
+        padded_active_mask=_to_bool_tuple(padded),
+        active_frame_mask=_to_bool_tuple(active),
         active_transition_mask=tuple(bool(value) for value in transitions.tolist()),
         active_frame_count=int(np.count_nonzero(active)),
+        fallback_used=fallback_used,
+        raw_evidence_frame_count=int(np.count_nonzero(raw)),
+        stabilized_evidence_frame_count=int(np.count_nonzero(stabilized)),
+        bridged_evidence_frame_count=int(np.count_nonzero(bridged)),
+        padded_active_frame_count=int(np.count_nonzero(padded)),
     )
 
 
@@ -73,7 +91,7 @@ def build_representative_articulator_context(
     unavailable: list[bool] = []
     previous: ArticulatorSource | None = None
     for frame_index in range(active_span.frame_count):
-        selected = _select_source(candidates, frame_index)
+        selected = _select_source(candidates, frame_index, previous)
         if selected is None or not active_span.active_frame_mask[frame_index]:
             transition = _transition(previous, None)
             frames.append(
@@ -129,19 +147,26 @@ def _points_and_quality(xyc: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.nda
 def _select_source(
     candidates: dict[ArticulatorSource, tuple[np.ndarray, np.ndarray, np.ndarray]],
     frame_index: int,
+    previous: ArticulatorSource | None = None,
 ) -> ArticulatorSource | None:
     available = tuple(
         source for source in _ARTICULATOR_ORDER if bool(candidates[source][1][frame_index])
     )
     if not available:
         return None
-    return min(
+    best = min(
         available,
         key=lambda source: (
             -float(candidates[source][2][frame_index]),
             _ARTICULATOR_ORDER.index(source),
         ),
     )
+    if previous in available:
+        previous_quality = float(candidates[previous][2][frame_index])
+        best_quality = float(candidates[best][2][frame_index])
+        if best_quality - previous_quality <= _SOURCE_STICKINESS_MARGIN:
+            return previous
+    return best
 
 
 def _transition(
@@ -157,6 +182,10 @@ def _transition(
     if previous != current:
         return TransitionKind.SOURCE_SWITCH
     return TransitionKind.COMPARABLE
+
+
+def _to_bool_tuple(mask: np.ndarray) -> tuple[bool, ...]:
+    return tuple(bool(value) for value in np.asarray(mask, dtype=np.bool_).tolist())
 
 
 __all__ = ["build_active_span_context", "build_representative_articulator_context"]

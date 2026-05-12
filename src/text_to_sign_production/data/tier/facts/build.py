@@ -51,7 +51,7 @@ def build_quality_facts(sample: PreparedSample) -> QualityFacts:
         reanchor_ratio=_ratio(sample.pose.reanchor_count, frame_count),
     )
     channel_facts = _build_channel_quality_facts(sample)
-    text = sample.source.canonical_normalized_text
+    text = sample.source.text
     text_facts = TextLengthFacts(
         text_character_count=len(text),
         text_non_whitespace_character_count=sum(1 for char in text if not char.isspace()),
@@ -72,7 +72,6 @@ def build_quality_facts(sample: PreparedSample) -> QualityFacts:
         all_required_channels_present=tuple(fact.channel for fact in channel_facts)
         == CANONICAL_QUALITY_CHANNELS,
         coordinate_space_normalized=sample.pose.coordinate_space.value == "normalized_image",
-        canonical_normalized_text_present=bool(sample.source.canonical_normalized_text),
     )
     return QualityFacts(
         source=source_facts,

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from text_to_sign_production.artifacts.catalog.types import (
+    CatalogMetadata,
     SampleHandle,
     SampleRef,
     SamplesCatalog,
@@ -13,7 +14,7 @@ from text_to_sign_production.artifacts.catalog.types import (
 
 def attach_timing_metadata(
     catalog: SamplesCatalog,
-    timing_by_ref: dict[SampleRef, object],
+    timing_by_ref: dict[SampleRef, CatalogMetadata],
 ) -> SamplesCatalog:
     """Return a new sample catalog with externally supplied timing metadata attached."""
 
@@ -27,7 +28,7 @@ def attach_timing_metadata(
 
 def attach_source_metadata(
     catalog: SamplesCatalog,
-    source_by_ref: dict[SampleRef, object],
+    source_by_ref: dict[SampleRef, CatalogMetadata],
 ) -> SamplesCatalog:
     """Return a new sample catalog with externally supplied source metadata attached."""
 

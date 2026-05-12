@@ -26,7 +26,7 @@ def resolve_samples_relative(
     topology: ArtifactTopology,
     relative_path: str | Path,
 ) -> SamplePathRef:
-    """Resolve a path relative to the physical samples root."""
+    """Resolve a path relative to the physical PreparedSample artifacts root."""
 
     path = _require_relative_path(relative_path)
     return SamplePathRef(topology.samples_root / path)

@@ -14,7 +14,7 @@ from text_to_sign_production.core.ids import (
 
 
 def validate_samples_relative_path(relative_path: str | Path) -> list[str]:
-    """Validate a samples-root-relative physical sample path shape."""
+    """Validate a samples-root-relative physical PreparedSample artifact path shape."""
 
     parts_errors, parts = _relative_parts(relative_path)
     if parts_errors:

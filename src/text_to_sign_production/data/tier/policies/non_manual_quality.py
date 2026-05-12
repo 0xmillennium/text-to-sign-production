@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from text_to_sign_production.data.tier.families import (
+from text_to_sign_production.data.tier.families.types import (
     BindingQualityFamily,
     NonManualQualityMetrics,
 )
@@ -11,7 +11,7 @@ from text_to_sign_production.data.tier.policies.filters import (
 )
 from text_to_sign_production.data.tier.policies.policies import TierPoliciesConfig
 from text_to_sign_production.data.tier.policies.types import (
-    FamilyTierDecision,
+    TierFamilyDecision,
     TierIssue,
     TierIssueCode,
     TierName,
@@ -25,7 +25,7 @@ def evaluate_non_manual_quality_tier(
     metric: NonManualQualityMetrics,
     filters: NonManualQualityTierFilters,
     policies: TierPoliciesConfig,
-) -> FamilyTierDecision:
+) -> TierFamilyDecision:
     """Evaluate up to which tier face-detail quality is sufficient."""
     supported: list[TierName] = []
     issues: list[TierIssue] = []
@@ -52,10 +52,10 @@ def evaluate_non_manual_quality_tier(
                 "Lower-face landmark coverage is too low.",
             ),
             (
-                "active_span_manual_face_overlap_ratio",
-                metric.active_span_manual_face_overlap_ratio,
-                thresholds.min_active_span_manual_face_overlap_frame_ratio,
-                "Manual-face overlap is too low.",
+                "active_span_face_available_given_manual_frame_ratio",
+                metric.active_span_face_available_given_manual_frame_ratio,
+                thresholds.min_active_span_face_available_given_manual_frame_ratio,
+                "Face availability during manual-active frames is too low.",
             ),
         )
         tier_issues = [
@@ -101,7 +101,7 @@ def _issue(
     )
 
 
-def _decision(supported: list[TierName], issues: list[TierIssue]) -> FamilyTierDecision:
+def _decision(supported: list[TierName], issues: list[TierIssue]) -> TierFamilyDecision:
     best = supported[-1] if supported else None
     status = TierStatus.PASSED if best is not None else TierStatus.FAILED
     if best is None:
@@ -112,7 +112,7 @@ def _decision(supported: list[TierName], issues: list[TierIssue]) -> FamilyTierD
                 family=_FAMILY,
             )
         )
-    return FamilyTierDecision(_FAMILY, status, tuple(supported), best, tuple(issues))
+    return TierFamilyDecision(_FAMILY, status, tuple(supported), best, tuple(issues))
 
 
 __all__ = ["evaluate_non_manual_quality_tier"]

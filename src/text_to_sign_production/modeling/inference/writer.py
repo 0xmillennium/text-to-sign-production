@@ -12,7 +12,7 @@ from typing import Any, cast
 import numpy as np
 import numpy.typing as npt
 
-from text_to_sign_production.modeling.data import (
+from text_to_sign_production.modeling.data.legacy import (
     M0_TARGET_CHANNEL_SHAPES,
     M0_TARGET_CHANNELS,
     ProcessedModelingManifestRecord,
@@ -196,7 +196,7 @@ def _prediction_payload(
         prediction_arrays,
         frame_valid_mask=item.frame_valid_mask,
         selected_person_index=item.selected_person_index,
-        source_processed_schema_version=item.processed_schema_version,
+        source_prepared_schema_version=item.processed_schema_version,
     )
 
 

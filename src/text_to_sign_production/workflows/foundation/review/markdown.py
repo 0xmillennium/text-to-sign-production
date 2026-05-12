@@ -2,38 +2,40 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import fields, is_dataclass
 from pathlib import Path
-from typing import Any
+from typing import TypeAlias
 
 from text_to_sign_production.workflows.foundation.review.contracts import (
+    RenderableValue,
     WorkflowReviewField,
     WorkflowReviewItem,
     WorkflowReviewSection,
 )
 
+JsonScalar: TypeAlias = str | int | float | bool | None
+JsonValue: TypeAlias = JsonScalar | Path | tuple["JsonValue", ...] | list["JsonValue"] | Mapping[
+    str,
+    "JsonValue",
+]
 
-def jsonable(value: object) -> Any:
-    if is_dataclass(value) and not isinstance(value, type):
-        return {field.name: jsonable(getattr(value, field.name)) for field in fields(value)}
+
+def jsonable(value: JsonValue) -> JsonScalar | list[object] | dict[str, object]:
     if isinstance(value, Mapping):
-        return {str(key): jsonable(mapping_value) for key, mapping_value in value.items()}
+        return {key: jsonable(mapping_value) for key, mapping_value in value.items()}
     if isinstance(value, (tuple, list)):
         return [jsonable(item) for item in value]
     if isinstance(value, Path):
         return value.as_posix()
-    if hasattr(value, "value"):
-        return jsonable(value.value)
     return value
 
 
-def markdown_value(value: object) -> str:
+def markdown_value(value: RenderableValue) -> str:
     return _escape_markdown_text(_markdown_value_text(value))
 
 
 def markdown_table(
     headers: Sequence[str],
-    rows: Iterable[Sequence[object]],
+    rows: Iterable[Sequence[RenderableValue]],
 ) -> str:
     if not headers:
         raise ValueError("headers must not be empty")
@@ -117,19 +119,15 @@ def _flatten_markdown_iterable(items: Iterable[str]) -> str:
     return "\n".join(items)
 
 
-def _markdown_value_text(value: object) -> str:
+def _markdown_value_text(value: RenderableValue) -> str:
     if value is None:
         return ""
     if isinstance(value, bool):
         return "yes" if value else "no"
-    if isinstance(value, Mapping):
-        return ", ".join(
-            f"{_markdown_value_text(key)}: {_markdown_value_text(mapping_value)}"
-            for key, mapping_value in value.items()
-        )
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, tuple):
         return "; ".join(_markdown_value_text(item) for item in value)
-    try:
-        return str(jsonable(value))
-    except TypeError:
-        return json.dumps(jsonable(value), ensure_ascii=False, sort_keys=True)
+    if isinstance(value, Path):
+        return value.as_posix()
+    if isinstance(value, str | int | float):
+        return str(value)
+    return json.dumps(jsonable(value), ensure_ascii=False, sort_keys=True)

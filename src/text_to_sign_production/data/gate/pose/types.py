@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from text_to_sign_production.core.ids import CoordinateSpace
 from text_to_sign_production.data.gate.sources import SourceCandidate
 
 FloatArray = npt.NDArray[np.float32]
@@ -24,12 +25,6 @@ class PoseChannel(enum.StrEnum):
     LEFT_HAND = "left_hand"
     RIGHT_HAND = "right_hand"
     FACE = "face"
-
-
-class CoordinateSpace(enum.StrEnum):
-    """Coordinate-space contract for parsed pose truth."""
-
-    NORMALIZED_IMAGE = "normalized_image"
 
 
 class PoseDiagnosticSeverity(enum.StrEnum):

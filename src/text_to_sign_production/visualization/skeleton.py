@@ -9,7 +9,10 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 
-from text_to_sign_production.legacy_data.pose.schema import CANVAS_HEIGHT, CANVAS_WIDTH
+from text_to_sign_production.data.gate.pose.schema import (
+    DEFAULT_CANVAS_HEIGHT,
+    DEFAULT_CANVAS_WIDTH,
+)
 
 from .pose import PoseSample
 
@@ -77,8 +80,8 @@ _FACE_COLOR: Final[_Color] = (235, 115, 210)
 class SkeletonRenderConfig:
     """Configuration for rendering one pose frame."""
 
-    canvas_width: int = CANVAS_WIDTH
-    canvas_height: int = CANVAS_HEIGHT
+    canvas_width: int = DEFAULT_CANVAS_WIDTH
+    canvas_height: int = DEFAULT_CANVAS_HEIGHT
     draw_face: bool = True
     draw_labels: bool = True
     background_color: _Color = _BACKGROUND

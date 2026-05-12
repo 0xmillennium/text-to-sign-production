@@ -12,7 +12,7 @@ from typing import TypeVar
 import yaml
 
 from text_to_sign_production.core.ids import TierName
-from text_to_sign_production.data.tier.families import BindingQualityFamily
+from text_to_sign_production.data.tier.families.types import BindingQualityFamily
 
 DEFAULT_TIER_POLICIES_CONFIG_PATH = Path("configs/data/tiers.yaml")
 EnumT = TypeVar("EnumT", bound=enum.StrEnum)

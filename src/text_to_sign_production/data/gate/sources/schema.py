@@ -108,6 +108,13 @@ def _validate_translation_identity(
                 "Translation identity sentence key must match source sentence_id.",
             )
         )
+    if record.identity.keypoint.sample_key.value != record.sentence_name:
+        issues.append(
+            _issue(
+                SourceValidationIssueCode.TRANSLATION_IDENTITY_INCOHERENT,
+                "Translation identity sample key must match source sentence_name.",
+            )
+        )
     return tuple(issues)
 
 

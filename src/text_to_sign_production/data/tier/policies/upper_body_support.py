@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from text_to_sign_production.data.tier.families import (
+from text_to_sign_production.data.tier.families.types import (
     BindingQualityFamily,
     UpperBodySupportMetrics,
 )
@@ -11,7 +11,7 @@ from text_to_sign_production.data.tier.policies.filters import (
 )
 from text_to_sign_production.data.tier.policies.policies import TierPoliciesConfig
 from text_to_sign_production.data.tier.policies.types import (
-    FamilyTierDecision,
+    TierFamilyDecision,
     TierIssue,
     TierIssueCode,
     TierName,
@@ -25,7 +25,7 @@ def evaluate_upper_body_support_tier(
     metric: UpperBodySupportMetrics,
     filters: UpperBodySupportTierFilters,
     policies: TierPoliciesConfig,
-) -> FamilyTierDecision:
+) -> TierFamilyDecision:
     """Evaluate up to which tier upper-body support is sufficient."""
     supported: list[TierName] = []
     issues: list[TierIssue] = []
@@ -60,7 +60,7 @@ def _issue(tier: TierName, metric_name: str, observed: float, threshold: float) 
     )
 
 
-def _decision(supported: list[TierName], issues: list[TierIssue]) -> FamilyTierDecision:
+def _decision(supported: list[TierName], issues: list[TierIssue]) -> TierFamilyDecision:
     best = supported[-1] if supported else None
     status = TierStatus.PASSED if best is not None else TierStatus.FAILED
     if best is None:
@@ -71,7 +71,7 @@ def _decision(supported: list[TierName], issues: list[TierIssue]) -> FamilyTierD
                 family=_FAMILY,
             )
         )
-    return FamilyTierDecision(_FAMILY, status, tuple(supported), best, tuple(issues))
+    return TierFamilyDecision(_FAMILY, status, tuple(supported), best, tuple(issues))
 
 
 __all__ = ["evaluate_upper_body_support_tier"]

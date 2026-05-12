@@ -1,4 +1,4 @@
-"""Samples admission-gate validation."""
+"""Gate admission-gate validation."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 def validate_gates_config(config: GatesConfig) -> tuple[GateValidationIssue, ...]:
-    """Validate typed samples admission-gate threshold consistency."""
+    """Validate typed gate admission-gate threshold consistency."""
     issues: list[GateValidationIssue] = []
     for name, value in (
         ("source.min_character_count", config.source.min_character_count),
@@ -125,7 +125,7 @@ def validate_gate_result(decision: GateDecision) -> tuple[GateValidationIssue, .
 def validate_gate_decision_bundle(
     bundle: GateDecisionBundle,
 ) -> tuple[GateValidationIssue, ...]:
-    """Validate final samples admission decision structure."""
+    """Validate final gate admission decision structure."""
     issues: list[GateValidationIssue] = []
     for decision in bundle.decisions:
         issues.extend(validate_gate_decision(decision))

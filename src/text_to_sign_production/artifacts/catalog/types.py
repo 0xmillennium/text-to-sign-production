@@ -1,8 +1,10 @@
-"""Logical catalog models for sample artifact lookup."""
+"""Operational catalog models for physical prepared-sample artifact lookup."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import TypeAlias
 
 from text_to_sign_production.artifacts.store.types import (
     ArchiveMemberPathRef,
@@ -16,10 +18,14 @@ from text_to_sign_production.core.ids import (
     TierName,
 )
 
+CatalogMetadataValue: TypeAlias = str | int | float | bool | None
+CatalogMetadata: TypeAlias = Mapping[str, CatalogMetadataValue]
+"""Flat operational metadata attached to catalog handles, not semantic sample truth."""
+
 
 @dataclass(frozen=True, slots=True)
 class SampleRef:
-    """Logical sample identity inside catalog surfaces."""
+    """Logical identity key used to find a physical prepared-sample artifact."""
 
     split: SampleSplit
     sample_id: str
@@ -33,7 +39,8 @@ class SampleManifestProjection:
     """Artifact-owned projection of manifest facts needed for physical lookup.
 
     ``projected_status`` is derived by the projection loader from the manifest
-    surface being read. It is not a required field in the manifest row contract.
+    surface being read. It is not a required field in the manifest row contract,
+    and this projection is not a semantic replacement for core manifest models.
     """
 
     sample_id: str
@@ -54,7 +61,7 @@ class SampleManifestProjection:
 
 @dataclass(frozen=True, slots=True)
 class SampleHandle:
-    """Logical handle for a sample row on a passed/dropped catalog surface."""
+    """Logical handle for one physical prepared-sample artifact catalog row."""
 
     ref: SampleRef
     status: SampleStatus
@@ -62,8 +69,8 @@ class SampleHandle:
     runtime_sample: SamplePathRef | None
     drive_archive: ArchivePathRef | None
     drive_archive_member: ArchiveMemberPathRef | None
-    timing_metadata: object | None = None
-    source_metadata: object | None = None
+    timing_metadata: CatalogMetadata | None = None
+    source_metadata: CatalogMetadata | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "status", SampleStatus(str(self.status)))
@@ -71,7 +78,7 @@ class SampleHandle:
 
 @dataclass(frozen=True, slots=True)
 class TieredSampleHandle:
-    """Logical handle for a tiered manifest item backed by a passed row projection."""
+    """Logical handle for a tiered physical artifact backed by a passed row projection."""
 
     ref: SampleRef
     tier: TierName
@@ -88,7 +95,11 @@ class TieredSampleHandle:
 
 @dataclass(frozen=True, slots=True)
 class SamplesCatalog:
-    """Logical catalog for one projection-derived sample status surface."""
+    """Logical catalog for one physical sample artifact status surface.
+
+    ``Samples`` is artifact terminology here: the catalog indexes prepared
+    sample payload files. It is not a gate-stage ownership surface.
+    """
 
     status: SampleStatus
     items: dict[SampleRef, SampleHandle]
@@ -99,7 +110,7 @@ class SamplesCatalog:
 
 @dataclass(frozen=True, slots=True)
 class TieredCatalog:
-    """Logical catalog for one tier/membership projection surface."""
+    """Logical catalog for one physical tier/membership projection surface."""
 
     tier: TierName
     membership: TierMembership
@@ -111,6 +122,8 @@ class TieredCatalog:
 
 
 __all__ = [
+    "CatalogMetadata",
+    "CatalogMetadataValue",
     "SampleHandle",
     "SampleManifestProjection",
     "SampleRef",

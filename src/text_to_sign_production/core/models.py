@@ -4,16 +4,21 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
-from text_to_sign_production.core.ids import SampleSplit, SampleStatus, TierName
-from text_to_sign_production.data.gate.pose import CoordinateSpace
-from text_to_sign_production.data.gate.sources import SourceIssueCode
+from text_to_sign_production.core.ids import (
+    CoordinateSpace,
+    SampleSplit,
+    SampleStatus,
+    SourceIssueCode,
+    TierName,
+)
 
 
-class SamplesDropStage(enum.StrEnum):
-    """Samples-stage location where a sample can be dropped."""
+class GateDropStage(enum.StrEnum):
+    """Gate-stage location where a sample can be dropped."""
 
     SOURCE = "source"
     POSE = "pose"
@@ -22,19 +27,18 @@ class SamplesDropStage(enum.StrEnum):
     MANIFEST = "manifest"
 
 
-class SamplesIssueCode(enum.StrEnum):
-    """Stable samples-stage issue codes."""
+class GateDropIssueCode(enum.StrEnum):
+    """Stable gate-stage dropped-manifest issue codes."""
 
     SOURCE_TRUTH_INVALID = "source_truth_invalid"
     POSE_TRUTH_INVALID = "pose_truth_invalid"
     PAYLOAD_INVALID = "payload_invalid"
     MANIFEST_INVALID = "manifest_invalid"
     GATE_FAILED = "gate_failed"
-    MATERIALIZATION_FAILED = "materialization_failed"
 
 
 class GateName(enum.StrEnum):
-    """Samples admission gate names in evaluation order."""
+    """Gate-stage admission gate names in evaluation order."""
 
     SOURCE = "source"
     FRAMES = "frames"
@@ -44,7 +48,7 @@ class GateName(enum.StrEnum):
 
 
 class GateStatus(enum.StrEnum):
-    """Controlled samples admission gate result status."""
+    """Controlled admission-gate result status."""
 
     PASS = "pass"
     FAIL = "fail"
@@ -52,7 +56,7 @@ class GateStatus(enum.StrEnum):
 
 
 class GateIssueCode(enum.StrEnum):
-    """Stable machine-readable samples admission gate issue codes."""
+    """Stable machine-readable admission-gate issue codes."""
 
     STRUCTURAL_CORRUPTION = "structural_corruption"
     PREREQUISITE_MISSING = "prerequisite_missing"
@@ -80,6 +84,19 @@ class TierStatus(enum.StrEnum):
     SKIPPED = "skipped"
 
 
+class TierIssueCode(enum.StrEnum):
+    """Stable machine-readable tier issue codes."""
+
+    GATE_FAILED = "gate_failed"
+    FAMILY_THRESHOLD_NOT_MET = "family_threshold_not_met"
+    FAMILY_UNSUPPORTED = "family_unsupported"
+    NO_SUPPORTED_TIER = "no_supported_tier"
+    LEAKAGE_SEVERITY_EXCEEDS_TIER_POLICY = "leakage_severity_exceeds_tier_policy"
+    CONFIG_INVALID = "config_invalid"
+    POLICY_INVALID = "policy_invalid"
+    DECISION_INVALID = "decision_invalid"
+
+
 @dataclass(frozen=True, slots=True)
 class SourceTruth:
     """Source-side truth carried by a prepared sample."""
@@ -88,7 +105,6 @@ class SourceTruth:
     split: SampleSplit
 
     text: str
-    canonical_normalized_text: str
     fps: float
 
     source_video_id: str
@@ -100,7 +116,6 @@ class SourceTruth:
     def __post_init__(self) -> None:
         _require_text(self.sample_id, "sample_id")
         _require_text(self.text, "text")
-        _require_text(self.canonical_normalized_text, "canonical_normalized_text")
         if self.fps <= 0:
             raise ValueError("fps must be positive.")
         _require_text(self.source_video_id, "source_video_id")
@@ -169,7 +184,7 @@ class PoseTruth:
 
 @dataclass(frozen=True, slots=True)
 class PreparedSample:
-    """Canonical samples-stage object consumed by downstream stages."""
+    """Canonical prepared-sample object consumed by downstream stages."""
 
     schema_version: str
     source: SourceTruth
@@ -190,7 +205,6 @@ class PassedManifestEntry:
     payload_ref: str
 
     text: str
-    canonical_normalized_text: str
     fps: float
     frame_count: int
 
@@ -210,7 +224,6 @@ class PassedManifestEntry:
             (self.sample_id, "sample_id"),
             (self.payload_ref, "payload_ref"),
             (self.text, "text"),
-            (self.canonical_normalized_text, "canonical_normalized_text"),
             (self.source_video_id, "source_video_id"),
             (self.source_sentence_id, "source_sentence_id"),
             (self.source_sentence_name, "source_sentence_name"),
@@ -241,21 +254,20 @@ class DroppedManifestEntry:
     split: SampleSplit
 
     text: str | None
-    canonical_normalized_text: str | None
 
     source_video_id: str | None
     source_sentence_id: str | None
     source_sentence_name: str | None
 
-    drop_stage: SamplesDropStage
-    issue_codes: tuple[SamplesIssueCode, ...]
+    drop_stage: GateDropStage
+    issue_codes: tuple[GateDropIssueCode, ...]
     debug_ref: str | None
 
     def __post_init__(self) -> None:
         _require_text(self.schema_version, "schema_version")
         _require_text(self.sample_id, "sample_id")
-        object.__setattr__(self, "drop_stage", SamplesDropStage(self.drop_stage))
-        codes = tuple(SamplesIssueCode(code) for code in self.issue_codes)
+        object.__setattr__(self, "drop_stage", GateDropStage(self.drop_stage))
+        codes = tuple(GateDropIssueCode(code) for code in self.issue_codes)
         if not codes:
             raise ValueError("issue_codes must be non-empty.")
         _require_unique(codes, "issue_codes")
@@ -264,7 +276,7 @@ class DroppedManifestEntry:
 
 @dataclass(frozen=True, slots=True)
 class GateDecision:
-    """Decision for one samples admission gate."""
+    """Decision for one admission gate."""
 
     gate: GateName
     status: GateStatus
@@ -280,7 +292,7 @@ class GateDecision:
 
 @dataclass(frozen=True, slots=True)
 class GateDecisionBundle:
-    """Samples admission gate decisions for one prepared sample."""
+    """Admission-gate decisions for one prepared sample."""
 
     sample_id: str
     split: SampleSplit
@@ -315,44 +327,127 @@ class GateDecisionBundle:
 
 
 @dataclass(frozen=True, slots=True)
+class CheckpointAdmission:
+    """Checkpoint manifest provenance for downstream tier processing.
+
+    This is not gate predicate detail. It records the exact passed-checkpoint
+    manifest surface and row identity consumed by tier processing.
+    """
+
+    sample_id: str
+    split: SampleSplit
+    checkpoint_surface: str = "passed_manifest"
+    source_manifest_path: Path | None = None
+    source_manifest_sha256: str | None = None
+    payload_ref: str | None = None
+    gate_detail_available: bool = False
+    gate_detail_status: str = "unavailable_in_checkpoint_tier_flow"
+
+    def __post_init__(self) -> None:
+        _require_text(self.sample_id, "sample_id")
+        _require_text(self.checkpoint_surface, "checkpoint_surface")
+        if self.source_manifest_path is not None and not isinstance(
+            self.source_manifest_path,
+            Path,
+        ):
+            object.__setattr__(self, "source_manifest_path", Path(self.source_manifest_path))
+        if self.source_manifest_sha256 is not None:
+            _require_text(self.source_manifest_sha256, "source_manifest_sha256")
+        if self.payload_ref is not None:
+            _require_text(self.payload_ref, "payload_ref")
+        if self.gate_detail_available:
+            raise ValueError("checkpoint-only tier flow must not claim gate detail availability.")
+        _require_text(self.gate_detail_status, "gate_detail_status")
+        object.__setattr__(self, "split", SampleSplit(self.split))
+
+
+@dataclass(frozen=True, slots=True)
+class TierIssue:
+    """One structured tier policy issue."""
+
+    code: TierIssueCode
+    message: str
+    family: enum.StrEnum | str | None = None
+    tier: TierName | None = None
+    metric_name: str | None = None
+    observed_value: int | float | str | bool | None = None
+    threshold_value: int | float | str | bool | None = None
+    gate_name: GateName | None = None
+    detail: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "code", TierIssueCode(self.code))
+        _require_text(self.message, "message")
+        tier = None if self.tier is None else TierName(self.tier)
+        gate_name = None if self.gate_name is None else GateName(self.gate_name)
+        object.__setattr__(self, "tier", tier)
+        object.__setattr__(self, "gate_name", gate_name)
+
+
+@dataclass(frozen=True, slots=True)
 class TierFamilyDecision:
     """Root downstream tier decision for one metric family."""
 
-    family: str
+    family: enum.StrEnum | str
     status: TierStatus
     supported_tiers: tuple[TierName, ...]
     best_supported_tier: TierName | None
-    issue_codes: tuple[str, ...] = ()
+    issues: tuple[TierIssue, ...] = ()
 
     def __post_init__(self) -> None:
-        _require_text(self.family, "family")
+        _require_text(str(self.family), "family")
         object.__setattr__(self, "status", TierStatus(self.status))
         object.__setattr__(
             self, "supported_tiers", tuple(TierName(t) for t in self.supported_tiers)
         )
         best = None if self.best_supported_tier is None else TierName(self.best_supported_tier)
         object.__setattr__(self, "best_supported_tier", best)
-        object.__setattr__(self, "issue_codes", tuple(self.issue_codes))
+        object.__setattr__(self, "issues", tuple(self.issues))
+
+
+@dataclass(frozen=True, slots=True)
+class TierLeakageDecision:
+    """Sample-local leakage admissibility applied to tier policy selection."""
+
+    observed_max_severity: str
+    admissible_tiers: tuple[TierName, ...]
+    rejected_tiers: tuple[TierName, ...]
+
+    def __post_init__(self) -> None:
+        _require_text(self.observed_max_severity, "observed_max_severity")
+        object.__setattr__(
+            self,
+            "admissible_tiers",
+            tuple(TierName(tier) for tier in self.admissible_tiers),
+        )
+        object.__setattr__(
+            self,
+            "rejected_tiers",
+            tuple(TierName(tier) for tier in self.rejected_tiers),
+        )
 
 
 @dataclass(frozen=True, slots=True)
 class TierDecisionBundle:
     """Root downstream tier-band decision for one sample."""
 
-    sample_id: str
-    split: SampleSplit
     status: TierStatus
     selected_tier: TierName | None
     family_decisions: tuple[TierFamilyDecision, ...]
-    issue_codes: tuple[str, ...] = ()
+    leakage_decision: TierLeakageDecision | None = None
+    issues: tuple[TierIssue, ...] = ()
+    sample_id: str | None = None
+    split: SampleSplit | None = None
 
     def __post_init__(self) -> None:
-        _require_text(self.sample_id, "sample_id")
         object.__setattr__(self, "status", TierStatus(self.status))
         selected = None if self.selected_tier is None else TierName(self.selected_tier)
+        split = None if self.split is None else SampleSplit(self.split)
         object.__setattr__(self, "selected_tier", selected)
         object.__setattr__(self, "family_decisions", tuple(self.family_decisions))
-        object.__setattr__(self, "issue_codes", tuple(self.issue_codes))
+        object.__setattr__(self, "leakage_decision", self.leakage_decision)
+        object.__setattr__(self, "issues", tuple(self.issues))
+        object.__setattr__(self, "split", split)
 
 
 def _require_text(value: str, name: str) -> None:
@@ -366,19 +461,23 @@ def _require_unique(values: tuple[object, ...], name: str) -> None:
 
 
 __all__ = [
+    "CheckpointAdmission",
     "DroppedManifestEntry",
     "GateDecision",
     "GateDecisionBundle",
+    "GateDropIssueCode",
     "GateIssueCode",
     "GateName",
     "GateStatus",
     "PassedManifestEntry",
     "PoseTruth",
     "PreparedSample",
-    "SamplesDropStage",
-    "SamplesIssueCode",
+    "GateDropStage",
     "SourceTruth",
     "TierDecisionBundle",
     "TierFamilyDecision",
+    "TierIssue",
+    "TierIssueCode",
+    "TierLeakageDecision",
     "TierStatus",
 ]

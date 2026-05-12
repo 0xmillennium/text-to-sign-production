@@ -1,4 +1,4 @@
-"""Type surface for samples admission gates."""
+"""Type surface for gate admission gates."""
 
 from __future__ import annotations
 
@@ -34,48 +34,15 @@ class GateValidationIssue:
 
 @dataclass(frozen=True, slots=True)
 class GateEvaluationInput:
-    """Single authoritative input contract for samples admission gates."""
+    """Single authoritative input contract for gate admission gates."""
 
     sample: PreparedSample
 
 
-@dataclass(frozen=True, slots=True)
-class GateIssue:
-    """One observed gate issue with optional values for diagnostics."""
-
-    gate_name: GateName
-    code: GateIssueCode
-    message: str
-    observed_value: int | float | str | bool | None = None
-    threshold_value: int | float | str | bool | None = None
-    detail: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class GateCheckResult:
-    """Compatibility view over one root gate decision."""
-
-    gate_name: GateName
-    status: GateStatus
-    issues: tuple[GateIssue, ...] = ()
-
-    @property
-    def passed(self) -> bool:
-        """Whether this gate passed."""
-        return self.status is GateStatus.PASS
-
-    @property
-    def failed(self) -> bool:
-        """Whether this gate failed."""
-        return self.status is GateStatus.FAIL
-
-
 __all__ = [
-    "GateCheckResult",
     "GateDecision",
     "GateDecisionBundle",
     "GateEvaluationInput",
-    "GateIssue",
     "GateIssueCode",
     "GateName",
     "GateStatus",

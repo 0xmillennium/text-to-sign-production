@@ -1,9 +1,8 @@
-"""Read-only samples checkpoint observation helpers."""
+"""Read-only inspection summaries for dataset-owned payload and manifest surfaces."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 
 import numpy as np
 
@@ -12,54 +11,17 @@ from text_to_sign_production.core.models import (
     PassedManifestEntry,
     PreparedSample,
 )
+from text_to_sign_production.data.dataset.types import (
+    CheckpointHandoffSummary,
+    DroppedManifestSummary,
+    PassedManifestSummary,
+    PreparedSampleSummary,
+)
 from text_to_sign_production.data.dataset.validate import (
     validate_manifest_entry,
     validate_payload_manifest_coherence,
     validate_prepared_sample,
 )
-
-
-@dataclass(frozen=True, slots=True)
-class PreparedSampleSummary:
-    """Compact observation of a PreparedSample payload."""
-
-    sample_id: str
-    split: str
-    frame_count: int
-    valid_frame_count: int
-    source_complete: bool
-    pose_complete: bool
-    validation_issue_count: int
-
-
-@dataclass(frozen=True, slots=True)
-class PassedManifestSummary:
-    """Compact observation of passed manifest rows."""
-
-    entry_count: int
-    canonical_normalized_text_present_count: int
-    validation_issue_count: int
-
-
-@dataclass(frozen=True, slots=True)
-class DroppedManifestSummary:
-    """Compact observation of dropped manifest rows."""
-
-    entry_count: int
-    entries_with_issue_codes_count: int
-    validation_issue_count: int
-
-
-@dataclass(frozen=True, slots=True)
-class CheckpointHandoffSummary:
-    """Compact payload/manifest handoff integrity observation."""
-
-    payload_count: int
-    passed_count: int
-    dropped_count: int
-    coherent_passed_count: int
-    coherence_issue_count: int
-    passed_canonical_normalized_text_complete: bool
 
 
 def summarize_prepared_sample_payload(sample: PreparedSample) -> PreparedSampleSummary:
@@ -73,7 +35,6 @@ def summarize_prepared_sample_payload(sample: PreparedSample) -> PreparedSampleS
         source_complete=bool(
             sample.source.sample_id
             and sample.source.text
-            and sample.source.canonical_normalized_text
             and sample.source.source_video_id
             and sample.source.source_sentence_id
             and sample.source.source_sentence_name
@@ -99,9 +60,6 @@ def summarize_passed_manifest(
     issue_count = sum(len(validate_manifest_entry(entry)) for entry in entries)
     return PassedManifestSummary(
         entry_count=len(entries),
-        canonical_normalized_text_present_count=sum(
-            1 for entry in entries if bool(entry.canonical_normalized_text.strip())
-        ),
         validation_issue_count=issue_count,
     )
 
@@ -142,9 +100,6 @@ def summarize_checkpoint_handoff(
         dropped_count=len(dropped_entries),
         coherent_passed_count=coherent,
         coherence_issue_count=coherence_issue_count,
-        passed_canonical_normalized_text_complete=all(
-            bool(entry.canonical_normalized_text.strip()) for entry in passed_entries
-        ),
     )
 
 

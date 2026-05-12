@@ -12,13 +12,13 @@ class LeakageRelation(enum.StrEnum):
     """Deterministic exact-match relations between accepted samples."""
 
     SAME_SOURCE_SENTENCE = "same_source_sentence"
-    EXACT_NORMALIZED_TEXT = "exact_normalized_text"
+    EXACT_TEXT = "exact_text"
     SAME_SOURCE_VIDEO = "same_source_video"
 
 
 LEAKAGE_RELATION_ORDER: tuple[LeakageRelation, ...] = (
     LeakageRelation.SAME_SOURCE_SENTENCE,
-    LeakageRelation.EXACT_NORMALIZED_TEXT,
+    LeakageRelation.EXACT_TEXT,
     LeakageRelation.SAME_SOURCE_VIDEO,
 )
 
@@ -41,7 +41,7 @@ class LeakageInput:
     source_video_id: str
     source_sentence_id: str
     source_sentence_name: str
-    canonical_normalized_text: str
+    text: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,7 +77,7 @@ class LeakageSampleSummary:
     has_leakage: bool
     max_severity: LeakageSeverity
     same_source_sentence_match_count: int
-    exact_normalized_text_match_count: int
+    exact_text_match_count: int
     same_source_video_match_count: int
     matched_samples: tuple[LeakageSampleRef, ...]
 
@@ -98,7 +98,7 @@ class LeakageValidationIssueCode(enum.StrEnum):
     SAME_SPLIT_PAIR = "same_split_pair"
     EMPTY_RELATIONS = "empty_relations"
     INVALID_RELATION_ORDER = "invalid_relation_order"
-    NORMALIZED_TEXT_AUTHORITY_MISSING = "normalized_text_authority_missing"
+    TEXT_AUTHORITY_MISSING = "text_authority_missing"
     DUPLICATE_SAMPLE_SUMMARY = "duplicate_sample_summary"
     NEGATIVE_COUNT = "negative_count"
     MISSING_SAMPLE_SUMMARY_FOR_PAIR = "missing_sample_summary_for_pair"

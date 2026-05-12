@@ -10,7 +10,7 @@ from typing import Any, cast
 import torch
 from torch import nn
 
-from text_to_sign_production.modeling.data import M0_TARGET_CHANNELS, ProcessedPoseBatch
+from text_to_sign_production.modeling.data.legacy import M0_TARGET_CHANNELS, ProcessedPoseBatch
 from text_to_sign_production.modeling.models import BaselinePoseOutput
 from text_to_sign_production.modeling.training.checkpointing import load_training_checkpoint
 from text_to_sign_production.modeling.training.config import BaselineTrainingConfig

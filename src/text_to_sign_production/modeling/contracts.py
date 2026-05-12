@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Final
 
-from text_to_sign_production.legacy_data.samples.schema import PROCESSED_SCHEMA_VERSION
-from text_to_sign_production.modeling.data.schemas import (
+from text_to_sign_production.data.dataset import PREPARED_SAMPLE_SCHEMA_VERSION
+from text_to_sign_production.modeling.data.legacy import (
     M0_CHANNEL_POLICY,
     M0_TARGET_CHANNEL_SHAPES,
     M0_TARGET_CHANNELS,
@@ -213,9 +213,9 @@ def baseline_architecture_spec(
         ),
         excluded_mechanisms=EXCLUDED_MECHANISMS,
         input_schema={
-            "text": "transcript string from processed-v1 manifest",
+            "text": "transcript string from passed PreparedSample manifest",
             "target_length_source": LENGTH_POLICY,
-            "source_processed_schema_version": PROCESSED_SCHEMA_VERSION,
+            "source_prepared_schema_version": PREPARED_SAMPLE_SCHEMA_VERSION,
         },
         output_schema={
             "prediction_schema_version": PREDICTION_SCHEMA_VERSION,

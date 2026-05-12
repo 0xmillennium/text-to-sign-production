@@ -12,7 +12,6 @@ def summarize_quality_facts(facts: QualityFacts) -> QualityFactsSummary:
         and facts.integrity.tensor_frame_shape_valid
         and facts.integrity.all_required_channels_present
         and facts.integrity.coordinate_space_normalized
-        and facts.integrity.canonical_normalized_text_present
     )
     return QualityFactsSummary(
         sample_id=facts.source.sample_id,

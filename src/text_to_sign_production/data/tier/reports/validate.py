@@ -1,19 +1,19 @@
-"""Validation for PreparedSample-based quality reports."""
+"""Validation for PreparedSample-based tier reports."""
 
 from __future__ import annotations
 
 from text_to_sign_production.data.tier.reports.types import (
-    QualityReportBundle,
     ReportSectionName,
     ReportValidationIssue,
     ReportValidationIssueCode,
+    TierReportBundle,
 )
 
 
-def validate_quality_report(
-    report: QualityReportBundle,
+def validate_tier_report(
+    report: TierReportBundle,
 ) -> tuple[ReportValidationIssue, ...]:
-    """Validate a quality report bundle."""
+    """Validate a tier report bundle."""
     issues: list[ReportValidationIssue] = []
     if not report.summary.sample_id:
         issues.append(
@@ -29,7 +29,7 @@ def validate_quality_report(
         issues.append(
             ReportValidationIssue(
                 ReportValidationIssueCode.SECTION_MISSING,
-                "Quality report sections must follow the canonical section order.",
+                "Tier report sections must follow the canonical section order.",
                 "sections",
             )
         )
@@ -44,4 +44,4 @@ def validate_quality_report(
     return tuple(issues)
 
 
-__all__ = ["validate_quality_report"]
+__all__ = ["validate_tier_report"]

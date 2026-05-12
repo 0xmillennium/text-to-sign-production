@@ -3,6 +3,7 @@
 from text_to_sign_production.data.tier.leakages.analysis import (
     leakage_relation_frequencies,
     leakage_severity_distribution,
+    sample_leakage_summary,
 )
 from text_to_sign_production.data.tier.leakages.detect import (
     build_leakage_bundle,
@@ -58,6 +59,7 @@ __all__ = [
     "leakage_relation_frequencies",
     "leakage_severity_distribution",
     "max_leakage_severity",
+    "sample_leakage_summary",
     "validate_leakage_bundle",
     "validate_leakage_input",
 ]

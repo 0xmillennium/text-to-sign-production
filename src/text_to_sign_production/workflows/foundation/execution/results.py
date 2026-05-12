@@ -10,6 +10,19 @@ from text_to_sign_production.workflows.foundation.execution.contracts import (
 
 
 @dataclass(frozen=True, slots=True)
+class RenderedShellInputFile:
+    env_var_name: str
+    lines: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        _validate_non_empty_text("env_var_name", self.env_var_name)
+        if not isinstance(self.lines, tuple):
+            raise TypeError("lines must be a tuple of strings")
+        if not all(isinstance(line, str) for line in self.lines):
+            raise TypeError("lines must be a tuple of strings")
+
+
+@dataclass(frozen=True, slots=True)
 class RenderedShellCommand:
     label: str
     operation_kind: OperationKind
@@ -18,12 +31,19 @@ class RenderedShellCommand:
     failure_message: str
     progress: OperationProgressSpec | None = None
     expected_outputs: tuple[Path, ...] = ()
+    input_files: tuple[RenderedShellInputFile, ...] = ()
 
     def __post_init__(self) -> None:
         _validate_non_empty_text("label", self.label)
         _validate_non_empty_text("shell_script", self.shell_script)
         _validate_non_empty_text("display_command", self.display_command)
         _validate_non_empty_text("failure_message", self.failure_message)
+        if not isinstance(self.input_files, tuple):
+            raise TypeError("input_files must be a tuple")
+        if not all(
+            isinstance(input_file, RenderedShellInputFile) for input_file in self.input_files
+        ):
+            raise TypeError("input_files must contain RenderedShellInputFile instances")
 
 
 @dataclass(frozen=True, slots=True)

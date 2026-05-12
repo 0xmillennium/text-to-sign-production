@@ -13,12 +13,12 @@ from text_to_sign_production.data.tier.leakages.types import (
 
 def validate_leakage_input(input: LeakageInput) -> tuple[LeakageValidationIssue, ...]:
     """Validate one leakage input."""
-    if not input.canonical_normalized_text:
+    if not input.text:
         return (
             LeakageValidationIssue(
-                LeakageValidationIssueCode.NORMALIZED_TEXT_AUTHORITY_MISSING,
-                "Leakage input requires authoritative canonical_normalized_text.",
-                "canonical_normalized_text",
+                LeakageValidationIssueCode.TEXT_AUTHORITY_MISSING,
+                "Leakage input requires authoritative text.",
+                "text",
             ),
         )
     return ()
@@ -101,7 +101,7 @@ def validate_leakage_bundle(bundle: LeakageBundle) -> tuple[LeakageValidationIss
     for index, summary in enumerate(bundle.sample_summaries):
         for count in (
             summary.same_source_sentence_match_count,
-            summary.exact_normalized_text_match_count,
+            summary.exact_text_match_count,
             summary.same_source_video_match_count,
         ):
             if count < 0:

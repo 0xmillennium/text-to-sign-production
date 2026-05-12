@@ -1,4 +1,4 @@
-"""Frame and duration samples admission gate."""
+"""Frame and duration gate admission gate."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ def evaluate_frames_gate(
     sample: PreparedSample,
     thresholds: FramesGateThresholds,
 ) -> GateDecision:
-    """Evaluate whether frame truth is admissible into the samples checkpoint."""
+    """Evaluate whether frame truth is admissible into the dataset checkpoint."""
     issues: list[GateIssueCode] = []
     valid_frame_count = int(np.count_nonzero(sample.pose.valid_frame_mask))
     if sample.pose.frame_count < thresholds.min_frame_count:

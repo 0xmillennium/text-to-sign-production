@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import enum
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Literal, TypeAlias
@@ -15,6 +16,45 @@ OperationKind: TypeAlias = Literal[
 OperationLiveOwner: TypeAlias = Literal["shell", "python"]
 OperationOverwritePolicy: TypeAlias = Literal["forbid", "replace", "atomic_replace"]
 ArchiveCompressionKind: TypeAlias = Literal["tar_zst"]
+RuntimeCheckScope: TypeAlias = Literal["asset", "domain"]
+
+
+class ReadinessLevel(enum.StrEnum):
+    """Named runtime readiness contract levels."""
+
+    FAST_READINESS = "fast_readiness"
+    STRUCTURAL_READINESS = "structural_readiness"
+    EXHAUSTIVE_READINESS = "exhaustive_readiness"
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeReadinessScope:
+    """Typed statement of what a runtime verify pass checked."""
+
+    readiness_level: ReadinessLevel
+    checked_semantics: tuple[str, ...]
+    limitations: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "readiness_level", ReadinessLevel(self.readiness_level))
+        object.__setattr__(
+            self,
+            "checked_semantics",
+            tuple(
+                semantic.strip()
+                for semantic in self.checked_semantics
+                if isinstance(semantic, str) and semantic.strip()
+            ),
+        )
+        object.__setattr__(
+            self,
+            "limitations",
+            tuple(
+                limitation.strip()
+                for limitation in self.limitations
+                if isinstance(limitation, str) and limitation.strip()
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +160,17 @@ class ArchiveVerifyOperation:
 WorkflowOperation: TypeAlias = (
     FileCopyOperation | ArchiveExtractOperation | ArchiveCreateOperation | ArchiveVerifyOperation
 )
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeCheckResult:
+    """One typed runtime readiness check result."""
+
+    label: str
+    scope: RuntimeCheckScope
+    exists: bool
+    valid: bool = True
+    message: str | None = None
 
 
 def operation_kind(operation: WorkflowOperation) -> OperationKind:

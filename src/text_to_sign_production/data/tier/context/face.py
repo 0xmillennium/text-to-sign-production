@@ -28,7 +28,7 @@ def build_face_region_context(
     active_face: list[bool] = []
     active_upper: list[bool] = []
     active_lower: list[bool] = []
-    overlap: list[bool] = []
+    face_given_manual: list[bool] = []
     for frame_index in range(active_span.frame_count):
         whole_count = int(np.count_nonzero(face_conf[frame_index] > 0.0))
         upper_count = int(
@@ -46,7 +46,7 @@ def build_face_region_context(
         active_face.append(active and whole_available)
         active_upper.append(active and upper_supported)
         active_lower.append(active and lower_supported)
-        overlap.append(ready)
+        face_given_manual.append(ready)
         frames.append(
             FaceRegionFrameContext(
                 frame_index=frame_index,
@@ -61,7 +61,7 @@ def build_face_region_context(
                 upper_face_supported=upper_supported,
                 lower_face_supported=lower_supported,
                 manual_available=manual_available,
-                manual_face_overlap_ready=ready,
+                face_available_given_manual_frame=ready,
             )
         )
     return FaceRegionContext(
@@ -69,7 +69,7 @@ def build_face_region_context(
         active_face_available_mask=tuple(active_face),
         active_upper_face_supported_mask=tuple(active_upper),
         active_lower_face_supported_mask=tuple(active_lower),
-        manual_face_overlap_ready_mask=tuple(overlap),
+        face_available_given_manual_frame_mask=tuple(face_given_manual),
     )
 
 

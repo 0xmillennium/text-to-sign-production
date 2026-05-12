@@ -21,7 +21,7 @@ from torch.utils.data import DataLoader, Sampler, Subset
 
 from text_to_sign_production.core.integrity import sha256_json
 from text_to_sign_production.modeling.backbones import FlanT5TextBackbone
-from text_to_sign_production.modeling.data import (
+from text_to_sign_production.modeling.data.legacy import (
     M0_TARGET_CHANNELS,
     ProcessedPoseBatch,
     ProcessedPoseDataset,

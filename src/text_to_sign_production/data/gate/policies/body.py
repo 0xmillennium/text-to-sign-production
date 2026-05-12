@@ -1,4 +1,4 @@
-"""Body-channel samples admission gate."""
+"""Body-channel gate admission gate."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ def evaluate_body_gate(
     sample: PreparedSample,
     thresholds: BodyGateThresholds,
 ) -> GateDecision:
-    """Evaluate whether body support is admissible into the samples checkpoint."""
+    """Evaluate whether body support is admissible into the dataset checkpoint."""
     issues: list[GateIssueCode] = []
     count = sample.pose.body_nonzero_frame_count
     if (

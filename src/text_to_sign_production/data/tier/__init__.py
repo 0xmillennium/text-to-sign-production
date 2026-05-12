@@ -1,1 +1,1 @@
-"""Future home of quality data boundaries."""
+"""Tier-stage fact, context, policy, leakage, and report domain packages."""

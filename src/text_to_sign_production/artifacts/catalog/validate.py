@@ -159,7 +159,7 @@ def validate_tiered_catalog(catalog: TieredCatalog, stores: ArtifactStores) -> l
 def _validate_runtime_sample_binding(
     *,
     stores: ArtifactStores,
-    sample: object | None,
+    sample: SamplePathRef | None,
     label: str,
     declared_payload_ref: str,
     manifest_path_is_valid: bool,
@@ -215,8 +215,8 @@ def _validate_manifest_payload_ref(
 def _validate_drive_sample_binding(
     *,
     stores: ArtifactStores,
-    archive: object | None,
-    member: object | None,
+    archive: ArchivePathRef | None,
+    member: ArchiveMemberPathRef | None,
     label: str,
     status: SampleStatus,
     split: SampleSplit,

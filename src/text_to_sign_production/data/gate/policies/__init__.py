@@ -1,4 +1,4 @@
-"""Samples admission-gate policy package."""
+"""Gate admission-gate policy package."""
 
 from text_to_sign_production.data.gate.policies.analysis import (
     FailedGateSummary,
@@ -24,7 +24,6 @@ from text_to_sign_production.data.gate.policies.config import (
 from text_to_sign_production.data.gate.policies.evaluate import (
     GATE_EVALUATION_ORDER,
     assemble_gate_decision_bundle,
-    evaluate_quality_gates,
     evaluate_sample_gates,
 )
 from text_to_sign_production.data.gate.policies.face import evaluate_face_gate
@@ -32,11 +31,9 @@ from text_to_sign_production.data.gate.policies.frames import evaluate_frames_ga
 from text_to_sign_production.data.gate.policies.hand import evaluate_hand_gate
 from text_to_sign_production.data.gate.policies.source import evaluate_source_gate
 from text_to_sign_production.data.gate.policies.types import (
-    GateCheckResult,
     GateDecision,
     GateDecisionBundle,
     GateEvaluationInput,
-    GateIssue,
     GateIssueCode,
     GateName,
     GateStatus,
@@ -57,11 +54,9 @@ __all__ = [
     "FaceGateThresholds",
     "FailedGateSummary",
     "FramesGateThresholds",
-    "GateCheckResult",
     "GateDecision",
     "GateDecisionBundle",
     "GateEvaluationInput",
-    "GateIssue",
     "GateIssueCode",
     "GateIssueFrequency",
     "GateName",
@@ -77,7 +72,6 @@ __all__ = [
     "evaluate_face_gate",
     "evaluate_frames_gate",
     "evaluate_hand_gate",
-    "evaluate_quality_gates",
     "evaluate_sample_gates",
     "evaluate_source_gate",
     "gate_issue_frequencies",

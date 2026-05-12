@@ -1,4 +1,4 @@
-"""Face-channel samples admission gate."""
+"""Face-channel gate admission gate."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ def evaluate_face_gate(
     sample: PreparedSample,
     thresholds: FaceGateThresholds,
 ) -> GateDecision:
-    """Evaluate whether face support is admissible into the samples checkpoint."""
+    """Evaluate whether face support is admissible into the dataset checkpoint."""
     issues: list[GateIssueCode] = []
     count = sample.pose.face_nonzero_frame_count
     if (

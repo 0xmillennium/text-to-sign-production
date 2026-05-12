@@ -1,4 +1,4 @@
-"""Samples admission-gate evaluation entrypoint."""
+"""Gate admission-gate evaluation entrypoint."""
 
 from __future__ import annotations
 
@@ -45,14 +45,6 @@ def evaluate_sample_gates(
     )
 
 
-def evaluate_quality_gates(
-    sample: PreparedSample,
-    config: GatesConfig,
-) -> GateDecisionBundle:
-    """Compatibility alias for the samples admission gate entrypoint."""
-    return evaluate_sample_gates(sample, config)
-
-
 def assemble_gate_decision_bundle(
     *,
     sample_id: str,
@@ -76,6 +68,5 @@ def assemble_gate_decision_bundle(
 __all__ = [
     "GATE_EVALUATION_ORDER",
     "assemble_gate_decision_bundle",
-    "evaluate_quality_gates",
     "evaluate_sample_gates",
 ]

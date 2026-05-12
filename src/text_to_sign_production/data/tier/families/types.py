@@ -1,4 +1,9 @@
-"""Type system for quality-family metric computation."""
+"""Type system for tier quality-family metric computation.
+
+``Quality`` is tier-domain metric terminology here: these contracts describe
+PreparedSample-derived measurement families, not a separate data ownership
+layer.
+"""
 
 from __future__ import annotations
 
@@ -82,9 +87,9 @@ class NonManualVisibilityMetrics:
 class ConfidenceMetrics:
     """Active-span confidence metrics."""
 
-    active_span_body_mean_confidence: float
-    active_span_hand_mean_confidence: float
-    active_span_face_mean_confidence: float
+    active_span_body_observed_mean_confidence: float
+    active_span_hand_observed_mean_confidence: float
+    active_span_face_observed_mean_confidence: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +99,7 @@ class KinematicNaturalnessMetrics:
     comparable_transition_abrupt_ratio: float
     comparable_transition_discontinuity_ratio: float
     active_span_frozen_frame_ratio: float
+    max_active_span_frozen_run_ratio: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,7 +129,7 @@ class NonManualQualityMetrics:
     active_span_upper_face_landmark_coverage_ratio: float
     active_span_lower_face_landmark_coverage_ratio: float
     max_active_span_face_detail_dropout_run_ratio: float
-    active_span_manual_face_overlap_ratio: float
+    active_span_face_available_given_manual_frame_ratio: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,7 +137,6 @@ class GeometryMetrics:
     """Sample-relative geometry consistency metrics."""
 
     active_span_upper_body_bone_length_outlier_frame_ratio: float
-    active_span_representative_hand_bone_length_outlier_frame_ratio: float
     active_span_cross_channel_scale_outlier_frame_ratio: float
 
 

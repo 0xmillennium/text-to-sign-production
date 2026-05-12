@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from text_to_sign_production.data.tier.families import BindingQualityFamily, GeometryMetrics
+from text_to_sign_production.data.tier.families.types import BindingQualityFamily, GeometryMetrics
 from text_to_sign_production.data.tier.policies.filters import GeometryTierFilters
 from text_to_sign_production.data.tier.policies.policies import TierPoliciesConfig
 from text_to_sign_production.data.tier.policies.types import (
-    FamilyTierDecision,
+    TierFamilyDecision,
     TierIssue,
     TierIssueCode,
     TierName,
@@ -20,7 +20,7 @@ def evaluate_geometry_tier(
     metric: GeometryMetrics,
     filters: GeometryTierFilters,
     policies: TierPoliciesConfig,
-) -> FamilyTierDecision:
+) -> TierFamilyDecision:
     """Evaluate up to which tier geometry consistency is sufficient."""
     supported: list[TierName] = []
     issues: list[TierIssue] = []
@@ -33,12 +33,6 @@ def evaluate_geometry_tier(
                 metric.active_span_upper_body_bone_length_outlier_frame_ratio,
                 thresholds.max_active_span_upper_body_bone_length_outlier_frame_ratio,
                 "Upper-body geometry outlier ratio is too high.",
-            ),
-            (
-                "active_span_representative_hand_bone_length_outlier_frame_ratio",
-                metric.active_span_representative_hand_bone_length_outlier_frame_ratio,
-                thresholds.max_active_span_representative_hand_bone_length_outlier_frame_ratio,
-                "Representative-hand geometry outlier ratio is too high.",
             ),
             (
                 "active_span_cross_channel_scale_outlier_frame_ratio",
@@ -77,7 +71,7 @@ def _issue(
     )
 
 
-def _decision(supported: list[TierName], issues: list[TierIssue]) -> FamilyTierDecision:
+def _decision(supported: list[TierName], issues: list[TierIssue]) -> TierFamilyDecision:
     best = supported[-1] if supported else None
     status = TierStatus.PASSED if best is not None else TierStatus.FAILED
     if best is None:
@@ -88,7 +82,7 @@ def _decision(supported: list[TierName], issues: list[TierIssue]) -> FamilyTierD
                 family=_FAMILY,
             )
         )
-    return FamilyTierDecision(_FAMILY, status, tuple(supported), best, tuple(issues))
+    return TierFamilyDecision(_FAMILY, status, tuple(supported), best, tuple(issues))
 
 
 __all__ = ["evaluate_geometry_tier"]

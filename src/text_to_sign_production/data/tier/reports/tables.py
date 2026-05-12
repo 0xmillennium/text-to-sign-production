@@ -1,36 +1,44 @@
-"""Table builders for PreparedSample-based quality reports."""
+"""Table builders for PreparedSample-based tier reports."""
 
 from __future__ import annotations
 
-from text_to_sign_production.core.models import GateDecisionBundle
-from text_to_sign_production.data.tier.families import QualityMetricBundle
-from text_to_sign_production.data.tier.policies import TierDecisionBundle
+from typing import cast
+
+from text_to_sign_production.core.models import CheckpointAdmission
+from text_to_sign_production.data.tier.families.types import (
+    BindingQualityFamily,
+    QualityMetricBundle,
+)
+from text_to_sign_production.data.tier.policies.types import TierDecisionBundle
 from text_to_sign_production.data.tier.reports.types import (
-    GateReportRow,
     MetricReportRow,
-    QualityReportTables,
     TierReportRow,
+    TierReportTables,
 )
 
 
-def build_quality_report_tables(
+def build_tier_report_tables(
     metrics: QualityMetricBundle,
-    tiers: TierDecisionBundle,
-    gates: GateDecisionBundle | None,
-) -> QualityReportTables:
-    """Build machine-readable report tables."""
-    return QualityReportTables(
+    tier_decision: TierDecisionBundle,
+    checkpoint_admission: CheckpointAdmission,
+) -> TierReportTables:
+    """Build machine-readable report tables for checkpoint-admitted tier flow."""
+    if not checkpoint_admission.sample_id.strip():
+        raise ValueError("Checkpoint admission sample_id must be non-empty.")
+    if not checkpoint_admission.source_manifest_sha256 or checkpoint_admission.payload_ref is None:
+        raise ValueError("Checkpoint admission must carry manifest digest and payload_ref.")
+    return TierReportTables(
         metric_rows=_metric_rows(metrics),
-        gate_rows=_gate_rows(gates),
+        gate_rows=(),
         tier_rows=tuple(
             TierReportRow(
-                family=decision.family,
+                family=cast(BindingQualityFamily, decision.family),
                 status=decision.status,
                 best_supported_tier=decision.best_supported_tier,
                 supported_tiers=decision.supported_tiers,
                 issue_count=len(decision.issues),
             )
-            for decision in tiers.family_decisions
+            for decision in tier_decision.family_decisions
         ),
     )
 
@@ -104,18 +112,18 @@ def _metric_rows(metrics: QualityMetricBundle) -> tuple[MetricReportRow, ...]:
         ),
         MetricReportRow(
             "confidence",
-            "active_span_body_mean_confidence",
-            metrics.confidence.active_span_body_mean_confidence,
+            "active_span_body_observed_mean_confidence",
+            metrics.confidence.active_span_body_observed_mean_confidence,
         ),
         MetricReportRow(
             "confidence",
-            "active_span_hand_mean_confidence",
-            metrics.confidence.active_span_hand_mean_confidence,
+            "active_span_hand_observed_mean_confidence",
+            metrics.confidence.active_span_hand_observed_mean_confidence,
         ),
         MetricReportRow(
             "confidence",
-            "active_span_face_mean_confidence",
-            metrics.confidence.active_span_face_mean_confidence,
+            "active_span_face_observed_mean_confidence",
+            metrics.confidence.active_span_face_observed_mean_confidence,
         ),
         MetricReportRow(
             "kinematic_naturalness",
@@ -131,6 +139,11 @@ def _metric_rows(metrics: QualityMetricBundle) -> tuple[MetricReportRow, ...]:
             "kinematic_naturalness",
             "active_span_frozen_frame_ratio",
             metrics.kinematic_naturalness.active_span_frozen_frame_ratio,
+        ),
+        MetricReportRow(
+            "kinematic_naturalness",
+            "max_active_span_frozen_run_ratio",
+            metrics.kinematic_naturalness.max_active_span_frozen_run_ratio,
         ),
         MetricReportRow(
             "tracking_quality",
@@ -189,18 +202,13 @@ def _metric_rows(metrics: QualityMetricBundle) -> tuple[MetricReportRow, ...]:
         ),
         MetricReportRow(
             "non_manual_quality",
-            "active_span_manual_face_overlap_ratio",
-            metrics.non_manual_quality.active_span_manual_face_overlap_ratio,
+            "active_span_face_available_given_manual_frame_ratio",
+            metrics.non_manual_quality.active_span_face_available_given_manual_frame_ratio,
         ),
         MetricReportRow(
             "geometry",
             "active_span_upper_body_bone_length_outlier_frame_ratio",
             metrics.geometry.active_span_upper_body_bone_length_outlier_frame_ratio,
-        ),
-        MetricReportRow(
-            "geometry",
-            "active_span_representative_hand_bone_length_outlier_frame_ratio",
-            metrics.geometry.active_span_representative_hand_bone_length_outlier_frame_ratio,
         ),
         MetricReportRow(
             "geometry",
@@ -234,18 +242,4 @@ def _metric_rows(metrics: QualityMetricBundle) -> tuple[MetricReportRow, ...]:
         ),
     )
 
-
-def _gate_rows(gates: GateDecisionBundle | None) -> tuple[GateReportRow, ...]:
-    if gates is None:
-        return ()
-    return tuple(
-        GateReportRow(
-            gate_name=decision.gate,
-            status=decision.status,
-            issue_count=len(decision.issue_codes),
-        )
-        for decision in gates.decisions
-    )
-
-
-__all__ = ["build_quality_report_tables"]
+__all__ = ["build_tier_report_tables"]

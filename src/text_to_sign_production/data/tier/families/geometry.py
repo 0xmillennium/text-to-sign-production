@@ -18,7 +18,6 @@ def compute_geometry_metrics(input: QualityMetricBuildInput) -> GeometryMetrics:
     geometry = input.quality_context.geometry
     active_count = sum(1 for value in active if value)
     upper_outlier_count = 0
-    hand_outlier_count = 0
     scale_outlier_count = 0
 
     for frame in geometry.frames:
@@ -30,12 +29,6 @@ def compute_geometry_metrics(input: QualityMetricBuildInput) -> GeometryMetrics:
             _SEGMENT_RELATIVE_DEVIATION_LIMIT,
         ):
             upper_outlier_count += 1
-        if _frame_has_segment_outlier(
-            frame.representative_hand_segment_lengths,
-            geometry.representative_hand_segment_references,
-            _SEGMENT_RELATIVE_DEVIATION_LIMIT,
-        ):
-            hand_outlier_count += 1
         if _cross_channel_scale_outlier(
             frame.body_scale_reference_length,
             frame.hand_scale_reference_length,
@@ -46,10 +39,6 @@ def compute_geometry_metrics(input: QualityMetricBuildInput) -> GeometryMetrics:
     return GeometryMetrics(
         active_span_upper_body_bone_length_outlier_frame_ratio=_ratio(
             upper_outlier_count,
-            active_count,
-        ),
-        active_span_representative_hand_bone_length_outlier_frame_ratio=_ratio(
-            hand_outlier_count,
             active_count,
         ),
         active_span_cross_channel_scale_outlier_frame_ratio=_ratio(

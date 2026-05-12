@@ -6,7 +6,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
-from text_to_sign_production.data.tier.families import (
+from text_to_sign_production.data.tier.families.types import (
     BindingQualityFamily,
     DiagnosticQualityFamily,
 )
@@ -46,12 +46,12 @@ from text_to_sign_production.data.tier.policies.policies import TierPoliciesConf
 from text_to_sign_production.data.tier.policies.tracking_quality import (
     evaluate_tracking_quality_tier,
 )
-from text_to_sign_production.data.tier.policies.types import FamilyTierDecision
+from text_to_sign_production.data.tier.policies.types import TierFamilyDecision
 from text_to_sign_production.data.tier.policies.upper_body_support import (
     evaluate_upper_body_support_tier,
 )
 
-TierEvaluator = Callable[..., FamilyTierDecision]
+TierEvaluator = Callable[..., TierFamilyDecision]
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,8 +59,6 @@ class TierFamilyRole:
     """Registry entry for one binding family."""
 
     family: BindingQualityFamily
-    metric_attr: str
-    filter_attr: str
     filter_type: type[object]
     evaluator: TierEvaluator
     mandatory: bool = True
@@ -75,71 +73,51 @@ DIAGNOSTIC_TIER_FAMILIES: tuple[DiagnosticQualityFamily, ...] = (
 TIER_FAMILY_ROLES: tuple[TierFamilyRole, ...] = (
     TierFamilyRole(
         family=BindingQualityFamily.OOB,
-        metric_attr="oob",
-        filter_attr="oob",
         filter_type=OobTierFilters,
         evaluator=evaluate_oob_tier,
     ),
     TierFamilyRole(
         family=BindingQualityFamily.UPPER_BODY_SUPPORT,
-        metric_attr="upper_body_support",
-        filter_attr="upper_body_support",
         filter_type=UpperBodySupportTierFilters,
         evaluator=evaluate_upper_body_support_tier,
     ),
     TierFamilyRole(
         family=BindingQualityFamily.MANUAL_VISIBILITY,
-        metric_attr="manual_visibility",
-        filter_attr="manual_visibility",
         filter_type=ManualVisibilityTierFilters,
         evaluator=evaluate_manual_visibility_tier,
     ),
     TierFamilyRole(
         family=BindingQualityFamily.NON_MANUAL_VISIBILITY,
-        metric_attr="non_manual_visibility",
-        filter_attr="non_manual_visibility",
         filter_type=NonManualVisibilityTierFilters,
         evaluator=evaluate_non_manual_visibility_tier,
     ),
     TierFamilyRole(
         family=BindingQualityFamily.CONFIDENCE,
-        metric_attr="confidence",
-        filter_attr="confidence",
         filter_type=ConfidenceTierFilters,
         evaluator=evaluate_confidence_tier,
     ),
     TierFamilyRole(
         family=BindingQualityFamily.KINEMATIC_NATURALNESS,
-        metric_attr="kinematic_naturalness",
-        filter_attr="kinematic_naturalness",
         filter_type=KinematicNaturalnessTierFilters,
         evaluator=evaluate_kinematic_naturalness_tier,
     ),
     TierFamilyRole(
         family=BindingQualityFamily.TRACKING_QUALITY,
-        metric_attr="tracking_quality",
-        filter_attr="tracking_quality",
         filter_type=TrackingQualityTierFilters,
         evaluator=evaluate_tracking_quality_tier,
     ),
     TierFamilyRole(
         family=BindingQualityFamily.MANUAL_DETAIL,
-        metric_attr="manual_detail",
-        filter_attr="manual_detail",
         filter_type=ManualDetailTierFilters,
         evaluator=evaluate_manual_detail_tier,
     ),
     TierFamilyRole(
         family=BindingQualityFamily.NON_MANUAL_QUALITY,
-        metric_attr="non_manual_quality",
-        filter_attr="non_manual_quality",
         filter_type=NonManualQualityTierFilters,
         evaluator=evaluate_non_manual_quality_tier,
     ),
     TierFamilyRole(
         family=BindingQualityFamily.GEOMETRY,
-        metric_attr="geometry",
-        filter_attr="geometry",
         filter_type=GeometryTierFilters,
         evaluator=evaluate_geometry_tier,
     ),

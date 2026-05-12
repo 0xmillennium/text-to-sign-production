@@ -1,34 +1,30 @@
-"""Read-only analysis helpers for samples-stage report projections."""
+"""Read-only analysis helpers for gate-stage report projections."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from text_to_sign_production.data.gate.reports.types import SamplesReportBundle
+from text_to_sign_production.data.gate.reports.types import GateReportBundle
 from text_to_sign_production.data.gate.reports.validate import (
-    validate_samples_report_bundle,
+    validate_gate_report_bundle,
 )
 
 
 @dataclass(frozen=True, slots=True)
-class SamplesReportAudit:
+class GateReportAudit:
     """Compact audit of report projection integrity."""
 
     valid: bool
     validation_issue_count: int
-    canonical_normalized_text_complete: bool
 
 
-def audit_samples_report(bundle: SamplesReportBundle) -> SamplesReportAudit:
+def audit_gate_report(bundle: GateReportBundle) -> GateReportAudit:
     """Audit report projection integrity."""
-    issues = validate_samples_report_bundle(bundle)
-    return SamplesReportAudit(
+    issues = validate_gate_report_bundle(bundle)
+    return GateReportAudit(
         valid=not issues,
         validation_issue_count=len(issues),
-        canonical_normalized_text_complete=(
-            bundle.checkpoint_integrity.canonical_normalized_text_missing_count == 0
-        ),
     )
 
 
-__all__ = ["SamplesReportAudit", "audit_samples_report"]
+__all__ = ["GateReportAudit", "audit_gate_report"]

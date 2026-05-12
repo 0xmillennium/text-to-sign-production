@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 import numpy.typing as npt
 
-from text_to_sign_production.modeling.data import (
+from text_to_sign_production.modeling.data.legacy import (
     M0_TARGET_CHANNEL_SHAPES,
     M0_TARGET_CHANNELS,
     ProcessedModelingManifestRecord,
@@ -426,7 +426,7 @@ def write_qualitative_sample_artifacts(
         prediction_arrays,
         frame_valid_mask=item.frame_valid_mask,
         selected_person_index=item.selected_person_index,
-        source_processed_schema_version=item.processed_schema_version,
+        source_prepared_schema_version=item.processed_schema_version,
     )
     np.savez_compressed(
         prediction_path,
@@ -444,7 +444,7 @@ def write_qualitative_sample_artifacts(
         "reference_artifact": portable_path(reference_path, path_formatter=path_formatter),
         "prediction_artifact": portable_path(prediction_path, path_formatter=path_formatter),
         "source_processed_sample_path": item.sample_path_value,
-        "source_processed_schema_version": item.processed_schema_version,
+        "source_prepared_schema_version": item.processed_schema_version,
         "target_channels": list(M0_TARGET_CHANNELS),
         "prediction_schema_version": str(prediction_payload["prediction_schema_version"].item()),
         **policy_metadata,

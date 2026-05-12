@@ -1,4 +1,4 @@
-"""Manual-channel samples admission gate."""
+"""Manual-channel gate admission gate."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ def evaluate_hand_gate(
     sample: PreparedSample,
     thresholds: HandGateThresholds,
 ) -> GateDecision:
-    """Evaluate whether manual support is admissible into the samples checkpoint."""
+    """Evaluate whether manual support is admissible into the dataset checkpoint."""
     issues: list[GateIssueCode] = []
     count = max(
         sample.pose.left_hand_nonzero_frame_count,

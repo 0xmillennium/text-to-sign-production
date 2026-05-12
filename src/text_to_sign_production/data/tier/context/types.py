@@ -13,6 +13,7 @@ class ContextValidationCode(enum.StrEnum):
     ACTIVE_BOUNDS_INVALID = "active_bounds_invalid"
     ACTIVE_COUNT_MISMATCH = "active_count_mismatch"
     ACTIVE_FINAL_MASK_MISMATCH = "active_final_mask_mismatch"
+    ACTIVE_STAGE_INVARIANT_VIOLATION = "active_stage_invariant_violation"
     ACTIVE_TRANSITION_MASK_MISMATCH = "active_transition_mask_mismatch"
     FRAME_CONTEXT_LENGTH_MISMATCH = "frame_context_length_mismatch"
     GEOMETRY_REFERENCE_EMPTY = "geometry_reference_empty"
@@ -56,6 +57,7 @@ class ActiveSpanContext:
     frame_count: int
     start_frame_index: int
     end_frame_index_exclusive: int
+    frame_valid_mask: tuple[bool, ...]
     raw_evidence_mask: tuple[bool, ...]
     stabilized_evidence_mask: tuple[bool, ...]
     bridged_evidence_mask: tuple[bool, ...]
@@ -63,6 +65,11 @@ class ActiveSpanContext:
     active_frame_mask: tuple[bool, ...]
     active_transition_mask: tuple[bool, ...]
     active_frame_count: int
+    fallback_used: bool
+    raw_evidence_frame_count: int
+    stabilized_evidence_frame_count: int
+    bridged_evidence_frame_count: int
+    padded_active_frame_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,7 +130,7 @@ class FaceRegionFrameContext:
     upper_face_supported: bool
     lower_face_supported: bool
     manual_available: bool
-    manual_face_overlap_ready: bool
+    face_available_given_manual_frame: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,7 +141,7 @@ class FaceRegionContext:
     active_face_available_mask: tuple[bool, ...]
     active_upper_face_supported_mask: tuple[bool, ...]
     active_lower_face_supported_mask: tuple[bool, ...]
-    manual_face_overlap_ready_mask: tuple[bool, ...]
+    face_available_given_manual_frame_mask: tuple[bool, ...]
 
 
 @dataclass(frozen=True, slots=True)

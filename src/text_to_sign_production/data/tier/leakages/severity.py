@@ -11,7 +11,7 @@ def classify_leakage_severity(relations: tuple[LeakageRelation, ...]) -> Leakage
         return LeakageSeverity.NONE
     if LeakageRelation.SAME_SOURCE_SENTENCE in relations:
         return LeakageSeverity.HIGH
-    if LeakageRelation.EXACT_NORMALIZED_TEXT in relations:
+    if LeakageRelation.EXACT_TEXT in relations:
         return LeakageSeverity.MEDIUM
     return LeakageSeverity.LOW
 

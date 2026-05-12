@@ -1,28 +1,43 @@
 from __future__ import annotations
 
 import os
+import re
+import shlex
+import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, SupportsInt
 
 from text_to_sign_production.workflows.foundation.execution.results import (
     RenderedShellCommand,
+    RenderedShellInputFile,
     ShellExecutionResult,
 )
+
+_ENV_VAR_NAME_PATTERN = re.compile(r"[A-Z_][A-Z0-9_]*")
 
 
 @dataclass(slots=True)
 class NotebookShellRunner:
     def run(self, rendered: RenderedShellCommand) -> ShellExecutionResult:
-        shell_command = _wrap_for_bash_pipefail(rendered.shell_script)
-        ipython_shell = _ipython_shell()
-        if ipython_shell is None:
-            execution_mode = "system_shell"
-            returncode = _run_with_os_system(shell_command)
-        else:
-            execution_mode = "ipython_shell"
-            returncode = _run_in_ipython(shell_command)
+        _validate_input_file_env_vars(rendered.input_files)
+        with tempfile.TemporaryDirectory(prefix="tts_workflow_shell_") as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            input_paths = _materialize_input_files(tmpdir_path, rendered.input_files)
+            script_text = _materialized_script_text(rendered, input_paths)
+            script_path = tmpdir_path / "operation.sh"
+            script_path.write_text(script_text, encoding="utf-8")
+            shell_command = f"bash -o pipefail {shlex.quote(str(script_path))}"
+
+            ipython_shell = _ipython_shell()
+            if ipython_shell is None:
+                execution_mode = "system_script_file"
+                returncode = _run_with_os_system(shell_command)
+            else:
+                execution_mode = "ipython_script_file"
+                returncode = _run_in_ipython(shell_command)
         return ShellExecutionResult(
-            shell_script=rendered.shell_script,
+            shell_script=script_text,
             returncode=returncode,
             succeeded=returncode == 0,
             execution_mode=execution_mode,
@@ -44,9 +59,47 @@ def _ipython_shell() -> Any | None:
     return get_ipython()
 
 
-def _wrap_for_bash_pipefail(shell_script: str) -> str:
-    quoted_script = "'" + shell_script.replace("'", "'\"'\"'") + "'"
-    return f"bash -o pipefail -c {quoted_script}"
+def _validate_input_file_env_vars(input_files: tuple[RenderedShellInputFile, ...]) -> None:
+    seen_names: set[str] = set()
+    for input_file in input_files:
+        env_var_name = input_file.env_var_name
+        if _ENV_VAR_NAME_PATTERN.fullmatch(env_var_name) is None:
+            raise ValueError(
+                f"Invalid shell input file environment variable name: {env_var_name!r}"
+            )
+        if env_var_name in seen_names:
+            raise ValueError(
+                f"Duplicate shell input file environment variable name: {env_var_name!r}"
+            )
+        seen_names.add(env_var_name)
+
+
+def _materialize_input_files(
+    tmpdir_path: Path,
+    input_files: tuple[RenderedShellInputFile, ...],
+) -> dict[str, Path]:
+    input_paths: dict[str, Path] = {}
+    for index, input_file in enumerate(input_files):
+        input_path = tmpdir_path / f"input_{index}.txt"
+        with input_path.open("w", encoding="utf-8") as file:
+            for line in input_file.lines:
+                file.write(f"{line}\n")
+        input_paths[input_file.env_var_name] = input_path
+    return input_paths
+
+
+def _materialized_script_text(
+    rendered: RenderedShellCommand,
+    input_paths: dict[str, Path],
+) -> str:
+    env_exports = [f"export {name}={shlex.quote(str(path))}" for name, path in input_paths.items()]
+    return "\n".join(
+        [
+            "set -euo pipefail",
+            *env_exports,
+            rendered.shell_script,
+        ]
+    ).strip()
 
 
 def _run_in_ipython(shell_command: str) -> int:

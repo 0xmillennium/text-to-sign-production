@@ -7,7 +7,7 @@ from typing import Any
 
 import torch
 
-from text_to_sign_production.modeling.data import (
+from text_to_sign_production.modeling.data.legacy import (
     M0_TARGET_CHANNEL_SHAPES,
     M0_TARGET_CHANNELS,
 )

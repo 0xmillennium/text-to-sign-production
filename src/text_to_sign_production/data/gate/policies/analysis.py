@@ -1,4 +1,4 @@
-"""Read-only analysis helpers for samples admission gates."""
+"""Read-only analysis helpers for gate admission gates."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ class FailedGateSummary:
 
 
 def summarize_failed_gates(bundle: GateDecisionBundle) -> FailedGateSummary:
-    """Summarize failed gates for one samples admission decision bundle."""
+    """Summarize failed gates for one gate admission decision bundle."""
     return FailedGateSummary(
         passed=bundle.final_status is SampleStatus.PASSED,
         failed_gate_names=bundle.failed_gates,

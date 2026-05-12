@@ -10,7 +10,7 @@ from typing import Any, Final, cast
 import numpy as np
 import numpy.typing as npt
 
-from text_to_sign_production.legacy_data.samples.schema import PROCESSED_SCHEMA_VERSION
+from text_to_sign_production.data.dataset import PREPARED_SAMPLE_SCHEMA_VERSION
 from text_to_sign_production.modeling.contracts import (
     CONFIDENCE_POLICY,
     LENGTH_POLICY,
@@ -19,7 +19,7 @@ from text_to_sign_production.modeling.contracts import (
     PREDICTION_SCHEMA_VERSION,
     SELECTED_PERSON_INDEX_POLICY,
 )
-from text_to_sign_production.modeling.data import (
+from text_to_sign_production.modeling.data.legacy import (
     M0_CHANNEL_POLICY,
     M0_TARGET_CHANNEL_SHAPES,
     M0_TARGET_CHANNELS,
@@ -38,7 +38,7 @@ PREDICTION_SAMPLE_REQUIRED_KEYS: Final[tuple[str, ...]] = (
     "people_per_frame",
     "selected_person_index",
     "prediction_schema_version",
-    "source_processed_schema_version",
+    "source_prepared_schema_version",
 )
 
 
@@ -89,7 +89,7 @@ def build_prediction_sample_payload(
     *,
     frame_valid_mask: npt.NDArray[Any],
     selected_person_index: int,
-    source_processed_schema_version: str = PROCESSED_SCHEMA_VERSION,
+    source_prepared_schema_version: str = PREPARED_SAMPLE_SCHEMA_VERSION,
 ) -> dict[str, npt.NDArray[Any]]:
     """Build a schema-compatible M0 prediction `.npz` payload.
 
@@ -113,15 +113,16 @@ def build_prediction_sample_payload(
     if expected_num_frames is None:
         raise BaselinePredictionSchemaError("Prediction payload has no configured channels.")
     valid_mask = _frame_valid_mask(frame_valid_mask, expected_num_frames=expected_num_frames)
-    if source_processed_schema_version != PROCESSED_SCHEMA_VERSION:
+    if source_prepared_schema_version != PREPARED_SAMPLE_SCHEMA_VERSION:
         raise BaselinePredictionSchemaError(
-            "source_processed_schema_version must preserve processed-v1 provenance: "
-            f"expected {PROCESSED_SCHEMA_VERSION!r}, got {source_processed_schema_version!r}."
+            "source_prepared_schema_version must preserve PreparedSample provenance: "
+            f"expected {PREPARED_SAMPLE_SCHEMA_VERSION!r}, got "
+            f"{source_prepared_schema_version!r}."
         )
 
     payload: dict[str, npt.NDArray[Any]] = {
         "prediction_schema_version": np.asarray(PREDICTION_SCHEMA_VERSION),
-        "source_processed_schema_version": np.asarray(source_processed_schema_version),
+        "source_prepared_schema_version": np.asarray(source_prepared_schema_version),
         "frame_valid_mask": valid_mask,
         "people_per_frame": _synthetic_people_per_frame(valid_mask),
         "selected_person_index": np.asarray(selected_person_index, dtype=np.int16),
@@ -153,11 +154,11 @@ def validate_prediction_sample_payload(payload: Mapping[str, npt.NDArray[Any]]) 
             "Prediction sample schema version mismatch: "
             f"expected {PREDICTION_SCHEMA_VERSION!r}, got {prediction_schema_version!r}."
         )
-    source_schema_version = _scalar_string(payload, "source_processed_schema_version")
-    if source_schema_version != PROCESSED_SCHEMA_VERSION:
+    source_schema_version = _scalar_string(payload, "source_prepared_schema_version")
+    if source_schema_version != PREPARED_SAMPLE_SCHEMA_VERSION:
         raise BaselinePredictionSchemaError(
-            "Prediction sample source processed schema mismatch: "
-            f"expected {PROCESSED_SCHEMA_VERSION!r}, got {source_schema_version!r}."
+            "Prediction sample source prepared schema mismatch: "
+            f"expected {PREPARED_SAMPLE_SCHEMA_VERSION!r}, got {source_schema_version!r}."
         )
 
     num_frames: int | None = None

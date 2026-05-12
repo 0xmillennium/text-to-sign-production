@@ -1,17 +1,22 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from pathlib import Path
+from typing import TypeAlias
+
+RenderableScalar: TypeAlias = str | int | float | bool | None | Path
+RenderableValue: TypeAlias = RenderableScalar | tuple["RenderableValue", ...]
 
 
 @dataclass(frozen=True, slots=True)
 class WorkflowReviewField:
     label: str
-    value: object
+    value: RenderableValue
 
     def __post_init__(self) -> None:
         _validate_non_empty_label("label", self.label)
+        _validate_renderable_value(self.value)
         object.__setattr__(self, "label", self.label.strip())
 
 
@@ -39,13 +44,13 @@ class WorkflowReviewSection:
         object.__setattr__(self, "items", _coerce_review_items(self.items))
 
 
-def review_field(label: object, value: object) -> WorkflowReviewField:
+def review_field(label: str, value: RenderableValue) -> WorkflowReviewField:
     return WorkflowReviewField(label=_render_review_label(label), value=value)
 
 
 def review_item(
-    label: object,
-    fields: Iterable[tuple[object, object]] = (),
+    label: str,
+    fields: Iterable[tuple[str, RenderableValue]] = (),
 ) -> WorkflowReviewItem:
     return WorkflowReviewItem(
         label=_render_review_label(label),
@@ -54,7 +59,7 @@ def review_item(
 
 
 def review_section(
-    title: object,
+    title: str,
     items: Iterable[WorkflowReviewItem] = (),
 ) -> WorkflowReviewSection:
     return WorkflowReviewSection(
@@ -64,8 +69,8 @@ def review_section(
 
 
 def review_lines_section(
-    title: object,
-    lines: Iterable[object],
+    title: str,
+    lines: Iterable[str],
 ) -> WorkflowReviewSection:
     return review_section(
         title,
@@ -73,36 +78,8 @@ def review_lines_section(
     )
 
 
-def review_mapping_section(
-    title: object,
-    mapping: Mapping[object, object],
-    *,
-    value_label: object = "value",
-) -> WorkflowReviewSection:
-    field_label = _render_review_label(value_label)
-    return review_section(
-        title,
-        tuple(review_item(key, ((field_label, value),)) for key, value in mapping.items()),
-    )
-
-
-def review_nested_mapping_section(
-    title: object,
-    mapping: Mapping[object, Mapping[object, object]],
-) -> WorkflowReviewSection:
-    return review_section(
-        title,
-        tuple(review_item(key, nested_mapping.items()) for key, nested_mapping in mapping.items()),
-    )
-
-
-def _render_review_label(value: Any) -> str:
-    if value is None:
-        label = "none"
-    elif hasattr(value, "value"):
-        label = str(value.value)
-    else:
-        label = str(value)
+def _render_review_label(value: str) -> str:
+    label = value.strip()
     label = label.strip()
     if not label:
         raise ValueError("review labels must be non-empty")
@@ -138,3 +115,13 @@ def _ensure_unique_field_labels(fields: tuple[WorkflowReviewField, ...]) -> None
     labels = [field.label for field in fields]
     if len(set(labels)) != len(labels):
         raise ValueError("review item field labels must be unique")
+
+
+def _validate_renderable_value(value: RenderableValue) -> None:
+    if isinstance(value, tuple):
+        for item in value:
+            _validate_renderable_value(item)
+        return
+    if value is None or isinstance(value, str | int | float | bool | Path):
+        return
+    raise TypeError(f"Unsupported review field value type: {type(value).__name__}")

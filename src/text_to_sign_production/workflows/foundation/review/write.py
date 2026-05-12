@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from pathlib import Path
 
 from text_to_sign_production.core.progress import ProgressTaskHandle
-from text_to_sign_production.workflows.foundation.review.markdown import jsonable
+from text_to_sign_production.workflows.foundation.review.markdown import JsonValue, jsonable
 
 
 def write_text(path: Path, content: str) -> None:
@@ -19,7 +19,7 @@ def write_markdown(path: Path, content: str) -> None:
     write_text(path, content)
 
 
-def write_json(path: Path, value: object) -> None:
+def write_json(path: Path, value: JsonValue) -> None:
     _ensure_path_parent(path)
     path.write_text(
         json.dumps(jsonable(value), ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -29,7 +29,7 @@ def write_json(path: Path, value: object) -> None:
 
 def write_jsonl(
     path: Path,
-    records: Iterable[Mapping[str, object]],
+    records: Iterable[JsonValue],
     *,
     progress: ProgressTaskHandle | None = None,
 ) -> None:

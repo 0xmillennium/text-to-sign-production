@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
+from typing import cast
 
-from text_to_sign_production.core.ids import TierName
-from text_to_sign_production.data.tier.families import BindingQualityFamily
+from text_to_sign_production.core.ids import TierMembership, TierName
+from text_to_sign_production.data.tier.families.types import BindingQualityFamily
 from text_to_sign_production.data.tier.policies.types import (
-    FamilyTierDecision,
     TierDecisionBundle,
+    TierFamilyDecision,
     TierIssueCode,
     TierStatus,
 )
@@ -58,19 +59,19 @@ def summarize_weakest_links(bundle: TierDecisionBundle) -> WeakestLinkSummary:
     )
     if not decisions:
         return WeakestLinkSummary(weakest_tier=None, families=())
-    tiers: tuple[TierName, ...] = (TierName.LOOSE, TierName.CLEAN, TierName.TIGHT)
-    order: dict[TierName, int] = {tier: index for index, tier in enumerate(tiers)}
+    tier_order: tuple[TierName, ...] = (TierName.LOOSE, TierName.CLEAN, TierName.TIGHT)
+    order: dict[TierName, int] = {tier: index for index, tier in enumerate(tier_order)}
     weakest_indexes: list[int] = []
     for decision in decisions:
         best = decision.best_supported_tier
         if best is not None:
             weakest_indexes.append(order[best])
     weakest_index = min(weakest_indexes)
-    weakest_tier = tiers[weakest_index]
+    weakest_tier = tier_order[weakest_index]
     return WeakestLinkSummary(
         weakest_tier=weakest_tier,
         families=tuple(
-            decision.family
+            cast(BindingQualityFamily, decision.family)
             for decision in decisions
             if decision.best_supported_tier == weakest_tier
         ),
@@ -88,7 +89,7 @@ def skipped_vs_selected_summary(
 def family_decision(
     bundle: TierDecisionBundle,
     family: BindingQualityFamily,
-) -> FamilyTierDecision | None:
+) -> TierFamilyDecision | None:
     """Inspect one family decision by name."""
     for decision in bundle.family_decisions:
         if decision.family is family:
@@ -105,6 +106,20 @@ def issue_frequency_summary(bundle: TierDecisionBundle) -> tuple[TierIssueFreque
     )
 
 
+def tier_membership_for_decision(
+    decision: TierDecisionBundle,
+    tier: TierName,
+) -> TierMembership:
+    """Project a tier decision into included/excluded membership for one tier."""
+    selected_tier = decision.selected_tier
+    if selected_tier is None:
+        return TierMembership.EXCLUDED
+    tier_order = tuple(TierName)
+    if tier_order.index(tier) <= tier_order.index(selected_tier):
+        return TierMembership.INCLUDED
+    return TierMembership.EXCLUDED
+
+
 __all__ = [
     "SelectedTierSummary",
     "TierIssueFrequency",
@@ -114,4 +129,5 @@ __all__ = [
     "skipped_vs_selected_summary",
     "summarize_selected_tier",
     "summarize_weakest_links",
+    "tier_membership_for_decision",
 ]

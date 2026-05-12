@@ -38,8 +38,12 @@ def compute_non_manual_quality_metrics(
             _max_run(face_detail_dropout),
             active_count,
         ),
-        active_span_manual_face_overlap_ratio=_ratio(
-            sum(1 for frame in active_frames if frame.manual_face_overlap_ready),
+        active_span_face_available_given_manual_frame_ratio=_ratio(
+            sum(
+                1
+                for frame in active_frames
+                if frame.face_available_given_manual_frame
+            ),
             manual_active_count,
         ),
     )

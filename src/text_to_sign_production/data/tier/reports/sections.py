@@ -1,20 +1,21 @@
-"""Section builders for PreparedSample-based quality reports."""
+"""Section builders for PreparedSample-based tier reports."""
 
 from __future__ import annotations
 
-from text_to_sign_production.core.models import GateDecisionBundle, PreparedSample
-from text_to_sign_production.data.tier.context import QualityContext
+from text_to_sign_production.core.models import CheckpointAdmission, PreparedSample
+from text_to_sign_production.data.dataset.analysis import summarize_prepared_sample_payload
 from text_to_sign_production.data.tier.facts import QualityFacts
-from text_to_sign_production.data.tier.families import QualityMetricBundle
-from text_to_sign_production.data.tier.leakages import LeakageBundle, LeakageSeverity
-from text_to_sign_production.data.tier.policies import TierDecisionBundle
+from text_to_sign_production.data.tier.families.analysis import summarize_quality_metric_bundle
+from text_to_sign_production.data.tier.families.types import QualityMetricBundle
+from text_to_sign_production.data.tier.leakages import LeakageSampleSummary
+from text_to_sign_production.data.tier.policies.types import TierDecisionBundle
 from text_to_sign_production.data.tier.reports.types import (
     GatesReportSection,
     LeakageReportSection,
     MetricsReportSection,
     ReportSectionName,
     SampleReportSection,
-    TiersReportSection,
+    TierOutcomesSection,
 )
 
 
@@ -23,6 +24,7 @@ def build_sample_section(
     facts: QualityFacts,
 ) -> SampleReportSection:
     """Build PreparedSample identity and pose section."""
+    sample_summary = summarize_prepared_sample_payload(sample)
     return SampleReportSection(
         name=ReportSectionName.SAMPLE,
         title="Sample",
@@ -30,76 +32,74 @@ def build_sample_section(
         split=sample.source.split,
         source_video_id=sample.source.source_video_id,
         source_sentence_id=sample.source.source_sentence_id,
-        canonical_normalized_text_present=bool(sample.source.canonical_normalized_text),
         frame_count=sample.pose.frame_count,
         valid_frame_count=facts.frame.valid_frame_count,
+        source_complete=sample_summary.source_complete,
+        pose_complete=sample_summary.pose_complete,
+        validation_issue_count=sample_summary.validation_issue_count,
     )
 
 
 def build_metrics_section(
     metrics: QualityMetricBundle,
-    _context: QualityContext,
 ) -> MetricsReportSection:
     """Build metric coverage section."""
+    summary = summarize_quality_metric_bundle(metrics)
     return MetricsReportSection(
         name=ReportSectionName.METRICS,
         title="Metrics",
-        binding_family_count=10,
-        diagnostic_family_count=2,
-        metric_row_count=_metric_row_count(metrics),
+        binding_family_count=summary.binding_family_count,
+        diagnostic_family_count=summary.diagnostic_family_count,
+        metric_row_count=summary.metric_count,
     )
 
 
-def _metric_row_count(_metrics: QualityMetricBundle) -> int:
-    """Return the fixed row count for the canonical metric bundle shape."""
-    return 43
-
-
-def build_leakage_section(leakage: LeakageBundle) -> LeakageReportSection:
-    """Build leakage summary section."""
-    affected = sum(1 for summary in leakage.sample_summaries if summary.has_leakage)
-    severity = max(
-        (summary.max_severity for summary in leakage.sample_summaries),
-        default=LeakageSeverity.NONE,
-        key=lambda value: list(LeakageSeverity).index(value),
-    )
+def build_leakage_section(leakage: LeakageSampleSummary) -> LeakageReportSection:
+    """Build sample-local leakage summary section."""
     return LeakageReportSection(
         name=ReportSectionName.LEAKAGE,
         title="Leakage",
-        pair_count=len(leakage.pair_facts),
-        affected_sample_count=affected,
-        max_severity=severity,
+        pair_count=len(leakage.matched_samples),
+        affected_sample_count=1 if leakage.has_leakage else 0,
+        max_severity=leakage.max_severity,
     )
 
 
-def build_tiers_section(tiers: TierDecisionBundle) -> TiersReportSection:
+def build_tier_outcomes_section(tier_decision: TierDecisionBundle) -> TierOutcomesSection:
     """Build tier summary section."""
-    return TiersReportSection(
-        name=ReportSectionName.TIERS,
-        title="Tiers",
-        status=tiers.status,
-        selected_tier=tiers.selected_tier,
-        family_decision_count=len(tiers.family_decisions),
-        issue_count=len(tiers.issues),
+    leakage = tier_decision.leakage_decision
+    return TierOutcomesSection(
+        name=ReportSectionName.TIER,
+        title="Tier",
+        status=tier_decision.status,
+        selected_tier=tier_decision.selected_tier,
+        family_decision_count=len(tier_decision.family_decisions),
+        leakage_observed_max_severity=(
+            None if leakage is None else leakage.observed_max_severity
+        ),
+        leakage_admissible_tiers=() if leakage is None else leakage.admissible_tiers,
+        leakage_rejected_tiers=() if leakage is None else leakage.rejected_tiers,
+        issue_count=len(tier_decision.issues),
     )
 
 
-def build_gates_section(gates: GateDecisionBundle | None) -> GatesReportSection:
-    """Build optional samples admission gate section."""
-    if gates is None:
-        return GatesReportSection(
-            name=ReportSectionName.GATES,
-            title="Gates",
-            final_status="not_provided",
-            failed_gate_names=(),
-            gate_count=0,
-        )
+def build_gates_section(checkpoint_admission: CheckpointAdmission) -> GatesReportSection:
+    """Build checkpoint admission section without fabricating gate predicate detail."""
+    if checkpoint_admission.gate_detail_available:
+        raise ValueError("Checkpoint-only tier flow cannot claim gate detail availability.")
     return GatesReportSection(
         name=ReportSectionName.GATES,
         title="Gates",
-        final_status=gates.final_status.value,
-        failed_gate_names=gates.failed_gates,
-        gate_count=len(gates.decisions),
+        sample_id=checkpoint_admission.sample_id,
+        split=checkpoint_admission.split,
+        checkpoint_admission_status=checkpoint_admission.checkpoint_surface,
+        source_manifest_path=checkpoint_admission.source_manifest_path,
+        source_manifest_sha256=checkpoint_admission.source_manifest_sha256,
+        payload_ref=checkpoint_admission.payload_ref,
+        gate_detail_available=checkpoint_admission.gate_detail_available,
+        gate_detail_status=checkpoint_admission.gate_detail_status,
+        failed_gate_names=(),
+        gate_count=0,
     )
 
 
@@ -108,5 +108,5 @@ __all__ = [
     "build_leakage_section",
     "build_metrics_section",
     "build_sample_section",
-    "build_tiers_section",
+    "build_tier_outcomes_section",
 ]

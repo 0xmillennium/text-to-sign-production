@@ -1,17 +1,44 @@
-"""Prepared sample construction from source and pose authorities."""
+"""Dataset production boundary for prepared sample payload construction.
+
+This module owns dataset-stage sample construction and payload write planning.
+Gate-specific manifest row and drop planning lives under ``data.gate``.
+"""
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 
-from text_to_sign_production.core.models import PoseTruth, PreparedSample, SourceTruth
-from text_to_sign_production.data.gate.pose import (
+from text_to_sign_production.core.ids import (
     CoordinateSpace,
+    SampleStatus,
+)
+from text_to_sign_production.core.models import (
+    PoseTruth,
+    PreparedSample,
+    SourceTruth,
+)
+from text_to_sign_production.data.dataset.payloads import (
+    PREPARED_SAMPLE_PAYLOAD_SCHEMA_VERSION,
+    write_prepared_sample_payload,
+)
+from text_to_sign_production.data.dataset.types import (
+    DatasetPayloadProduction,
+)
+from text_to_sign_production.data.gate.pose import (
     PoseBuildOutput,
     PoseChannel,
     PoseChannelTensor,
 )
-from text_to_sign_production.data.gate.sources import SourceCandidate
+from text_to_sign_production.data.gate.sources import (
+    SourceCandidate,
+)
+
+PREPARED_SAMPLE_SCHEMA_VERSION = PREPARED_SAMPLE_PAYLOAD_SCHEMA_VERSION
+
+
+# Sample construction
 
 
 def build_prepared_sample(
@@ -20,12 +47,11 @@ def build_prepared_sample(
     *,
     schema_version: str,
 ) -> PreparedSample:
-    """Build the canonical samples-stage object from matched source and pose truth."""
+    """Build the canonical gate-stage object from matched source and pose truth."""
     source = SourceTruth(
         sample_id=source_candidate.sample_id,
         split=source_candidate.split,
         text=source_candidate.text,
-        canonical_normalized_text=_require_canonical_normalized_text(source_candidate),
         fps=_require_fps(source_candidate),
         source_video_id=source_candidate.video_id,
         source_sentence_id=source_candidate.sentence_id,
@@ -54,18 +80,57 @@ def build_prepared_sample(
     return PreparedSample(schema_version=schema_version, source=source, pose=pose)
 
 
+# Payload production helpers
+
+
+def plan_prepared_sample_payload(
+    *,
+    sample: PreparedSample,
+    status: SampleStatus,
+    payload_path: str | Path,
+    payload_ref: str,
+) -> DatasetPayloadProduction:
+    """Build a prepared sample payload write plan without mutating the filesystem."""
+    path = Path(payload_path)
+    return DatasetPayloadProduction(
+        sample=sample,
+        path=path,
+        payload_ref=payload_ref,
+        status=SampleStatus(status),
+    )
+
+
+def write_prepared_sample_payload_plan(
+    production: DatasetPayloadProduction,
+) -> DatasetPayloadProduction:
+    """Persist one prepared sample payload plan."""
+    write_prepared_sample_payload(production.path, production.sample)
+    return production
+
+
+def produce_prepared_sample_payload(
+    *,
+    sample: PreparedSample,
+    status: SampleStatus,
+    payload_path: str | Path,
+    payload_ref: str,
+) -> DatasetPayloadProduction:
+    """Write a prepared sample payload and return dataset-owned production facts."""
+    return write_prepared_sample_payload_plan(
+        plan_prepared_sample_payload(
+            sample=sample,
+            status=status,
+            payload_path=payload_path,
+            payload_ref=payload_ref,
+        )
+    )
+
+
 def _require_fps(candidate: SourceCandidate) -> float:
     fps = candidate.video_metadata.fps
     if fps is None:
         raise ValueError("Source candidate video metadata must carry fps.")
     return float(fps)
-
-
-def _require_canonical_normalized_text(candidate: SourceCandidate) -> str:
-    value = candidate.canonical_normalized_text
-    if value is None or value == "":
-        raise ValueError("Source candidate must carry authoritative canonical_normalized_text.")
-    return value
 
 
 def _xyc(channel: PoseChannelTensor) -> np.ndarray:
@@ -74,4 +139,11 @@ def _xyc(channel: PoseChannelTensor) -> np.ndarray:
     return np.concatenate((coordinates, confidences[..., np.newaxis]), axis=-1)
 
 
-__all__ = ["build_prepared_sample"]
+__all__ = [
+    "DatasetPayloadProduction",
+    "PREPARED_SAMPLE_SCHEMA_VERSION",
+    "build_prepared_sample",
+    "plan_prepared_sample_payload",
+    "produce_prepared_sample_payload",
+    "write_prepared_sample_payload_plan",
+]

@@ -117,7 +117,6 @@ class IntegrityFacts:
     tensor_frame_shape_valid: bool
     all_required_channels_present: bool
     coordinate_space_normalized: bool
-    canonical_normalized_text_present: bool
 
 
 @dataclass(frozen=True, slots=True)

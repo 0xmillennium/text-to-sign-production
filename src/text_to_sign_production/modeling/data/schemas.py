@@ -1,4 +1,8 @@
-"""Processed-v1 BFH data contracts for the M0 baseline modeling layer."""
+"""Legacy M0 adapter contracts derived from canonical PreparedSample payloads.
+
+These DTOs are modeling input shapes, not replacements for core/data dataset
+truth.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +13,8 @@ from typing import Any, Final, TypeAlias
 import numpy as np
 import numpy.typing as npt
 
-from text_to_sign_production.legacy_data.pose.schema import OPENPOSE_CHANNEL_SPECS
+from text_to_sign_production.data.gate.pose import PoseChannel
+from text_to_sign_production.data.gate.pose.schema import OPENPOSE_CHANNEL_SPECS
 
 M0_TARGET_CHANNELS: Final[tuple[str, str, str, str]] = (
     "body",
@@ -18,7 +23,7 @@ M0_TARGET_CHANNELS: Final[tuple[str, str, str, str]] = (
     "face",
 )
 M0_TARGET_CHANNEL_SHAPES: Final[dict[str, tuple[int, int]]] = {
-    channel: (OPENPOSE_CHANNEL_SPECS[channel][1], 2) for channel in M0_TARGET_CHANNELS
+    channel: (OPENPOSE_CHANNEL_SPECS[PoseChannel(channel)][1], 2) for channel in M0_TARGET_CHANNELS
 }
 M0_CONFIDENCE_CHANNELS: Final[tuple[str, str, str, str]] = (
     "body_confidence",

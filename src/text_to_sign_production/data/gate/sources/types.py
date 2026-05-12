@@ -6,18 +6,7 @@ import enum
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from text_to_sign_production.core.ids import SampleSplit
-
-
-class SourceIssueCode(enum.StrEnum):
-    """Controlled source-side issue codes."""
-
-    MISSING_VIDEO_SOURCE = "missing_video_source"
-    MISSING_KEYPOINT_SOURCE = "missing_keypoint_source"
-    VIDEO_METADATA_NOT_PROVIDED = "video_metadata_not_provided"
-    VIDEO_METADATA_UNREADABLE = "video_metadata_unreadable"
-    MISSING_KEYPOINT_DIRECTORY = "missing_keypoint_directory"
-    MISSING_FRAME_JSON_FILES = "missing_frame_json_files"
+from text_to_sign_production.core.ids import SampleSplit, SourceIssueCode
 
 
 class SourceAmbiguityCode(enum.StrEnum):
@@ -69,6 +58,13 @@ class SourceValidationIssueCode(enum.StrEnum):
     DUPLICATE_CANDIDATE_SAMPLE_ID = "duplicate_candidate_sample_id"
 
 
+class CandidateViabilityStatus(enum.StrEnum):
+    """Pose/source structural viability for a matched source candidate."""
+
+    VIABLE = "viable"
+    NON_VIABLE = "non_viable"
+
+
 @dataclass(frozen=True, slots=True)
 class SourceIssue:
     """Structured source-side issue."""
@@ -91,6 +87,31 @@ class SourceValidationIssue:
 
     code: SourceValidationIssueCode
     message: str
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateViabilityIssue:
+    """A structural reason a matched candidate cannot be posed/materialized."""
+
+    code: SourceIssueCode
+    message: str
+    detail: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateViabilityReport:
+    """Viability truth for one matched candidate, separate from identity truth."""
+
+    split: SampleSplit
+    sample_id: str
+    sentence_id: str
+    status: CandidateViabilityStatus
+    issues: tuple[CandidateViabilityIssue, ...] = ()
+
+    @property
+    def viable(self) -> bool:
+        """Whether the candidate can proceed to pose materialization."""
+        return self.status is CandidateViabilityStatus.VIABLE
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,9 +170,18 @@ def keypoint_identity(sample_id: str) -> KeypointIdentity:
     return KeypointIdentity(sample_key=source_identity_key("sample_id", sample_id))
 
 
-def translation_identity(video_id: str, sentence_id: str) -> TranslationIdentity:
-    """Build explicit translation identity from source translation ids."""
-    sample_key = source_identity_key("sample_id", sentence_id)
+def translation_identity(
+    video_id: str,
+    sentence_id: str,
+    sentence_name: str,
+) -> TranslationIdentity:
+    """Build explicit translation identity from source identity authorities.
+
+    ``sentence_id`` is the semantic sentence grouping key and may repeat across
+    physical views. ``sentence_name`` is the row/view-aware physical sample key
+    used for payload, manifest, and archive identity.
+    """
+    sample_key = source_identity_key("sample_id", sentence_name)
     return TranslationIdentity(
         video=video_identity(video_id),
         keypoint=KeypointIdentity(sample_key=sample_key),
@@ -170,7 +200,6 @@ class TranslationSourceRecord:
     start_time: float
     end_time: float
     text: str
-    canonical_normalized_text: str | None = None
     identity: TranslationIdentity | None = None
 
     def __post_init__(self) -> None:
@@ -179,7 +208,7 @@ class TranslationSourceRecord:
             object.__setattr__(
                 self,
                 "identity",
-                translation_identity(self.video_id, self.sentence_id),
+                translation_identity(self.video_id, self.sentence_id, self.sentence_name),
             )
 
 
@@ -286,7 +315,6 @@ class SourceCandidate:
     video_metadata: VideoMetadata
     source_issues: tuple[SourceIssue, ...] = ()
     identity: CandidateIdentity | None = None
-    canonical_normalized_text: str | None = None
 
     @property
     def structurally_viable(self) -> bool:

@@ -4,20 +4,23 @@ from __future__ import annotations
 
 from text_to_sign_production.core.ids import VALID_SAMPLE_SPLITS, SampleSplit
 from text_to_sign_production.core.models import (
+    CheckpointAdmission,
     DroppedManifestEntry,
     GateDecision,
     GateDecisionBundle,
+    GateDropIssueCode,
+    GateDropStage,
     GateIssueCode,
     GateName,
     GateStatus,
     PassedManifestEntry,
     PoseTruth,
     PreparedSample,
-    SamplesDropStage,
-    SamplesIssueCode,
     SourceTruth,
     TierDecisionBundle,
     TierFamilyDecision,
+    TierIssue,
+    TierIssueCode,
     TierStatus,
 )
 from text_to_sign_production.core.paths import (
@@ -29,7 +32,9 @@ from text_to_sign_production.core.paths import (
 
 __all__ = [
     "RepoRoots",
+    "CheckpointAdmission",
     "DroppedManifestEntry",
+    "GateDropIssueCode",
     "GateDecision",
     "GateDecisionBundle",
     "GateIssueCode",
@@ -39,11 +44,12 @@ __all__ = [
     "PoseTruth",
     "PreparedSample",
     "SampleSplit",
-    "SamplesDropStage",
-    "SamplesIssueCode",
+    "GateDropStage",
     "SourceTruth",
     "TierDecisionBundle",
     "TierFamilyDecision",
+    "TierIssue",
+    "TierIssueCode",
     "TierStatus",
     "VALID_SAMPLE_SPLITS",
     "build_repo_roots",

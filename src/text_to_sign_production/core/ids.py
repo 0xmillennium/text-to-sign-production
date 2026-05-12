@@ -21,6 +21,23 @@ class SampleStatus(enum.StrEnum):
     DROPPED = "dropped"
 
 
+class CoordinateSpace(enum.StrEnum):
+    """Canonical coordinate-space identity for prepared pose truth."""
+
+    NORMALIZED_IMAGE = "normalized_image"
+
+
+class SourceIssueCode(enum.StrEnum):
+    """Canonical source-side issue codes carried by prepared samples."""
+
+    MISSING_VIDEO_SOURCE = "missing_video_source"
+    MISSING_KEYPOINT_SOURCE = "missing_keypoint_source"
+    VIDEO_METADATA_NOT_PROVIDED = "video_metadata_not_provided"
+    VIDEO_METADATA_UNREADABLE = "video_metadata_unreadable"
+    MISSING_KEYPOINT_DIRECTORY = "missing_keypoint_directory"
+    MISSING_FRAME_JSON_FILES = "missing_frame_json_files"
+
+
 class TierName(enum.StrEnum):
     """Canonical physical tier manifest identity."""
 
@@ -47,6 +64,8 @@ VALID_TIER_MEMBERSHIPS: Final[tuple[str, ...]] = tuple(
 __all__ = [
     "SampleSplit",
     "SampleStatus",
+    "CoordinateSpace",
+    "SourceIssueCode",
     "TierMembership",
     "TierName",
     "VALID_SAMPLE_SPLITS",

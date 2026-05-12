@@ -1,4 +1,4 @@
-"""Typed samples admission-gate configuration parsing."""
+"""Typed gate admission-gate configuration parsing."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ class FaceGateThresholds:
 
 @dataclass(frozen=True, slots=True)
 class GatesConfig:
-    """Typed configuration for all samples admission gates."""
+    """Typed configuration for all gate admission gates."""
 
     source: SourceGateThresholds
     frames: FramesGateThresholds
@@ -87,12 +87,26 @@ def load_gates_config(path: Path = DEFAULT_GATES_CONFIG_PATH) -> GatesConfig:
 def parse_gates_config_mapping(value: object) -> GatesConfig:
     """Parse raw gate configuration mapping into typed threshold sections."""
     data = _require_mapping(value, "Gates config")
-    if "integrity" in data:
-        return _parse_legacy_config(data)
+    _require_exact_keys(
+        data,
+        ("source", "frames", "body", "hand", "face"),
+        "Gates config",
+    )
     return _parse_sectioned_config(data)
 
 
 def _parse_legacy_config(data: Mapping[str, object]) -> GatesConfig:
+    """Migration-only parser for pre-sectioned gate config snapshots.
+
+    Normal runtime loading intentionally does not call this function. It is kept
+    private so one-off migrations can fail loudly instead of making the legacy
+    shape an equal active config truth.
+    """
+    _require_exact_keys(
+        data,
+        ("integrity", "tracking_integrity", "channel_presence", "text_sanity"),
+        "Legacy gates config",
+    )
     integrity = _require_mapping(data["integrity"], "integrity")
     tracking = _require_mapping(data["tracking_integrity"], "tracking_integrity")
     channel_presence = _require_mapping(data["channel_presence"], "channel_presence")
@@ -100,6 +114,29 @@ def _parse_legacy_config(data: Mapping[str, object]) -> GatesConfig:
     channels = _require_mapping(channel_presence["channels"], "channel_presence.channels")
     body = _require_mapping(channels["body"], "channel_presence.channels.body")
     face = _require_mapping(channels["face"], "channel_presence.channels.face")
+    _require_exact_keys(
+        integrity,
+        ("min_num_frames", "min_valid_frames", "min_duration_seconds"),
+        "integrity",
+    )
+    _require_exact_keys(
+        tracking,
+        ("max_tracked_target_missing_frame_ratio",),
+        "tracking_integrity",
+    )
+    _require_exact_keys(
+        channel_presence,
+        ("min_any_hand_nonzero_frames", "channels"),
+        "channel_presence",
+    )
+    _require_exact_keys(channels, ("body", "face"), "channel_presence.channels")
+    _require_exact_keys(body, ("min_nonzero_frames",), "channel_presence.channels.body")
+    _require_exact_keys(face, ("min_nonzero_frames",), "channel_presence.channels.face")
+    _require_exact_keys(
+        text_sanity,
+        ("min_character_count", "min_token_count"),
+        "text_sanity",
+    )
     return GatesConfig(
         source=SourceGateThresholds(
             min_character_count=_require_nonnegative_int(
@@ -156,6 +193,40 @@ def _parse_sectioned_config(data: Mapping[str, object]) -> GatesConfig:
     body = _require_mapping(data["body"], "body")
     hand = _require_mapping(data["hand"], "hand")
     face = _require_mapping(data["face"], "face")
+    _require_exact_keys(
+        source,
+        ("min_character_count", "min_token_count", "fail_on_source_issues"),
+        "source",
+    )
+    _require_exact_keys(
+        frames,
+        (
+            "min_frame_count",
+            "min_valid_frame_count",
+            "min_duration_seconds",
+            "max_duration_seconds",
+        ),
+        "frames",
+    )
+    _require_exact_keys(
+        body,
+        ("min_body_nonzero_frames", "min_body_available_frame_ratio"),
+        "body",
+    )
+    _require_exact_keys(
+        hand,
+        (
+            "min_any_hand_nonzero_frames",
+            "min_any_hand_available_frame_ratio",
+            "max_tracked_target_missing_frame_ratio",
+        ),
+        "hand",
+    )
+    _require_exact_keys(
+        face,
+        ("min_face_nonzero_frames", "min_face_available_frame_ratio"),
+        "face",
+    )
     return GatesConfig(
         source=SourceGateThresholds(
             min_character_count=_require_nonnegative_int(
@@ -229,6 +300,27 @@ def _require_mapping(value: object, name: str) -> Mapping[str, object]:
     if any(not isinstance(key, str) for key in value):
         raise ValueError(f"{name} keys must be strings.")
     return value
+
+
+def _require_exact_keys(
+    value: Mapping[str, object],
+    expected: tuple[str, ...],
+    name: str,
+) -> None:
+    expected_set = set(expected)
+    actual_set = set(value)
+    missing = tuple(key for key in expected if key not in actual_set)
+    extra = tuple(key for key in value if key not in expected_set)
+    if missing or extra:
+        details: list[str] = []
+        if missing:
+            details.append(f"missing keys: {', '.join(missing)}")
+        if extra:
+            details.append(f"unexpected keys: {', '.join(extra)}")
+        joined_details = "; ".join(details)
+        raise ValueError(
+            f"{name} must use the canonical gate config schema ({joined_details})."
+        )
 
 
 def _require_positive_int(value: object, name: str) -> int:

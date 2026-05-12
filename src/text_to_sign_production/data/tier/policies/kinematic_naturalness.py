@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from text_to_sign_production.data.tier.families import (
+from text_to_sign_production.data.tier.families.types import (
     BindingQualityFamily,
     KinematicNaturalnessMetrics,
 )
@@ -11,7 +11,7 @@ from text_to_sign_production.data.tier.policies.filters import (
 )
 from text_to_sign_production.data.tier.policies.policies import TierPoliciesConfig
 from text_to_sign_production.data.tier.policies.types import (
-    FamilyTierDecision,
+    TierFamilyDecision,
     TierIssue,
     TierIssueCode,
     TierName,
@@ -25,7 +25,7 @@ def evaluate_kinematic_naturalness_tier(
     metric: KinematicNaturalnessMetrics,
     filters: KinematicNaturalnessTierFilters,
     policies: TierPoliciesConfig,
-) -> FamilyTierDecision:
+) -> TierFamilyDecision:
     """Evaluate up to which tier kinematic naturalness is sufficient."""
     supported: list[TierName] = []
     issues: list[TierIssue] = []
@@ -36,20 +36,20 @@ def evaluate_kinematic_naturalness_tier(
             (
                 "comparable_transition_abrupt_ratio",
                 metric.comparable_transition_abrupt_ratio,
-                thresholds.max_active_span_abrupt_motion_frame_ratio,
+                thresholds.max_comparable_transition_abrupt_ratio,
                 "Abrupt-motion ratio is too high.",
             ),
             (
                 "comparable_transition_discontinuity_ratio",
                 metric.comparable_transition_discontinuity_ratio,
-                thresholds.max_active_span_discontinuity_frame_ratio,
+                thresholds.max_comparable_transition_discontinuity_ratio,
                 "Discontinuity ratio is too high.",
             ),
             (
-                "active_span_frozen_frame_ratio",
-                metric.active_span_frozen_frame_ratio,
+                "max_active_span_frozen_run_ratio",
+                metric.max_active_span_frozen_run_ratio,
                 thresholds.max_active_span_frozen_run_ratio,
-                "Frozen-frame ratio is too high.",
+                "Frozen run ratio is too high.",
             ),
         )
         tier_issues = [
@@ -82,7 +82,7 @@ def _issue(
     )
 
 
-def _decision(supported: list[TierName], issues: list[TierIssue]) -> FamilyTierDecision:
+def _decision(supported: list[TierName], issues: list[TierIssue]) -> TierFamilyDecision:
     best = supported[-1] if supported else None
     status = TierStatus.PASSED if best is not None else TierStatus.FAILED
     if best is None:
@@ -93,7 +93,7 @@ def _decision(supported: list[TierName], issues: list[TierIssue]) -> FamilyTierD
                 family=_FAMILY,
             )
         )
-    return FamilyTierDecision(_FAMILY, status, tuple(supported), best, tuple(issues))
+    return TierFamilyDecision(_FAMILY, status, tuple(supported), best, tuple(issues))
 
 
 __all__ = ["evaluate_kinematic_naturalness_tier"]

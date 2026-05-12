@@ -10,26 +10,22 @@ def build_leakage_input(
     sample: PreparedSample,
     manifest: PassedManifestEntry | None = None,
 ) -> LeakageInput:
-    """Build leakage input from checkpoint/sample authority.
-
-    Canonical normalized text is consumed from PreparedSample authority. When a
-    passed manifest is provided, its required handoff value must match.
-    """
+    """Build leakage input from checkpoint/sample authority."""
     if manifest is not None:
         if (
             manifest.sample_id != sample.source.sample_id
             or manifest.split is not sample.source.split
         ):
             raise ValueError("Manifest identity must match PreparedSample leakage input.")
-        if manifest.canonical_normalized_text != sample.source.canonical_normalized_text:
-            raise ValueError("Manifest canonical_normalized_text must match PreparedSample.")
+        if manifest.text != sample.source.text:
+            raise ValueError("Manifest text must match PreparedSample.")
     return LeakageInput(
         sample_id=sample.source.sample_id,
         split=sample.source.split,
         source_video_id=sample.source.source_video_id,
         source_sentence_id=sample.source.source_sentence_id,
         source_sentence_name=sample.source.source_sentence_name,
-        canonical_normalized_text=sample.source.canonical_normalized_text,
+        text=sample.source.text,
     )
 
 
@@ -41,7 +37,7 @@ def build_leakage_input_from_manifest(manifest: PassedManifestEntry) -> LeakageI
         source_video_id=manifest.source_video_id,
         source_sentence_id=manifest.source_sentence_id,
         source_sentence_name=manifest.source_sentence_name,
-        canonical_normalized_text=manifest.canonical_normalized_text,
+        text=manifest.text,
     )
 
 
@@ -57,8 +53,8 @@ def detect_pair_relations(
     relations: list[LeakageRelation] = []
     if left.source_sentence_id == right.source_sentence_id:
         relations.append(LeakageRelation.SAME_SOURCE_SENTENCE)
-    if left.canonical_normalized_text == right.canonical_normalized_text:
-        relations.append(LeakageRelation.EXACT_NORMALIZED_TEXT)
+    if left.text == right.text:
+        relations.append(LeakageRelation.EXACT_TEXT)
     if left.source_video_id == right.source_video_id:
         relations.append(LeakageRelation.SAME_SOURCE_VIDEO)
     return tuple(relations) if relations else None
