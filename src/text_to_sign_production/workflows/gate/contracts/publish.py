@@ -99,14 +99,28 @@ class GateSplitArchivePublishPlan:
     passed_archive_path: Path
     passed_archive_planned: bool
     passed_archive_member_count: int
+    passed_archive_member_type: str
     dropped_archive_path: Path
     dropped_archive_planned: bool
     dropped_archive_member_count: int
+    dropped_archive_member_type: str
     dropped_archive_not_planned_reason: str | None = None
 
     def __post_init__(self) -> None:
         _validate_non_empty_text("split", self.split)
+        _validate_non_empty_text("passed_archive_member_type", self.passed_archive_member_type)
+        _validate_non_empty_text("dropped_archive_member_type", self.dropped_archive_member_type)
         object.__setattr__(self, "split", self.split.strip())
+        object.__setattr__(
+            self,
+            "passed_archive_member_type",
+            self.passed_archive_member_type.strip(),
+        )
+        object.__setattr__(
+            self,
+            "dropped_archive_member_type",
+            self.dropped_archive_member_type.strip(),
+        )
         for field_name, value in (
             ("passed_archive_member_count", self.passed_archive_member_count),
             ("dropped_archive_member_count", self.dropped_archive_member_count),
@@ -173,12 +187,7 @@ class GatePublishVerification:
     def succeeded(self) -> bool:
         return all(
             (
-                (
-                    check.expected_absent
-                    and check.source_exists
-                    and not check.target_exists
-                    and check.coherent
-                )
+                (check.expected_absent and not check.target_exists and check.coherent)
                 or (
                     not check.expected_absent
                     and check.source_exists

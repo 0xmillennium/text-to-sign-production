@@ -3,11 +3,13 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Iterable
 
+from text_to_sign_production.core.ids import SourceIssueCode
 from text_to_sign_production.core.models import GateDropStage
 from text_to_sign_production.data.dataset.analysis import summarize_checkpoint_handoff
 from text_to_sign_production.data.gate.reports import (
-    GateReportTables,
     GateReportBundle,
+    GateReportTables,
+    build_dropped_sample_payload_section,
     build_gate_report_bundle,
     gate_report_tables,
     summarize_gate_report,
@@ -70,12 +72,11 @@ def build_gate_report(bundle: GateExecutionBundle) -> GateReportBundle:
         gate_bundles=tuple(
             gate for split_result in bundle.split_results for gate in split_result.gate_bundles
         ),
-        materialize_dropped_debug_payloads=(
-            bundle.workflow_result.config.materialize_dropped_debug_payloads
-        ),
-        dropped_debug_payload_written_count=sum(
-            len(split_result.dropped_debug_payloads) for split_result in bundle.split_results
-        ),
+        dropped_sample_payloads_by_ref={
+            payload.payload_ref: payload.sample
+            for split_result in bundle.split_results
+            for payload in split_result.dropped_sample_payloads
+        },
     )
 
 
@@ -323,6 +324,61 @@ def build_processing_detail_sections(
     )
 
 
+def build_source_issue_summary_sections(
+    bundle: GateExecutionBundle,
+) -> tuple[WorkflowReviewSection, ...]:
+    issue_details = build_source_issue_detail_records(bundle)
+    affected_split_counts = Counter(
+        split_result.split
+        for split_result in bundle.split_results
+        for match in split_result.source_matches
+        if match.source_issues or match.unmatched_reason is not None or match.ambiguity_reasons
+    )
+    issue_code_counts = Counter(detail.issue_code for detail in issue_details)
+    ambiguity_count = sum(
+        len(match.ambiguity_reasons)
+        for split_result in bundle.split_results
+        for match in split_result.source_matches
+    )
+    return (
+        review_section(
+            "Source issue summary",
+            (
+                review_item(
+                    "source issues",
+                    (
+                        ("total source issue count", len(issue_details)),
+                        ("affected split counts", _count_labels_from_counter(affected_split_counts)),
+                        (
+                            "unmatched count",
+                            sum(
+                                1
+                                for split_result in bundle.split_results
+                                for match in split_result.source_matches
+                                if not match.matched
+                            ),
+                        ),
+                        ("ambiguity count", ambiguity_count),
+                        ("issue code breakdown", _count_labels_from_counter(issue_code_counts)),
+                        (
+                            "missing keypoint directory count",
+                            issue_code_counts[SourceIssueCode.MISSING_KEYPOINT_DIRECTORY.value],
+                        ),
+                        (
+                            "video metadata unreadable count",
+                            issue_code_counts[SourceIssueCode.VIDEO_METADATA_UNREADABLE.value],
+                        ),
+                        (
+                            "missing frame json files count",
+                            issue_code_counts[SourceIssueCode.MISSING_FRAME_JSON_FILES.value],
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
 def build_report_sections(bundle: GateExecutionBundle) -> tuple[WorkflowReviewSection, ...]:
     report = build_gate_report(bundle)
     summary = summarize_gate_report(report)
@@ -361,58 +417,70 @@ def build_report_sections(bundle: GateExecutionBundle) -> tuple[WorkflowReviewSe
             ),
         ),
         review_section(
-            "Dropped manifest and debug payload semantics",
+            "Dropped sample payload semantics",
             (
                 review_item(
-                    "dropped debug payloads",
+                    "dropped sample payloads",
                     (
                         (
-                            "materialize_dropped_debug_payloads",
-                            report.dropped_debug_payloads.materialize_dropped_debug_payloads,
-                        ),
-                        (
                             "dropped_total_count",
-                            report.dropped_debug_payloads.dropped_total_count,
+                            report.dropped_sample_payloads.dropped_total_count,
                         ),
                         (
-                            "pose_or_source_dropped_without_prepared_payload_count",
-                            report.dropped_debug_payloads
-                            .pose_or_source_dropped_without_prepared_payload_count,
+                            "source_dropped_sample_count",
+                            report.dropped_sample_payloads.source_dropped_sample_count,
                         ),
                         (
-                            "gate_dropped_prepared_sample_count",
-                            report.dropped_debug_payloads.gate_dropped_prepared_sample_count,
+                            "pose_dropped_sample_count",
+                            report.dropped_sample_payloads.pose_dropped_sample_count,
                         ),
                         (
-                            "dropped_debug_payload_written_count",
-                            report.dropped_debug_payloads
-                            .dropped_debug_payload_written_count,
+                            "gate_dropped_sample_count",
+                            report.dropped_sample_payloads.gate_dropped_sample_count,
                         ),
                         (
-                            "dropped_manifest_entries_with_debug_ref_count",
-                            report.dropped_debug_payloads
-                            .dropped_manifest_entries_with_debug_ref_count,
+                            "dropped_sample_payload_written_count",
+                            report.dropped_sample_payloads.dropped_sample_payload_written_count,
                         ),
                         (
-                            "dropped_manifest_entries_without_debug_ref_count",
-                            report.dropped_debug_payloads
-                            .dropped_manifest_entries_without_debug_ref_count,
+                            "dropped_manifest_entries_with_payload_ref_count",
+                            report.dropped_sample_payloads.dropped_manifest_entries_with_payload_ref_count,
+                        ),
+                        (
+                            "dropped_manifest_entries_without_payload_ref_count",
+                            report.dropped_sample_payloads.dropped_manifest_entries_without_payload_ref_count,
+                        ),
+                        (
+                            "dropped_manifest_payload_ref_count_coherent",
+                            report.dropped_sample_payloads.dropped_manifest_payload_ref_count_coherent,
+                        ),
+                        (
+                            "dropped_manifest_payload_identity_coherent",
+                            report.dropped_sample_payloads.dropped_manifest_payload_identity_coherent,
+                        ),
+                        (
+                            "dropped_manifest_payload_coherence_issue_count",
+                            report.dropped_sample_payloads.dropped_manifest_payload_coherence_issue_count,
                         ),
                         (
                             "manifest semantics",
-                            "Dropped manifest entries are audit/trace records.",
+                            "Every dropped manifest entry is backed by one typed DroppedSample JSON payload.",
+                        ),
+                        (
+                            "source stage",
+                            "Source-stage dropped samples carry source/match evidence.",
+                        ),
+                        (
+                            "pose stage",
+                            "Pose-stage dropped samples carry candidate/viability evidence.",
+                        ),
+                        (
+                            "gate stage",
+                            "Gate-stage dropped samples carry prepared-sample summary and gate decision evidence.",
                         ),
                         (
                             "archive semantics",
-                            "Dropped sample archives are produced only when debug payloads are materialized.",
-                        ),
-                        (
-                            "source_pose_drop_semantics",
-                            "Source/pose-stage dropped examples may not have PreparedSample payloads.",
-                        ),
-                        (
-                            "manifest_without_archive",
-                            "A dropped manifest can exist without a dropped sample archive.",
+                            "Dropped sample archives contain DroppedSample JSON payloads, not PreparedSample NPZ payloads.",
                         ),
                     ),
                 ),
@@ -458,7 +526,7 @@ def build_output_detail_sections(
             (("path", result.output_summary.passed_samples_root),),
         ),
         review_item(
-            "dropped debug PreparedSample payloads root",
+            "dropped DroppedSample JSON payloads root",
             (("path", result.output_summary.dropped_samples_root),),
         ),
     )
@@ -609,8 +677,7 @@ def build_processing_summary_records(
     bundle: GateExecutionBundle,
 ) -> tuple[GateProcessingSummaryRecord, ...]:
     return tuple(
-        _processing_summary_record(bundle, split_result)
-        for split_result in bundle.split_results
+        _processing_summary_record(bundle, split_result) for split_result in bundle.split_results
     )
 
 
@@ -619,28 +686,45 @@ def _processing_summary_record(
     split_result: GateSplitProcessingResult,
 ) -> GateProcessingSummaryRecord:
     dropped_entries = split_result.dropped_entries
-    debug_ref_count = sum(1 for entry in dropped_entries if entry.debug_ref is not None)
+    dropped_sample_payloads = build_dropped_sample_payload_section(
+        dropped_entries,
+        dropped_sample_payloads_by_ref={
+            payload.payload_ref: payload.sample for payload in split_result.dropped_sample_payloads
+        },
+    )
     return GateProcessingSummaryRecord(
         split=split_result.split,
         processed_count=split_result.processed_count,
         prepared_sample_count=len(split_result.prepared_samples),
         passed_count=split_result.passed_count,
         dropped_count=split_result.dropped_count,
-        materialize_dropped_debug_payloads=(
-            bundle.workflow_result.config.materialize_dropped_debug_payloads
+        source_dropped_sample_count=sum(
+            1 for entry in dropped_entries if entry.drop_stage == GateDropStage.SOURCE
         ),
-        pose_or_source_dropped_without_prepared_payload_count=sum(
-            1
-            for entry in dropped_entries
-            if entry.drop_stage in {GateDropStage.SOURCE, GateDropStage.POSE}
+        pose_dropped_sample_count=sum(
+            1 for entry in dropped_entries if entry.drop_stage == GateDropStage.POSE
         ),
-        gate_dropped_prepared_sample_count=sum(
+        gate_dropped_sample_count=sum(
             1 for entry in dropped_entries if entry.drop_stage == GateDropStage.GATES
         ),
-        dropped_debug_payload_written_count=len(split_result.dropped_debug_payloads),
-        dropped_manifest_entries_with_debug_ref_count=debug_ref_count,
-        dropped_manifest_entries_without_debug_ref_count=len(dropped_entries)
-        - debug_ref_count,
+        dropped_sample_payload_written_count=(
+            dropped_sample_payloads.dropped_sample_payload_written_count
+        ),
+        dropped_manifest_entries_with_payload_ref_count=(
+            dropped_sample_payloads.dropped_manifest_entries_with_payload_ref_count
+        ),
+        dropped_manifest_entries_without_payload_ref_count=(
+            dropped_sample_payloads.dropped_manifest_entries_without_payload_ref_count
+        ),
+        dropped_manifest_payload_ref_count_coherent=(
+            dropped_sample_payloads.dropped_manifest_payload_ref_count_coherent
+        ),
+        dropped_manifest_payload_identity_coherent=(
+            dropped_sample_payloads.dropped_manifest_payload_identity_coherent
+        ),
+        dropped_manifest_payload_coherence_issue_count=(
+            dropped_sample_payloads.dropped_manifest_payload_coherence_issue_count
+        ),
     )
 
 
@@ -736,6 +820,10 @@ def build_report_table_records(
 
 def _count_labels(values: Iterable[object]) -> tuple[str, ...]:
     counts = Counter(str(value) for value in values)
+    return _count_labels_from_counter(counts)
+
+
+def _count_labels_from_counter(counts: Counter[object]) -> tuple[str, ...]:
     return tuple(f"{key}={count}" for key, count in sorted(counts.items()))
 
 
@@ -883,12 +971,12 @@ def _report_artifact_rows(result: GateWorkflowResult) -> tuple[GateReportArtifac
     artifacts = result.output_summary.planned_report_outputs
     return (
         GateReportArtifactRow("summary markdown", artifacts.summary_markdown_path),
-        GateReportArtifactRow("processing summary", artifacts.processing_summary_jsonl_path),
-        GateReportArtifactRow("processing detail", artifacts.processing_detail_jsonl_path),
-        GateReportArtifactRow("gate summary", artifacts.gate_summary_jsonl_path),
-        GateReportArtifactRow("gate detail", artifacts.gate_detail_jsonl_path),
-        GateReportArtifactRow("source issue summary", artifacts.source_issue_summary_jsonl_path),
-        GateReportArtifactRow("source issue detail", artifacts.source_issue_detail_jsonl_path),
+        GateReportArtifactRow("processing summary", artifacts.processing_summary_markdown_path),
+        GateReportArtifactRow("processing detail", artifacts.processing_detail_json_path),
+        GateReportArtifactRow("gate summary", artifacts.gate_summary_markdown_path),
+        GateReportArtifactRow("gate detail", artifacts.gate_detail_json_path),
+        GateReportArtifactRow("source issue summary", artifacts.source_issue_summary_markdown_path),
+        GateReportArtifactRow("source issue detail", artifacts.source_issue_detail_json_path),
         GateReportArtifactRow("report index", artifacts.index_json_path),
     )
 
@@ -1037,6 +1125,7 @@ __all__ = [
     "build_runtime_verification_summary_sections",
     "build_gate_report",
     "build_source_issue_detail_records",
+    "build_source_issue_summary_sections",
     "build_source_issue_summary_records",
     "build_written_artifact_detail_sections",
     "build_written_artifact_summary_sections",

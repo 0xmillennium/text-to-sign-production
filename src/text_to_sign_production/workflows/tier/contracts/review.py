@@ -339,8 +339,7 @@ class FamilyWaterfallStepReview:
     @property
     def label(self) -> str:
         return (
-            f"{self.tier}.{self.family}:"
-            f"{self.remaining_before_count}->{self.remaining_after_count}"
+            f"{self.tier}.{self.family}:{self.remaining_before_count}->{self.remaining_after_count}"
         )
 
 
@@ -384,7 +383,7 @@ class TierManifestOutputReview:
 
 @dataclass(frozen=True, slots=True)
 class TierDecisionDetailReviewPayload:
-    """Typed DTO for the decision-detail JSONL payload."""
+    """Typed DTO for the decision-detail JSON payload."""
 
     records: tuple[TierDecisionReviewRecord, ...]
 
@@ -438,7 +437,7 @@ class TierReportIndexPayload:
 
     summary_markdown_path: Path
     calibration_markdown_path: Path
-    decision_detail_jsonl_path: Path
+    decision_detail_json_path: Path
     calibration_surfaces_json_path: Path
     calibration_detail_json_path: Path
     index_json_path: Path

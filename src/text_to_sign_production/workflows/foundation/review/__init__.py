@@ -18,7 +18,6 @@ from text_to_sign_production.workflows.foundation.review.markdown import (
 )
 from text_to_sign_production.workflows.foundation.review.write import (
     write_json,
-    write_jsonl,
     write_markdown,
     write_text,
 )
@@ -39,5 +38,4 @@ __all__ = [
     "write_text",
     "write_markdown",
     "write_json",
-    "write_jsonl",
 ]

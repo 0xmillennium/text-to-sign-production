@@ -16,7 +16,7 @@ import numpy.typing as npt
 from text_to_sign_production.core.ids import VALID_SAMPLE_SPLITS as SPLITS
 from text_to_sign_production.core.models import PassedManifestEntry, PreparedSample
 from text_to_sign_production.data.dataset import PREPARED_SAMPLE_SCHEMA_VERSION
-from text_to_sign_production.data.dataset.manifests import read_passed_manifest_jsonl
+from text_to_sign_production.data.dataset.manifests import read_passed_manifest_json
 from text_to_sign_production.data.dataset.payloads import load_prepared_sample_payload
 
 from .schemas import (
@@ -58,12 +58,6 @@ def _processed_manifest_record_from_entry(
         raise ProcessedModelingDataError(
             f"Processed manifest record {entry.sample_id!r} in {manifest_path} has leading "
             "or trailing whitespace in sample_id."
-        )
-    if entry.schema_version != PREPARED_SAMPLE_SCHEMA_VERSION:
-        raise ProcessedModelingDataError(
-            "Processed manifest record "
-            f"{sample_id!r} uses schema {entry.schema_version!r}; "
-            f"expected {PREPARED_SAMPLE_SCHEMA_VERSION!r}."
         )
     split = entry.split.value
     _validate_split(split, context=f"Processed manifest record {sample_id!r}")
@@ -130,7 +124,7 @@ def read_processed_modeling_manifest(
 
     records: list[ProcessedModelingManifestRecord] = []
     seen_sample_ids: set[str] = set()
-    for entry in read_passed_manifest_jsonl(path):
+    for entry in read_passed_manifest_json(path):
         manifest_record = _processed_manifest_record_from_entry(
             entry,
             manifest_path=path,

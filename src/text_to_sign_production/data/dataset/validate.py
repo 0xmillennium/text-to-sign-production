@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import numpy as np
 
-from text_to_sign_production.core.ids import CoordinateSpace
+from text_to_sign_production.core.ids import CoordinateSpace, SampleStatus
 from text_to_sign_production.core.models import (
     DroppedManifestEntry,
+    DroppedSample,
+    GateDropStage,
     PassedManifestEntry,
     PoseTruth,
     PreparedSample,
     SourceTruth,
+)
+from text_to_sign_production.data.dataset.schemas import (
+    DROPPED_SAMPLE_PAYLOAD_SCHEMA_VERSION,
 )
 from text_to_sign_production.data.dataset.types import (
     DatasetValidationIssue,
@@ -77,6 +82,97 @@ def validate_payload_manifest_coherence(
                 DatasetValidationIssueCode.MANIFEST_PAYLOAD_MISMATCH,
                 f"Passed manifest {field_name} does not match payload.",
                 field_name,
+            )
+    return tuple(issues)
+
+
+def validate_dropped_sample(
+    sample: DroppedSample,
+) -> tuple[DatasetValidationIssue, ...]:
+    """Validate DroppedSample JSON payload invariants."""
+    issues: list[DatasetValidationIssue] = []
+    if sample.schema_version != DROPPED_SAMPLE_PAYLOAD_SCHEMA_VERSION:
+        _add(
+            issues,
+            DatasetValidationIssueCode.INVALID_SCHEMA_VERSION,
+            "DroppedSample schema_version is unsupported.",
+            "schema_version",
+        )
+    _validate_text(
+        issues,
+        sample.sample_id,
+        "sample_id",
+        DatasetValidationIssueCode.EMPTY_SAMPLE_ID,
+    )
+    if sample.drop_stage not in {GateDropStage.SOURCE, GateDropStage.POSE, GateDropStage.GATES}:
+        _add(
+            issues,
+            DatasetValidationIssueCode.INVALID_MANIFEST_ENTRY,
+            "DroppedSample drop_stage must be source, pose, or gates.",
+            "drop_stage",
+        )
+    if not sample.issue_codes:
+        _add(
+            issues,
+            DatasetValidationIssueCode.INVALID_MANIFEST_ENTRY,
+            "DroppedSample issue_codes must be non-empty.",
+            "issue_codes",
+        )
+    if sample.source is None:
+        _add(
+            issues,
+            DatasetValidationIssueCode.MISSING_SOURCE_TRUTH,
+            "DroppedSample source snapshot is required.",
+            "source",
+        )
+    else:
+        _validate_dropped_sample_source(issues, sample)
+    _validate_dropped_sample_stage_evidence(issues, sample)
+    return tuple(issues)
+
+
+def validate_dropped_manifest_payload_coherence(
+    *,
+    entry: DroppedManifestEntry,
+    sample: DroppedSample,
+) -> tuple[DatasetValidationIssue, ...]:
+    """Validate identity coherence between a dropped manifest row and JSON payload."""
+    issues: list[DatasetValidationIssue] = []
+    expected = {
+        "sample_id": sample.sample_id,
+        "split": sample.split,
+        "drop_stage": sample.drop_stage,
+        "issue_codes": sample.issue_codes,
+    }
+    for field_name, expected_value in expected.items():
+        if getattr(entry, field_name) != expected_value:
+            _add(
+                issues,
+                DatasetValidationIssueCode.MANIFEST_PAYLOAD_MISMATCH,
+                f"Dropped manifest {field_name} does not match payload.",
+                field_name,
+            )
+    _validate_text(
+        issues,
+        entry.dropped_sample_ref,
+        "dropped_sample_ref",
+        DatasetValidationIssueCode.INVALID_MANIFEST_ENTRY,
+    )
+    if entry.dropped_sample_ref and not entry.dropped_sample_ref.endswith(".json"):
+        _add(
+            issues,
+            DatasetValidationIssueCode.INVALID_MANIFEST_ENTRY,
+            "Dropped manifest dropped_sample_ref must point to a .json payload.",
+            "dropped_sample_ref",
+        )
+    if entry.dropped_sample_ref:
+        expected_ref = _canonical_dropped_sample_ref(entry.split.value, entry.sample_id)
+        if entry.dropped_sample_ref != expected_ref:
+            _add(
+                issues,
+                DatasetValidationIssueCode.MANIFEST_PAYLOAD_MISMATCH,
+                "Dropped manifest dropped_sample_ref does not match canonical sample ref.",
+                "dropped_sample_ref",
             )
     return tuple(issues)
 
@@ -274,6 +370,26 @@ def _validate_dropped_entry(entry: DroppedManifestEntry) -> tuple[DatasetValidat
             "Dropped manifest entries require at least one issue code.",
             "issue_codes",
         )
+    if entry.drop_stage not in {GateDropStage.SOURCE, GateDropStage.POSE, GateDropStage.GATES}:
+        _add(
+            issues,
+            DatasetValidationIssueCode.INVALID_MANIFEST_ENTRY,
+            "Dropped manifest drop_stage must be source, pose, or gates.",
+            "drop_stage",
+        )
+    _validate_text(
+        issues,
+        entry.dropped_sample_ref,
+        "dropped_sample_ref",
+        DatasetValidationIssueCode.INVALID_MANIFEST_ENTRY,
+    )
+    if entry.dropped_sample_ref and not entry.dropped_sample_ref.endswith(".json"):
+        _add(
+            issues,
+            DatasetValidationIssueCode.INVALID_MANIFEST_ENTRY,
+            "Dropped manifest dropped_sample_ref must point to a .json payload.",
+            "dropped_sample_ref",
+        )
     if len(set(entry.issue_codes)) != len(entry.issue_codes):
         _add(
             issues,
@@ -282,6 +398,129 @@ def _validate_dropped_entry(entry: DroppedManifestEntry) -> tuple[DatasetValidat
             "issue_codes",
         )
     return tuple(issues)
+
+
+def _validate_dropped_sample_source(
+    issues: list[DatasetValidationIssue],
+    sample: DroppedSample,
+) -> None:
+    source = sample.source
+    for path, count in (
+        ("source.video_match_count", source.video_match_count),
+        ("source.keypoint_match_count", source.keypoint_match_count),
+    ):
+        if count < 0:
+            _add(
+                issues,
+                DatasetValidationIssueCode.INVALID_MANIFEST_ENTRY,
+                "DroppedSample source counts cannot be negative.",
+                path,
+            )
+    if len(set(sample.issue_codes)) != len(sample.issue_codes):
+        _add(
+            issues,
+            DatasetValidationIssueCode.DUPLICATE_ISSUE_CODE,
+            "DroppedSample issue codes cannot contain duplicates.",
+            "issue_codes",
+        )
+
+
+def _validate_dropped_sample_stage_evidence(
+    issues: list[DatasetValidationIssue],
+    sample: DroppedSample,
+) -> None:
+    if sample.drop_stage is GateDropStage.SOURCE:
+        if sample.pose is not None or sample.gate is not None:
+            _add(
+                issues,
+                DatasetValidationIssueCode.INVALID_MANIFEST_ENTRY,
+                "Source-stage dropped samples cannot carry pose or gate evidence.",
+                "drop_stage",
+            )
+        return
+    if sample.drop_stage is GateDropStage.POSE:
+        if sample.pose is None or sample.gate is not None:
+            _add(
+                issues,
+                DatasetValidationIssueCode.INVALID_MANIFEST_ENTRY,
+                "Pose-stage dropped samples require pose evidence only.",
+                "drop_stage",
+            )
+        if sample.pose is not None:
+            _validate_dropped_sample_pose_counts(issues, sample)
+        return
+    if sample.drop_stage is GateDropStage.GATES:
+        if sample.pose is None or sample.gate is None:
+            _add(
+                issues,
+                DatasetValidationIssueCode.INVALID_MANIFEST_ENTRY,
+                "Gate-stage dropped samples require pose and gate evidence.",
+                "drop_stage",
+            )
+        if sample.pose is not None:
+            _validate_dropped_sample_pose_counts(issues, sample)
+        if sample.gate is not None:
+            _validate_dropped_sample_gate(issues, sample)
+
+
+def _validate_dropped_sample_pose_counts(
+    issues: list[DatasetValidationIssue],
+    sample: DroppedSample,
+) -> None:
+    if sample.pose is None:
+        return
+    for path, count in (
+        ("pose.candidate_frame_count", sample.pose.candidate_frame_count),
+        ("pose.observed_frame_count", sample.pose.observed_frame_count),
+    ):
+        if count is not None and count < 0:
+            _add(
+                issues,
+                DatasetValidationIssueCode.INVALID_MANIFEST_ENTRY,
+                "DroppedSample pose counts cannot be negative.",
+                path,
+            )
+
+
+def _validate_dropped_sample_gate(
+    issues: list[DatasetValidationIssue],
+    sample: DroppedSample,
+) -> None:
+    if sample.gate is None:
+        return
+    for path, count in (
+        ("gate.frame_count", sample.gate.frame_count),
+        ("gate.valid_frame_count", sample.gate.valid_frame_count),
+        ("gate.body_nonzero_frame_count", sample.gate.body_nonzero_frame_count),
+        ("gate.face_nonzero_frame_count", sample.gate.face_nonzero_frame_count),
+        ("gate.left_hand_nonzero_frame_count", sample.gate.left_hand_nonzero_frame_count),
+        ("gate.right_hand_nonzero_frame_count", sample.gate.right_hand_nonzero_frame_count),
+    ):
+        if count < 0:
+            _add(
+                issues,
+                DatasetValidationIssueCode.INVALID_CHANNEL_COUNTS,
+                "DroppedSample gate counts cannot be negative.",
+                path,
+            )
+    if sample.gate.final_status is not SampleStatus.DROPPED:
+        _add(
+            issues,
+            DatasetValidationIssueCode.INVALID_MANIFEST_ENTRY,
+            "Gate-stage DroppedSample final_status must be dropped.",
+            "gate.final_status",
+        )
+    if not sample.gate.failed_gates and not sample.gate.decision_issue_codes:
+        _add(
+            issues,
+            DatasetValidationIssueCode.INVALID_MANIFEST_ENTRY,
+            "Gate-stage DroppedSample must carry failed gates or decision issue codes.",
+            "gate",
+        )
+
+
+def _canonical_dropped_sample_ref(split: str, sample_id: str) -> str:
+    return f"dropped/{split}/{sample_id}.json"
 
 
 def _validate_schema(
@@ -315,6 +554,8 @@ __all__ = [
     "ManifestEntry",
     "DatasetValidationIssue",
     "DatasetValidationIssueCode",
+    "validate_dropped_manifest_payload_coherence",
+    "validate_dropped_sample",
     "validate_manifest_entry",
     "validate_payload_manifest_coherence",
     "validate_prepared_sample",

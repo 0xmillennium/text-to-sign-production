@@ -98,12 +98,15 @@ class GateProcessingSummaryRecord:
     prepared_sample_count: int
     passed_count: int
     dropped_count: int
-    materialize_dropped_debug_payloads: bool
-    pose_or_source_dropped_without_prepared_payload_count: int
-    gate_dropped_prepared_sample_count: int
-    dropped_debug_payload_written_count: int
-    dropped_manifest_entries_with_debug_ref_count: int
-    dropped_manifest_entries_without_debug_ref_count: int
+    source_dropped_sample_count: int
+    pose_dropped_sample_count: int
+    gate_dropped_sample_count: int
+    dropped_sample_payload_written_count: int
+    dropped_manifest_entries_with_payload_ref_count: int
+    dropped_manifest_entries_without_payload_ref_count: int
+    dropped_manifest_payload_ref_count_coherent: bool
+    dropped_manifest_payload_identity_coherent: bool
+    dropped_manifest_payload_coherence_issue_count: int
 
 
 @dataclass(frozen=True, slots=True)

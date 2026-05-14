@@ -11,7 +11,10 @@ from text_to_sign_production.core.progress import (
     ProgressStageSpec,
 )
 from text_to_sign_production.data.dataset.manifests import GATE_MANIFEST_SCHEMA_VERSION
-from text_to_sign_production.data.dataset.types import DatasetPayloadProduction
+from text_to_sign_production.data.dataset.types import (
+    DatasetDroppedSampleProduction,
+    DatasetPayloadProduction,
+)
 from text_to_sign_production.data.gate.policies import (
     GatesConfig,
 )
@@ -50,6 +53,7 @@ from text_to_sign_production.workflows.gate.processing.manifests import (
     write_gate_payloads,
 )
 from text_to_sign_production.workflows.gate.processing.models import (
+    GateDroppedSamplePayloadOutput,
     GatePayloadOutput,
     GateSplitProcessingResult,
 )
@@ -113,10 +117,10 @@ def _build_split_processing_result(
             for evaluation in evaluations
             if evaluation.passed_payload is not None
         ),
-        dropped_debug_payloads=tuple(
-            _workflow_payload_output(evaluation.dropped_debug_payload)
+        dropped_sample_payloads=tuple(
+            _workflow_dropped_payload_output(evaluation.dropped_sample_payload)
             for evaluation in evaluations
-            if evaluation.dropped_debug_payload is not None
+            if evaluation.dropped_sample_payload is not None
         ),
         passed_entries=tuple(
             evaluation.passed_entry
@@ -241,7 +245,6 @@ def _evaluate_one_source_bundle(
         person_selection_policy=config.person_selection_policy,
         output_refs=output_refs,
         manifest_schema_version=GATE_MANIFEST_SCHEMA_VERSION,
-        materialize_dropped_debug_payloads=config.materialize_dropped_debug_payloads,
     )
 
 
@@ -249,28 +252,49 @@ def _write_payload_outputs(
     evaluations: tuple[GateSourceEvaluation, ...],
     progress_session: ProgressSession | None,
 ) -> None:
-    payloads = tuple(
+    prepared_payloads = tuple(
         payload
         for evaluation in evaluations
-        for payload in (evaluation.passed_payload, evaluation.dropped_debug_payload)
+        for payload in (evaluation.passed_payload,)
         if payload is not None
     )
-    if progress_session is not None and payloads:
+    dropped_payloads = tuple(
+        evaluation.dropped_sample_payload
+        for evaluation in evaluations
+        if evaluation.dropped_sample_payload is not None
+    )
+    if progress_session is not None and prepared_payloads:
         with progress_session.task(
             _split_progress_spec(
                 stage_id=GATE_STAGE_PAYLOAD_WRITE,
-                label="prepared sample payload write",
+                label="write prepared sample payloads",
                 unit="payload",
                 operation_kind="prepared_sample_payload_write",
                 total_semantics="planned prepared sample payload writes",
             ),
-            total=len(payloads),
+            total=len(prepared_payloads),
         ) as progress_task:
-            for payload in payloads:
-                write_gate_payloads((payload,))
+            for payload in prepared_payloads:
+                write_gate_payloads(prepared_payloads=(payload,), dropped_sample_payloads=())
                 progress_task.advance()
-        return
-    write_gate_payloads(payloads)
+    else:
+        write_gate_payloads(prepared_payloads=prepared_payloads, dropped_sample_payloads=())
+    if progress_session is not None and dropped_payloads:
+        with progress_session.task(
+            _split_progress_spec(
+                stage_id=GATE_STAGE_PAYLOAD_WRITE,
+                label="write dropped sample payloads",
+                unit="payload",
+                operation_kind="dropped_sample_payload_write",
+                total_semantics="planned dropped sample payload writes",
+            ),
+            total=len(dropped_payloads),
+        ) as progress_task:
+            for payload in dropped_payloads:
+                write_gate_payloads(prepared_payloads=(), dropped_sample_payloads=(payload,))
+                progress_task.advance()
+    else:
+        write_gate_payloads(prepared_payloads=(), dropped_sample_payloads=dropped_payloads)
 
 
 def _validate_source_bundle_identity_set(source_bundles: list[GateSourceBundle]) -> None:
@@ -286,7 +310,7 @@ def _validate_split_output_uniqueness(evaluations: tuple[GateSourceEvaluation, .
     payloads = tuple(
         payload
         for evaluation in evaluations
-        for payload in (evaluation.passed_payload, evaluation.dropped_debug_payload)
+        for payload in (evaluation.passed_payload, evaluation.dropped_sample_payload)
         if payload is not None
     )
     _ensure_unique(
@@ -351,6 +375,16 @@ def _source_output_refs(
 
 def _payload_ref(status: SampleStatus, split: str, sample_id: str) -> str:
     return sample_manifest_relative_path(status, split, sample_id).as_posix()
+
+
+def _workflow_dropped_payload_output(
+    payload: DatasetDroppedSampleProduction,
+) -> GateDroppedSamplePayloadOutput:
+    return GateDroppedSamplePayloadOutput(
+        sample=payload.sample,
+        path=payload.path,
+        payload_ref=payload.payload_ref,
+    )
 
 
 def _source_sample_id(source_bundle: GateSourceBundle) -> str:

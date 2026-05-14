@@ -12,7 +12,6 @@ from text_to_sign_production.workflows.foundation.review import (
     JsonValue,
     render_review_sections_markdown,
     write_json,
-    write_jsonl,
     write_markdown,
 )
 from text_to_sign_production.workflows.tier.constants import (
@@ -26,8 +25,8 @@ from text_to_sign_production.workflows.tier.contracts.review import (
     CalibrationSurfacesReviewPayload,
     DistributionSummaryReview,
     FamilyPassSurfaceReview,
-    FamilyWaterfallStepReview,
     FamilyWaterfallsReview,
+    FamilyWaterfallStepReview,
     LeakageReviewSummary,
     MembershipCountReview,
     TierDecisionDetailReviewPayload,
@@ -70,8 +69,8 @@ def write_tier_reports(
         artifacts.calibration_markdown_path,
         render_review_sections_markdown(build_calibration_sections(bundle)),
     )
-    _write_decision_detail_jsonl(
-        artifacts.decision_detail_jsonl_path,
+    _write_decision_detail_json(
+        artifacts.decision_detail_json_path,
         build_decision_detail_review_payload(bundle),
         progress_session=progress_session,
     )
@@ -89,7 +88,7 @@ def write_tier_reports(
             TierReportIndexPayload(
                 summary_markdown_path=artifacts.summary_markdown_path,
                 calibration_markdown_path=artifacts.calibration_markdown_path,
-                decision_detail_jsonl_path=artifacts.decision_detail_jsonl_path,
+                decision_detail_json_path=artifacts.decision_detail_json_path,
                 calibration_surfaces_json_path=artifacts.calibration_surfaces_json_path,
                 calibration_detail_json_path=artifacts.calibration_detail_json_path,
                 index_json_path=artifacts.index_json_path,
@@ -130,9 +129,9 @@ def write_tier_reports(
             execution_id=bundle.workflow_result.execution_id,
             kind="tier_report",
         ),
-        decision_detail_jsonl=written_file_receipt(
+        decision_detail_json=written_file_receipt(
             "tier decision detail",
-            artifacts.decision_detail_jsonl_path,
+            artifacts.decision_detail_json_path,
             execution_id=bundle.workflow_result.execution_id,
             kind="tier_report",
         ),
@@ -168,21 +167,29 @@ def _visible_progress_session(
     )
 
 
-def _write_decision_detail_jsonl(
+def _write_decision_detail_json(
     path: Path,
     payload: TierDecisionDetailReviewPayload,
     *,
     progress_session: ProgressSession | None,
 ) -> None:
-    records = _decision_detail_jsonl_records(payload)
+    records = _decision_detail_records(payload)
+    document: JsonValue = {
+        "schema_version": "tier.decision.detail.v1",
+        "report_kind": "tier_decision_detail",
+        "record_count": len(records),
+        "records": records,
+    }
     if progress_session is not None and records:
         with progress_session.task(
             _decision_detail_progress_spec(),
             total=len(records),
         ) as progress_task:
-            write_jsonl(path, records, progress=progress_task)
+            write_json(path, document)
+            if records:
+                progress_task.advance(len(records))
     else:
-        write_jsonl(path, records)
+        write_json(path, document)
 
 
 def _decision_detail_progress_spec() -> ProgressStageSpec:
@@ -193,14 +200,14 @@ def _decision_detail_progress_spec() -> ProgressStageSpec:
         unit="record",
         owner_module=__name__,
         split_behavior="global",
-        operation_kind="jsonl_report_write",
-        total_semantics="records written to decision detail JSONL report",
+        operation_kind="json_report_write",
+        total_semantics="records written to decision detail JSON report",
         bar_eligible=True,
         artifact_role="decision_detail",
     )
 
 
-def _decision_detail_jsonl_records(
+def _decision_detail_records(
     payload: TierDecisionDetailReviewPayload,
 ) -> tuple[JsonValue, ...]:
     return tuple(
@@ -249,13 +256,10 @@ def _calibration_surfaces_json_payload(
             _family_pass_surface_json(row) for row in payload.family_pass_surfaces
         ),
         "binding_metric_distributions": tuple(
-            _distribution_summary_json(row)
-            for row in payload.binding_metric_distributions
+            _distribution_summary_json(row) for row in payload.binding_metric_distributions
         ),
         "family_waterfalls": _waterfalls_json(payload.family_waterfalls),
-        "active_span_derivation": _active_span_derivation_json(
-            payload.active_span_derivation
-        ),
+        "active_span_derivation": _active_span_derivation_json(payload.active_span_derivation),
         "leakage": _leakage_json(payload.leakage),
         "tier_report_count": payload.tier_report_count,
     }
@@ -303,19 +307,15 @@ def _calibration_detail_json_payload(
             _family_pass_surface_json(row) for row in payload.family_pass_surfaces
         ),
         "binding_metric_distributions": tuple(
-            _distribution_summary_json(row)
-            for row in payload.binding_metric_distributions
+            _distribution_summary_json(row) for row in payload.binding_metric_distributions
         ),
         "family_waterfalls": _waterfalls_json(payload.family_waterfalls),
-        "active_span_derivation": _active_span_derivation_json(
-            payload.active_span_derivation
-        ),
+        "active_span_derivation": _active_span_derivation_json(payload.active_span_derivation),
         "leakage": _leakage_json(payload.leakage),
         "tier_reports": tuple(dict(report.items()) for report in payload.tier_reports),
         "outputs": {
             "planned_tiered_manifest_outputs": tuple(
-                _manifest_output_json(output)
-                for output in payload.planned_tiered_manifest_outputs
+                _manifest_output_json(output) for output in payload.planned_tiered_manifest_outputs
             ),
         },
     }
@@ -336,15 +336,14 @@ def _report_index_json_payload(payload: TierReportIndexPayload) -> JsonValue:
         "reports": {
             "summary_markdown_path": payload.summary_markdown_path,
             "calibration_markdown_path": payload.calibration_markdown_path,
-            "decision_detail_jsonl_path": payload.decision_detail_jsonl_path,
+            "decision_detail_json_path": payload.decision_detail_json_path,
             "calibration_surfaces_json_path": payload.calibration_surfaces_json_path,
             "calibration_detail_json_path": payload.calibration_detail_json_path,
             "index_json_path": payload.index_json_path,
         },
         "outputs": {
             "planned_tiered_manifest_outputs": tuple(
-                _manifest_output_json(output)
-                for output in payload.planned_tiered_manifest_outputs
+                _manifest_output_json(output) for output in payload.planned_tiered_manifest_outputs
             ),
         },
     }
@@ -408,8 +407,7 @@ def _waterfalls_json(row: FamilyWaterfallsReview) -> JsonValue:
 def _active_span_derivation_json(row: ActiveSpanDerivationReview) -> JsonValue:
     return {
         "count_distributions": tuple(
-            _distribution_summary_json(distribution)
-            for distribution in row.count_distributions
+            _distribution_summary_json(distribution) for distribution in row.count_distributions
         ),
         "fallback_used_count": row.fallback_used_count,
         "fallback_used_ratio": row.fallback_used_ratio,

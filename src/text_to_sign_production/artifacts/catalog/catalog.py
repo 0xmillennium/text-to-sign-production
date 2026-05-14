@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Protocol
 
 from text_to_sign_production.artifacts.catalog.projections import (
-    dropped_manifest_projection_from_record,
-    passed_manifest_projection_from_record,
-    tiered_manifest_projection_from_record,
+    dropped_manifest_projection_from_entry,
+    passed_manifest_projection_from_entry,
 )
 from text_to_sign_production.artifacts.catalog.types import (
     SampleHandle,
@@ -32,6 +30,11 @@ from text_to_sign_production.artifacts.store import (
     resolve_samples_relative,
 )
 from text_to_sign_production.core.ids import SampleSplit, SampleStatus, TierMembership, TierName
+from text_to_sign_production.data.dataset.manifests import (
+    read_dropped_manifest_json,
+    read_passed_manifest_json,
+    read_tier_manifest_json,
+)
 
 _CATALOG_SPLITS = (SampleSplit.TRAIN, SampleSplit.VAL, SampleSplit.TEST)
 _SPLIT_ORDER = {split: index for index, split in enumerate(_CATALOG_SPLITS)}
@@ -60,8 +63,8 @@ def load_passed_samples_catalog(
     for split in selected_splits:
         manifest_path = stores.runtime.manifests.untiered_passed_manifest(split).path
         split_count = 0
-        for record in _read_jsonl_records(manifest_path):
-            projection = passed_manifest_projection_from_record(record, manifest_path)
+        for entry in read_passed_manifest_json(manifest_path):
+            projection = passed_manifest_projection_from_entry(entry)
             ref = SampleRef(split=split, sample_id=projection.sample_id)
             _require_new_ref(items, ref, manifest_path)
             items[ref] = SampleHandle(
@@ -76,7 +79,7 @@ def load_passed_samples_catalog(
                     SampleStatus.PASSED,
                     split,
                 ),
-                drive_archive_member=stores.drive.samples.archive_member(
+                drive_archive_member=stores.drive.samples.passed_archive_member(
                     split,
                     projection.sample_id,
                 ),
@@ -100,8 +103,8 @@ def load_dropped_samples_catalog(
     items: dict[SampleRef, SampleHandle] = {}
     for split in _catalog_splits(splits):
         manifest_path = stores.runtime.manifests.untiered_dropped_manifest(split).path
-        for record in _read_jsonl_records(manifest_path):
-            projection = dropped_manifest_projection_from_record(record, manifest_path)
+        for entry in read_dropped_manifest_json(manifest_path):
+            projection = dropped_manifest_projection_from_entry(entry)
             ref = SampleRef(split=split, sample_id=projection.sample_id)
             _require_new_ref(items, ref, manifest_path)
             runtime_sample: SamplePathRef | None = None
@@ -114,7 +117,7 @@ def load_dropped_samples_catalog(
                 )
             if projection.archive_publishable:
                 drive_archive = stores.drive.samples.split_archive(SampleStatus.DROPPED, split)
-                drive_archive_member = stores.drive.samples.archive_member(
+                drive_archive_member = stores.drive.samples.dropped_archive_member(
                     split,
                     projection.sample_id,
                 )
@@ -144,8 +147,8 @@ def load_tiered_catalog(
     items: dict[SampleRef, TieredSampleHandle] = {}
     for split in _catalog_splits(splits):
         manifest_path = stores.runtime.manifests.tiered_manifest(tier, membership, split).path
-        for record in _read_jsonl_records(manifest_path):
-            projection = tiered_manifest_projection_from_record(record, manifest_path)
+        for entry in read_tier_manifest_json(manifest_path):
+            projection = passed_manifest_projection_from_entry(entry)
             ref = SampleRef(split=split, sample_id=projection.sample_id)
             _require_new_ref(items, ref, manifest_path)
             items[ref] = TieredSampleHandle(
@@ -161,7 +164,7 @@ def load_tiered_catalog(
                     SampleStatus.PASSED,
                     split,
                 ),
-                drive_archive_member=stores.drive.samples.archive_member(
+                drive_archive_member=stores.drive.samples.passed_archive_member(
                     split,
                     projection.sample_id,
                 ),
@@ -224,30 +227,6 @@ def iter_tiered_split(
     for ref in _sorted_refs(catalog.items):
         if ref.split is split:
             yield catalog.items[ref]
-
-
-def _read_jsonl_records(path: Path) -> Iterator[Mapping[str, Any]]:
-    try:
-        with path.open(encoding="utf-8") as handle:
-            for line_number, line in enumerate(handle, start=1):
-                stripped = line.strip()
-                if not stripped:
-                    continue
-                try:
-                    raw: object = json.loads(stripped)
-                except json.JSONDecodeError as exc:
-                    raise ValueError(
-                        f"Malformed JSON in manifest {path} at line {line_number}: {exc.msg}"
-                    ) from exc
-                if not isinstance(raw, Mapping):
-                    raise TypeError(
-                        f"Manifest {path} line {line_number} must contain a JSON object."
-                    )
-                if any(not isinstance(key, str) for key in raw):
-                    raise TypeError(f"Manifest {path} line {line_number} must contain string keys.")
-                yield cast(Mapping[str, Any], raw)
-    except FileNotFoundError as exc:
-        raise FileNotFoundError(f"Manifest file not found: {path}") from exc
 
 
 def _required_payload_ref(value: str | None, path: Path) -> str:

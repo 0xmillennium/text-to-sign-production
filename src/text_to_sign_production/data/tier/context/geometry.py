@@ -21,18 +21,6 @@ UPPER_BODY_BONE_SEGMENTS: tuple[tuple[int, int], ...] = (
     (6, 7),
     (2, 5),
 )
-HAND_FINGER_CHAINS: tuple[tuple[int, ...], ...] = (
-    (0, 1, 2, 3, 4),
-    (0, 5, 6, 7, 8),
-    (0, 9, 10, 11, 12),
-    (0, 13, 14, 15, 16),
-    (0, 17, 18, 19, 20),
-)
-HAND_BONE_SEGMENTS: tuple[tuple[int, int], ...] = tuple(
-    (start, end)
-    for chain in HAND_FINGER_CHAINS
-    for start, end in zip(chain[:-1], chain[1:], strict=True)
-)
 CROSS_CHANNEL_BODY_SCALE_SEGMENTS: tuple[tuple[int, int], ...] = ((2, 5), (1, 2), (1, 5))
 CROSS_CHANNEL_HAND_SCALE_SEGMENTS: tuple[tuple[int, int], ...] = ((0, 5), (0, 17), (5, 17))
 _MIN_REFERENCE_LENGTH = 1e-12
@@ -46,7 +34,6 @@ def build_geometry_reference_context(
     body = sample.pose.body_xyc
     hand = _representative_hand_array(sample, hand_context)
     upper_lengths = _segment_lengths(body[..., :2], body[..., 2], UPPER_BODY_BONE_SEGMENTS)
-    hand_lengths = _segment_lengths(hand[..., :2], hand[..., 2], HAND_BONE_SEGMENTS)
     body_scale = _frame_median_segment_length(
         body[..., :2], body[..., 2], CROSS_CHANNEL_BODY_SCALE_SEGMENTS
     )
@@ -59,9 +46,6 @@ def build_geometry_reference_context(
             upper_body_segment_lengths=_frame_segment_mapping(
                 upper_lengths, UPPER_BODY_BONE_SEGMENTS, frame_index
             ),
-            representative_hand_segment_lengths=_frame_segment_mapping(
-                hand_lengths, HAND_BONE_SEGMENTS, frame_index
-            ),
             body_scale_reference_length=_finite_float_or_none(body_scale[frame_index]),
             hand_scale_reference_length=_finite_float_or_none(hand_scale[frame_index]),
         )
@@ -69,7 +53,6 @@ def build_geometry_reference_context(
     )
     return GeometryReferenceContext(
         upper_body_segment_references=_reference_mapping(upper_lengths, UPPER_BODY_BONE_SEGMENTS),
-        representative_hand_segment_references=_reference_mapping(hand_lengths, HAND_BONE_SEGMENTS),
         cross_channel_scale_reference=_cross_channel_reference(body_scale, hand_scale),
         frames=frames,
     )

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 
 from text_to_sign_production.core.ids import SampleStatus
 from text_to_sign_production.core.models import (
     DroppedManifestEntry,
+    DroppedSample,
     GateDecisionBundle,
     GateDropStage,
     PassedManifestEntry,
@@ -21,9 +22,13 @@ from text_to_sign_production.data.dataset.analysis import (
     summarize_passed_manifest,
     summarize_prepared_sample_payload,
 )
+from text_to_sign_production.data.dataset.validate import (
+    validate_dropped_manifest_payload_coherence,
+    validate_dropped_sample,
+)
 from text_to_sign_production.data.gate.reports.types import (
     CheckpointIntegritySection,
-    DroppedDebugPayloadSection,
+    DroppedSamplePayloadSection,
     GateOutcomesSection,
     ManifestOutcomesSection,
     PoseHealthSection,
@@ -105,36 +110,64 @@ def build_checkpoint_integrity_section(
     )
 
 
-def build_dropped_debug_payload_section(
+def build_dropped_sample_payload_section(
     dropped_entries: Sequence[DroppedManifestEntry],
     *,
-    materialize_dropped_debug_payloads: bool,
-    dropped_debug_payload_written_count: int,
-) -> DroppedDebugPayloadSection:
-    """Build dropped manifest/debug payload projection for report clarity."""
-    pose_or_source_count = sum(
-        1
-        for entry in dropped_entries
-        if entry.drop_stage in {GateDropStage.SOURCE, GateDropStage.POSE}
+    dropped_sample_payloads_by_ref: Mapping[str, DroppedSample],
+) -> DroppedSamplePayloadSection:
+    """Build dropped manifest/payload projection for report clarity."""
+    payload_ref_count = sum(1 for entry in dropped_entries if entry.dropped_sample_ref.strip())
+    coherence_issue_count = _dropped_manifest_payload_coherence_issue_count(
+        dropped_entries,
+        dropped_sample_payloads_by_ref,
     )
-    debug_ref_count = sum(1 for entry in dropped_entries if entry.debug_ref is not None)
-    return DroppedDebugPayloadSection(
-        materialize_dropped_debug_payloads=materialize_dropped_debug_payloads,
+    return DroppedSamplePayloadSection(
         dropped_total_count=len(dropped_entries),
-        pose_or_source_dropped_without_prepared_payload_count=pose_or_source_count,
-        gate_dropped_prepared_sample_count=sum(
+        source_dropped_sample_count=sum(
+            1 for entry in dropped_entries if entry.drop_stage == GateDropStage.SOURCE
+        ),
+        pose_dropped_sample_count=sum(
+            1 for entry in dropped_entries if entry.drop_stage == GateDropStage.POSE
+        ),
+        gate_dropped_sample_count=sum(
             1 for entry in dropped_entries if entry.drop_stage == GateDropStage.GATES
         ),
-        dropped_debug_payload_written_count=dropped_debug_payload_written_count,
-        dropped_manifest_entries_with_debug_ref_count=debug_ref_count,
-        dropped_manifest_entries_without_debug_ref_count=len(dropped_entries)
-        - debug_ref_count,
+        dropped_sample_payload_written_count=len(dropped_sample_payloads_by_ref),
+        dropped_manifest_entries_with_payload_ref_count=payload_ref_count,
+        dropped_manifest_entries_without_payload_ref_count=len(dropped_entries) - payload_ref_count,
+        dropped_manifest_payload_ref_count_coherent=(
+            payload_ref_count == len(dropped_entries)
+            and len(dropped_sample_payloads_by_ref) == len(dropped_entries)
+        ),
+        dropped_manifest_payload_identity_coherent=coherence_issue_count == 0,
+        dropped_manifest_payload_coherence_issue_count=coherence_issue_count,
     )
+
+
+def _dropped_manifest_payload_coherence_issue_count(
+    dropped_entries: Sequence[DroppedManifestEntry],
+    payloads_by_ref: Mapping[str, DroppedSample],
+) -> int:
+    issue_count = 0
+    seen_refs: set[str] = set()
+    for entry in dropped_entries:
+        if entry.dropped_sample_ref:
+            seen_refs.add(entry.dropped_sample_ref)
+        sample = payloads_by_ref.get(entry.dropped_sample_ref)
+        if sample is None:
+            issue_count += 1
+            continue
+        issue_count += len(validate_dropped_sample(sample))
+        issue_count += len(
+            validate_dropped_manifest_payload_coherence(entry=entry, sample=sample)
+        )
+    issue_count += len(set(payloads_by_ref).difference(seen_refs))
+    return issue_count
 
 
 __all__ = [
     "build_checkpoint_integrity_section",
-    "build_dropped_debug_payload_section",
+    "build_dropped_sample_payload_section",
     "build_gate_outcomes_section",
     "build_manifest_outcomes_section",
     "build_pose_health_section",

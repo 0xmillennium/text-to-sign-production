@@ -18,12 +18,12 @@ class GatePlannedReportOutputs:
     """Report paths planned by layout before report materialization."""
 
     summary_markdown_path: Path
-    processing_summary_jsonl_path: Path
-    processing_detail_jsonl_path: Path
-    gate_summary_jsonl_path: Path
-    gate_detail_jsonl_path: Path
-    source_issue_summary_jsonl_path: Path
-    source_issue_detail_jsonl_path: Path
+    processing_summary_markdown_path: Path
+    processing_detail_json_path: Path
+    gate_summary_markdown_path: Path
+    gate_detail_json_path: Path
+    source_issue_summary_markdown_path: Path
+    source_issue_detail_json_path: Path
     index_json_path: Path
 
 
@@ -32,12 +32,12 @@ class GateWrittenReportArtifacts:
     """Report artifacts after report write/materialization."""
 
     summary_markdown: WrittenFileReceipt
-    processing_summary_jsonl: WrittenFileReceipt
-    processing_detail_jsonl: WrittenFileReceipt
-    gate_summary_jsonl: WrittenFileReceipt
-    gate_detail_jsonl: WrittenFileReceipt
-    source_issue_summary_jsonl: WrittenFileReceipt
-    source_issue_detail_jsonl: WrittenFileReceipt
+    processing_summary_markdown: WrittenFileReceipt
+    processing_detail_json: WrittenFileReceipt
+    gate_summary_markdown: WrittenFileReceipt
+    gate_detail_json: WrittenFileReceipt
+    source_issue_summary_markdown: WrittenFileReceipt
+    source_issue_detail_json: WrittenFileReceipt
     index_json: WrittenFileReceipt
 
     @property
@@ -45,28 +45,28 @@ class GateWrittenReportArtifacts:
         return self.summary_markdown.path
 
     @property
-    def processing_summary_jsonl_path(self) -> Path:
-        return self.processing_summary_jsonl.path
+    def processing_summary_markdown_path(self) -> Path:
+        return self.processing_summary_markdown.path
 
     @property
-    def processing_detail_jsonl_path(self) -> Path:
-        return self.processing_detail_jsonl.path
+    def processing_detail_json_path(self) -> Path:
+        return self.processing_detail_json.path
 
     @property
-    def gate_summary_jsonl_path(self) -> Path:
-        return self.gate_summary_jsonl.path
+    def gate_summary_markdown_path(self) -> Path:
+        return self.gate_summary_markdown.path
 
     @property
-    def gate_detail_jsonl_path(self) -> Path:
-        return self.gate_detail_jsonl.path
+    def gate_detail_json_path(self) -> Path:
+        return self.gate_detail_json.path
 
     @property
-    def source_issue_summary_jsonl_path(self) -> Path:
-        return self.source_issue_summary_jsonl.path
+    def source_issue_summary_markdown_path(self) -> Path:
+        return self.source_issue_summary_markdown.path
 
     @property
-    def source_issue_detail_jsonl_path(self) -> Path:
-        return self.source_issue_detail_jsonl.path
+    def source_issue_detail_json_path(self) -> Path:
+        return self.source_issue_detail_json.path
 
     @property
     def index_json_path(self) -> Path:
@@ -109,7 +109,7 @@ class GateWrittenManifestArtifact:
 
 @dataclass(frozen=True, slots=True)
 class GateWrittenPayloadArtifact:
-    """PreparedSample payload artifact after payload materialization."""
+    """Gate sample payload artifact after payload materialization."""
 
     status: str
     split: str

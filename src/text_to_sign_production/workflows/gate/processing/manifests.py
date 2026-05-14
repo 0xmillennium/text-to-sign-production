@@ -3,11 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from text_to_sign_production.data.dataset.build import write_prepared_sample_payload_plan
+from text_to_sign_production.data.dataset.dropped_payloads import write_dropped_sample_payload
 from text_to_sign_production.data.dataset.manifests import (
-    write_dropped_manifest_jsonl,
-    write_passed_manifest_jsonl,
+    write_dropped_manifest_json,
+    write_passed_manifest_json,
 )
-from text_to_sign_production.data.dataset.types import DatasetPayloadProduction
+from text_to_sign_production.data.dataset.types import (
+    DatasetDroppedSampleProduction,
+    DatasetPayloadProduction,
+)
 from text_to_sign_production.workflows.foundation.provenance import written_file_receipt
 from text_to_sign_production.workflows.gate.contracts import GateWorkflowInvariantError
 from text_to_sign_production.workflows.gate.contracts.results import GateWrittenManifestArtifact
@@ -17,10 +21,16 @@ from text_to_sign_production.workflows.gate.processing.models import (
 )
 
 
-def write_gate_payloads(payloads: tuple[DatasetPayloadProduction, ...]) -> None:
+def write_gate_payloads(
+    *,
+    prepared_payloads: tuple[DatasetPayloadProduction, ...],
+    dropped_sample_payloads: tuple[DatasetDroppedSampleProduction, ...],
+) -> None:
     """Persist already-planned gate payloads."""
-    for payload in payloads:
+    for payload in prepared_payloads:
         write_prepared_sample_payload_plan(payload)
+    for payload in dropped_sample_payloads:
+        write_dropped_sample_payload(payload.path, payload.sample)
 
 
 def write_gate_manifests(
@@ -36,13 +46,15 @@ def write_gate_manifests(
         split_results=split_results,
     ):
         _validate_manifest_identity_uniqueness(split_result)
-        write_passed_manifest_jsonl(
+        write_passed_manifest_json(
             _manifest_path(layout, "passed", split_result.split),
             split_result.passed_entries,
+            split=split_result.split,
         )
-        write_dropped_manifest_jsonl(
+        write_dropped_manifest_json(
             _manifest_path(layout, "dropped", split_result.split),
             split_result.dropped_entries,
+            split=split_result.split,
         )
         artifacts.append(
             GateWrittenManifestArtifact(

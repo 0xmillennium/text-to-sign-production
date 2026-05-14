@@ -92,8 +92,7 @@ def _validate_publish_alignment(
     ):
         raise GateWorkflowInvariantError("manifest receipts do not belong to this gate execution")
     if any(
-        payload.execution_id != result.execution_id
-        for payload in bundle.written_payload_artifacts
+        payload.execution_id != result.execution_id for payload in bundle.written_payload_artifacts
     ):
         raise GateWorkflowInvariantError("payload receipts do not belong to this gate execution")
     _validate_payload_receipts(bundle)
@@ -104,24 +103,24 @@ def _validate_publish_alignment(
     if report_artifacts.summary_markdown_path != layout.reports.summary_markdown_path:
         raise GateWorkflowInvariantError("summary report source path is misaligned")
     if (
-        report_artifacts.processing_summary_jsonl_path
-        != layout.reports.processing_summary_jsonl_path
+        report_artifacts.processing_summary_markdown_path
+        != layout.reports.processing_summary_markdown_path
     ):
         raise GateWorkflowInvariantError("processing summary source path is misaligned")
-    if report_artifacts.processing_detail_jsonl_path != layout.reports.processing_detail_jsonl_path:
+    if report_artifacts.processing_detail_json_path != layout.reports.processing_detail_json_path:
         raise GateWorkflowInvariantError("processing detail source path is misaligned")
-    if report_artifacts.gate_summary_jsonl_path != layout.reports.gate_summary_jsonl_path:
+    if report_artifacts.gate_summary_markdown_path != layout.reports.gate_summary_markdown_path:
         raise GateWorkflowInvariantError("gate summary source path is misaligned")
-    if report_artifacts.gate_detail_jsonl_path != layout.reports.gate_detail_jsonl_path:
+    if report_artifacts.gate_detail_json_path != layout.reports.gate_detail_json_path:
         raise GateWorkflowInvariantError("gate detail source path is misaligned")
     if (
-        report_artifacts.source_issue_summary_jsonl_path
-        != layout.reports.source_issue_summary_jsonl_path
+        report_artifacts.source_issue_summary_markdown_path
+        != layout.reports.source_issue_summary_markdown_path
     ):
         raise GateWorkflowInvariantError("source issue summary source path is misaligned")
     if (
-        report_artifacts.source_issue_detail_jsonl_path
-        != layout.reports.source_issue_detail_jsonl_path
+        report_artifacts.source_issue_detail_json_path
+        != layout.reports.source_issue_detail_json_path
     ):
         raise GateWorkflowInvariantError("source issue detail source path is misaligned")
     if report_artifacts.index_json_path != layout.reports.index_json_path:
@@ -159,50 +158,50 @@ def _build_report_targets(
         GatePublishTarget(
             label="publish processing summary",
             kind="report_file",
-            source_path=artifacts.processing_summary_jsonl_path,
-            target_path=layout.publish.processing_summary_jsonl_target_path,
-            source_sha256=artifacts.processing_summary_jsonl.sha256,
-            source_execution_id=artifacts.processing_summary_jsonl.execution_id,
+            source_path=artifacts.processing_summary_markdown_path,
+            target_path=layout.publish.processing_summary_markdown_target_path,
+            source_sha256=artifacts.processing_summary_markdown.sha256,
+            source_execution_id=artifacts.processing_summary_markdown.execution_id,
         ),
         GatePublishTarget(
             label="publish processing detail",
             kind="report_file",
-            source_path=artifacts.processing_detail_jsonl_path,
-            target_path=layout.publish.processing_detail_jsonl_target_path,
-            source_sha256=artifacts.processing_detail_jsonl.sha256,
-            source_execution_id=artifacts.processing_detail_jsonl.execution_id,
+            source_path=artifacts.processing_detail_json_path,
+            target_path=layout.publish.processing_detail_json_target_path,
+            source_sha256=artifacts.processing_detail_json.sha256,
+            source_execution_id=artifacts.processing_detail_json.execution_id,
         ),
         GatePublishTarget(
             label="publish gate summary",
             kind="report_file",
-            source_path=artifacts.gate_summary_jsonl_path,
-            target_path=layout.publish.gate_summary_jsonl_target_path,
-            source_sha256=artifacts.gate_summary_jsonl.sha256,
-            source_execution_id=artifacts.gate_summary_jsonl.execution_id,
+            source_path=artifacts.gate_summary_markdown_path,
+            target_path=layout.publish.gate_summary_markdown_target_path,
+            source_sha256=artifacts.gate_summary_markdown.sha256,
+            source_execution_id=artifacts.gate_summary_markdown.execution_id,
         ),
         GatePublishTarget(
             label="publish gate detail",
             kind="report_file",
-            source_path=artifacts.gate_detail_jsonl_path,
-            target_path=layout.publish.gate_detail_jsonl_target_path,
-            source_sha256=artifacts.gate_detail_jsonl.sha256,
-            source_execution_id=artifacts.gate_detail_jsonl.execution_id,
+            source_path=artifacts.gate_detail_json_path,
+            target_path=layout.publish.gate_detail_json_target_path,
+            source_sha256=artifacts.gate_detail_json.sha256,
+            source_execution_id=artifacts.gate_detail_json.execution_id,
         ),
         GatePublishTarget(
             label="publish source issue summary",
             kind="report_file",
-            source_path=artifacts.source_issue_summary_jsonl_path,
-            target_path=layout.publish.source_issue_summary_jsonl_target_path,
-            source_sha256=artifacts.source_issue_summary_jsonl.sha256,
-            source_execution_id=artifacts.source_issue_summary_jsonl.execution_id,
+            source_path=artifacts.source_issue_summary_markdown_path,
+            target_path=layout.publish.source_issue_summary_markdown_target_path,
+            source_sha256=artifacts.source_issue_summary_markdown.sha256,
+            source_execution_id=artifacts.source_issue_summary_markdown.execution_id,
         ),
         GatePublishTarget(
             label="publish source issue detail",
             kind="report_file",
-            source_path=artifacts.source_issue_detail_jsonl_path,
-            target_path=layout.publish.source_issue_detail_jsonl_target_path,
-            source_sha256=artifacts.source_issue_detail_jsonl.sha256,
-            source_execution_id=artifacts.source_issue_detail_jsonl.execution_id,
+            source_path=artifacts.source_issue_detail_json_path,
+            target_path=layout.publish.source_issue_detail_json_target_path,
+            source_sha256=artifacts.source_issue_detail_json.sha256,
+            source_execution_id=artifacts.source_issue_detail_json.execution_id,
         ),
         GatePublishTarget(
             label="publish report index",
@@ -218,12 +217,12 @@ def _build_report_targets(
 def _report_artifact_paths(artifacts: GateWrittenReportArtifacts) -> tuple[Path, ...]:
     return (
         artifacts.summary_markdown_path,
-        artifacts.processing_summary_jsonl_path,
-        artifacts.processing_detail_jsonl_path,
-        artifacts.gate_summary_jsonl_path,
-        artifacts.gate_detail_jsonl_path,
-        artifacts.source_issue_summary_jsonl_path,
-        artifacts.source_issue_detail_jsonl_path,
+        artifacts.processing_summary_markdown_path,
+        artifacts.processing_detail_json_path,
+        artifacts.gate_summary_markdown_path,
+        artifacts.gate_detail_json_path,
+        artifacts.source_issue_summary_markdown_path,
+        artifacts.source_issue_detail_json_path,
         artifacts.index_json_path,
     )
 
@@ -233,12 +232,12 @@ def _report_artifact_receipts(
 ) -> tuple[WrittenFileReceipt, ...]:
     return (
         artifacts.summary_markdown,
-        artifacts.processing_summary_jsonl,
-        artifacts.processing_detail_jsonl,
-        artifacts.gate_summary_jsonl,
-        artifacts.gate_detail_jsonl,
-        artifacts.source_issue_summary_jsonl,
-        artifacts.source_issue_detail_jsonl,
+        artifacts.processing_summary_markdown,
+        artifacts.processing_detail_json,
+        artifacts.gate_summary_markdown,
+        artifacts.gate_detail_json,
+        artifacts.source_issue_summary_markdown,
+        artifacts.source_issue_detail_json,
         artifacts.index_json,
     )
 
@@ -359,9 +358,11 @@ def _build_split_archive_plans(
                 passed_archive_path=publish_split.passed_archive_path,
                 passed_archive_planned=bool(passed_members),
                 passed_archive_member_count=len(passed_members),
+                passed_archive_member_type="PreparedSample NPZ",
                 dropped_archive_path=publish_split.dropped_archive_path,
                 dropped_archive_planned=bool(dropped_members),
                 dropped_archive_member_count=len(dropped_members),
+                dropped_archive_member_type="DroppedSample JSON",
                 dropped_archive_not_planned_reason=(
                     None
                     if dropped_members
@@ -409,9 +410,9 @@ def _dropped_archive_not_planned_reason(
 ) -> str:
     if not split_result.dropped_entries:
         return "no dropped manifest entries for split"
-    if not bundle.workflow_result.config.materialize_dropped_debug_payloads:
-        return "dropped debug payload materialization is disabled"
-    return "no dropped debug payload refs were materialized"
+    raise GateWorkflowInvariantError(
+        "dropped archive members are required when dropped manifest entries exist"
+    )
 
 
 def _file_copy_operation(target: GatePublishTarget) -> FileCopyOperation:
@@ -467,7 +468,7 @@ def _archive_create_verify_operations(
 def _passed_archive_members(bundle: GateExecutionBundle, split: str) -> tuple[str, ...]:
     samples_topology = _drive_samples_topology(bundle)
     return tuple(
-        samples_topology.archive_member(entry.split, entry.sample_id).path.as_posix()
+        samples_topology.passed_archive_member(entry.split, entry.sample_id).path.as_posix()
         for split_result in bundle.split_results
         if split_result.split == split
         for entry in split_result.passed_entries
@@ -477,11 +478,10 @@ def _passed_archive_members(bundle: GateExecutionBundle, split: str) -> tuple[st
 def _dropped_archive_members(bundle: GateExecutionBundle, split: str) -> tuple[str, ...]:
     samples_topology = _drive_samples_topology(bundle)
     return tuple(
-        samples_topology.archive_member(entry.split, entry.sample_id).path.as_posix()
+        samples_topology.dropped_archive_member(entry.split, entry.sample_id).path.as_posix()
         for split_result in bundle.split_results
         if split_result.split == split
         for entry in split_result.dropped_entries
-        if entry.debug_ref is not None
     )
 
 
@@ -489,7 +489,7 @@ def _validate_payload_receipts(bundle: GateExecutionBundle) -> None:
     expected = {
         payload.payload_ref
         for split_result in bundle.split_results
-        for payload in (*split_result.passed_payloads, *split_result.dropped_debug_payloads)
+        for payload in (*split_result.passed_payloads, *split_result.dropped_sample_payloads)
     }
     observed = {payload.payload_ref for payload in bundle.written_payload_artifacts}
     if observed != expected:

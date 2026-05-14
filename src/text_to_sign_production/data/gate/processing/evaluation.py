@@ -41,12 +41,12 @@ def evaluate_gate_source_bundle(
     person_selection_policy: PersonSelectionPolicy,
     output_refs: GateSourceOutputRefs,
     manifest_schema_version: str,
-    materialize_dropped_debug_payloads: bool,
 ) -> GateSourceEvaluation:
     """Compute gate truth and hand off explicit dataset output plans."""
     if not source_bundle.match.matched:
         return plan_unmatched_source_evaluation(
             match=source_bundle.match,
+            output_refs=output_refs,
             manifest_schema_version=manifest_schema_version,
         )
 
@@ -62,7 +62,10 @@ def evaluate_gate_source_bundle(
             match=source_bundle.match,
             candidate=candidate,
             viability_report=viability_report,
+            output_refs=output_refs,
             manifest_schema_version=manifest_schema_version,
+            observed_frame_count=frame_listing.frame_count,
+            missing_frame_files=frame_listing.missing,
         )
 
     pose_output = _build_pose_output(
@@ -80,7 +83,10 @@ def evaluate_gate_source_bundle(
             match=source_bundle.match,
             candidate=candidate,
             viability_report=pose_viability_report,
+            output_refs=output_refs,
             manifest_schema_version=manifest_schema_version,
+            observed_frame_count=frame_listing.frame_count,
+            missing_frame_files=True,
         )
 
     sample = build_prepared_sample(
@@ -101,12 +107,14 @@ def evaluate_gate_source_bundle(
 
     return plan_gate_failed_evaluation(
         match=source_bundle.match,
+        candidate=candidate,
         viability_report=viability_report,
         sample=sample,
         gate=gate,
         output_refs=output_refs,
         manifest_schema_version=manifest_schema_version,
-        materialize_dropped_debug_payloads=materialize_dropped_debug_payloads,
+        observed_frame_count=frame_listing.frame_count,
+        missing_frame_files=frame_listing.missing,
     )
 
 

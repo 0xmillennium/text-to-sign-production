@@ -14,7 +14,7 @@ from text_to_sign_production.core.ids import (
 
 
 def validate_samples_relative_path(relative_path: str | Path) -> list[str]:
-    """Validate a samples-root-relative physical PreparedSample artifact path shape."""
+    """Validate a samples-root-relative physical sample artifact path shape."""
 
     parts_errors, parts = _relative_parts(relative_path)
     if parts_errors:
@@ -34,8 +34,12 @@ def validate_samples_relative_path(relative_path: str | Path) -> list[str]:
         errors.append("Sample relative path split must be train, val, or test.")
     if filename in {"", ".", ".."}:
         errors.append("Sample relative path filename must be a concrete file name.")
-    elif Path(filename).suffix != ".npz" or not Path(filename).stem:
-        errors.append("Sample relative path filename must be a concrete .npz file name.")
+    else:
+        expected_suffix = ".npz" if status == SampleStatus.PASSED.value else ".json"
+        if Path(filename).suffix != expected_suffix or not Path(filename).stem:
+            errors.append(
+                f"Sample relative path filename must be a concrete {expected_suffix} file name."
+            )
     return errors
 
 
@@ -98,7 +102,7 @@ def validate_sample_archive_member_path(relative_path: str | PurePosixPath) -> l
         return parts_errors
 
     if len(parts) != 2:
-        return ["Sample archive member path must have shape <split>/<sample_id>.npz."]
+        return ["Sample archive member path must have shape <split>/<sample_id>.<npz|json>."]
 
     split, filename = parts
     errors: list[str] = []
@@ -106,8 +110,10 @@ def validate_sample_archive_member_path(relative_path: str | PurePosixPath) -> l
         errors.append("Sample archive member split must be train, val, or test.")
     if filename in {"", ".", ".."}:
         errors.append("Sample archive member filename must be a concrete file name.")
-    elif PurePosixPath(filename).suffix != ".npz" or not PurePosixPath(filename).stem:
-        errors.append("Sample archive member filename must be a concrete .npz file name.")
+    elif (
+        PurePosixPath(filename).suffix not in {".npz", ".json"} or not PurePosixPath(filename).stem
+    ):
+        errors.append("Sample archive member filename must be a concrete .npz or .json file name.")
     return errors
 
 
@@ -143,7 +149,7 @@ def validate_manifests_relative_path(relative_path: str | Path) -> list[str]:
         errors: list[str] = []
         if status not in _values(SampleStatus):
             errors.append("Untiered manifest status must be passed or dropped.")
-        errors.extend(_validate_split_jsonl_filename(filename, "Untiered manifest"))
+        errors.extend(_validate_split_json_filename(filename, "Untiered manifest"))
         return errors
 
     if len(parts) == 4 and parts[0] == "tiered":
@@ -153,12 +159,12 @@ def validate_manifests_relative_path(relative_path: str | Path) -> list[str]:
             errors.append("Tiered manifest tier must be loose, clean, or tight.")
         if membership not in _values(TierMembership):
             errors.append("Tiered manifest membership must be included or excluded.")
-        errors.extend(_validate_split_jsonl_filename(filename, "Tiered manifest"))
+        errors.extend(_validate_split_json_filename(filename, "Tiered manifest"))
         return errors
 
     return [
-        "Manifest relative path must have shape untiered/passed/<split>.jsonl, "
-        "untiered/dropped/<split>.jsonl, or tiered/<tier>/<membership>/<split>.jsonl."
+        "Manifest relative path must have shape untiered/passed/<split>.json, "
+        "untiered/dropped/<split>.json, or tiered/<tier>/<membership>/<split>.json."
     ]
 
 
@@ -188,15 +194,15 @@ def _posix_relative_parts(relative_path: str | PurePosixPath) -> tuple[list[str]
     return ([], path.parts)
 
 
-def _validate_split_jsonl_filename(filename: str, label: str) -> list[str]:
+def _validate_split_json_filename(filename: str, label: str) -> list[str]:
     errors: list[str] = []
-    if not filename.endswith(".jsonl"):
-        errors.append(f"{label} filename must end with .jsonl.")
+    if not filename.endswith(".json"):
+        errors.append(f"{label} filename must end with .json.")
         return errors
 
-    split = filename.removesuffix(".jsonl")
+    split = filename.removesuffix(".json")
     if split not in _values(SampleSplit):
-        errors.append(f"{label} filename must be train.jsonl, val.jsonl, or test.jsonl.")
+        errors.append(f"{label} filename must be train.json, val.json, or test.json.")
     return errors
 
 

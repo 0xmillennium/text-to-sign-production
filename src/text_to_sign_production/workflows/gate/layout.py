@@ -64,12 +64,12 @@ class GateOutputLayout:
 class GateReportLayout:
     root: Path
     summary_markdown_path: Path
-    processing_summary_jsonl_path: Path
-    processing_detail_jsonl_path: Path
-    gate_summary_jsonl_path: Path
-    gate_detail_jsonl_path: Path
-    source_issue_summary_jsonl_path: Path
-    source_issue_detail_jsonl_path: Path
+    processing_summary_markdown_path: Path
+    processing_detail_json_path: Path
+    gate_summary_markdown_path: Path
+    gate_detail_json_path: Path
+    source_issue_summary_markdown_path: Path
+    source_issue_detail_json_path: Path
     index_json_path: Path
 
 
@@ -87,12 +87,12 @@ class GatePublishLayout:
     root: Path
     report_targets_root: Path
     summary_markdown_target_path: Path
-    processing_summary_jsonl_target_path: Path
-    processing_detail_jsonl_target_path: Path
-    gate_summary_jsonl_target_path: Path
-    gate_detail_jsonl_target_path: Path
-    source_issue_summary_jsonl_target_path: Path
-    source_issue_detail_jsonl_target_path: Path
+    processing_summary_markdown_target_path: Path
+    processing_detail_json_target_path: Path
+    gate_summary_markdown_target_path: Path
+    gate_detail_json_target_path: Path
+    source_issue_summary_markdown_target_path: Path
+    source_issue_detail_json_target_path: Path
     index_json_target_path: Path
     manifest_targets_root: Path
     samples_targets_root: Path
@@ -211,12 +211,12 @@ def _report_layout_from_topology(reports: ReportsTopology) -> GateReportLayout:
     return GateReportLayout(
         root=reports.samples_root,
         summary_markdown_path=reports.samples_summary().path,
-        processing_summary_jsonl_path=reports.samples_processing_summary().path,
-        processing_detail_jsonl_path=reports.samples_processing_detail().path,
-        gate_summary_jsonl_path=reports.samples_gate_summary().path,
-        gate_detail_jsonl_path=reports.samples_gate_detail().path,
-        source_issue_summary_jsonl_path=reports.samples_source_issue_summary().path,
-        source_issue_detail_jsonl_path=reports.samples_source_issue_detail().path,
+        processing_summary_markdown_path=reports.samples_processing_summary().path,
+        processing_detail_json_path=reports.samples_processing_detail().path,
+        gate_summary_markdown_path=reports.samples_gate_summary().path,
+        gate_detail_json_path=reports.samples_gate_detail().path,
+        source_issue_summary_markdown_path=reports.samples_source_issue_summary().path,
+        source_issue_detail_json_path=reports.samples_source_issue_detail().path,
         index_json_path=reports.samples_index().path,
     )
 
@@ -230,12 +230,12 @@ def _build_publish_layout(config: GateWorkflowConfig) -> GatePublishLayout:
         root=config.drive_project_root,
         report_targets_root=reports.samples_root,
         summary_markdown_target_path=reports.samples_summary().path,
-        processing_summary_jsonl_target_path=reports.samples_processing_summary().path,
-        processing_detail_jsonl_target_path=reports.samples_processing_detail().path,
-        gate_summary_jsonl_target_path=reports.samples_gate_summary().path,
-        gate_detail_jsonl_target_path=reports.samples_gate_detail().path,
-        source_issue_summary_jsonl_target_path=reports.samples_source_issue_summary().path,
-        source_issue_detail_jsonl_target_path=reports.samples_source_issue_detail().path,
+        processing_summary_markdown_target_path=reports.samples_processing_summary().path,
+        processing_detail_json_target_path=reports.samples_processing_detail().path,
+        gate_summary_markdown_target_path=reports.samples_gate_summary().path,
+        gate_detail_json_target_path=reports.samples_gate_detail().path,
+        source_issue_summary_markdown_target_path=reports.samples_source_issue_summary().path,
+        source_issue_detail_json_target_path=reports.samples_source_issue_detail().path,
         index_json_target_path=reports.samples_index().path,
         manifest_targets_root=manifest_targets_root,
         samples_targets_root=samples_targets_root,

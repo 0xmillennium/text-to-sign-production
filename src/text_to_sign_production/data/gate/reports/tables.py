@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from text_to_sign_production.data.gate.reports.types import (
     GateCheckpointIntegrityTableRow,
-    GateDroppedDebugPayloadTableRow,
+    GateDroppedSamplePayloadTableRow,
     GateFailedGateCountTableRow,
     GateManifestOutcomeTableRow,
     GateOutcomeTableRow,
@@ -64,29 +64,35 @@ def gate_report_tables(bundle: GateReportBundle) -> GateReportTables:
                 coherence_issue_count=bundle.checkpoint_integrity.coherence_issue_count,
             ),
         ),
-        dropped_debug_payloads=(
-            GateDroppedDebugPayloadTableRow(
-                materialize_dropped_debug_payloads=(
-                    bundle.dropped_debug_payloads.materialize_dropped_debug_payloads
+        dropped_sample_payloads=(
+            GateDroppedSamplePayloadTableRow(
+                dropped_total_count=bundle.dropped_sample_payloads.dropped_total_count,
+                source_dropped_sample_count=(
+                    bundle.dropped_sample_payloads.source_dropped_sample_count
                 ),
-                dropped_total_count=bundle.dropped_debug_payloads.dropped_total_count,
-                pose_or_source_dropped_without_prepared_payload_count=(
-                    bundle.dropped_debug_payloads
-                    .pose_or_source_dropped_without_prepared_payload_count
+                pose_dropped_sample_count=(
+                    bundle.dropped_sample_payloads.pose_dropped_sample_count
                 ),
-                gate_dropped_prepared_sample_count=(
-                    bundle.dropped_debug_payloads.gate_dropped_prepared_sample_count
+                gate_dropped_sample_count=(
+                    bundle.dropped_sample_payloads.gate_dropped_sample_count
                 ),
-                dropped_debug_payload_written_count=(
-                    bundle.dropped_debug_payloads.dropped_debug_payload_written_count
+                dropped_sample_payload_written_count=(
+                    bundle.dropped_sample_payloads.dropped_sample_payload_written_count
                 ),
-                dropped_manifest_entries_with_debug_ref_count=(
-                    bundle.dropped_debug_payloads
-                    .dropped_manifest_entries_with_debug_ref_count
+                dropped_manifest_entries_with_payload_ref_count=(
+                    bundle.dropped_sample_payloads.dropped_manifest_entries_with_payload_ref_count
                 ),
-                dropped_manifest_entries_without_debug_ref_count=(
-                    bundle.dropped_debug_payloads
-                    .dropped_manifest_entries_without_debug_ref_count
+                dropped_manifest_entries_without_payload_ref_count=(
+                    bundle.dropped_sample_payloads.dropped_manifest_entries_without_payload_ref_count
+                ),
+                dropped_manifest_payload_ref_count_coherent=(
+                    bundle.dropped_sample_payloads.dropped_manifest_payload_ref_count_coherent
+                ),
+                dropped_manifest_payload_identity_coherent=(
+                    bundle.dropped_sample_payloads.dropped_manifest_payload_identity_coherent
+                ),
+                dropped_manifest_payload_coherence_issue_count=(
+                    bundle.dropped_sample_payloads.dropped_manifest_payload_coherence_issue_count
                 ),
             ),
         ),

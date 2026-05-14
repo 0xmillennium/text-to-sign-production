@@ -10,7 +10,7 @@ from text_to_sign_production.artifacts.catalog import (
 from text_to_sign_production.core.integrity import sha256_file
 from text_to_sign_production.core.models import PassedManifestEntry, PreparedSample
 from text_to_sign_production.core.progress import ProgressSession, ProgressStageSpec
-from text_to_sign_production.data.dataset.manifests import read_passed_manifest_jsonl
+from text_to_sign_production.data.dataset.manifests import read_passed_manifest_json
 from text_to_sign_production.data.dataset.payloads import load_prepared_sample_payload
 from text_to_sign_production.data.dataset.validate import validate_payload_manifest_coherence
 from text_to_sign_production.workflows.tier.constants import (
@@ -79,7 +79,7 @@ def _read_passed_manifest_lookup(
     manifest_lookup: dict[tuple[object, str], tuple[PassedManifestEntry, Path, str]] = {}
     for split_input in execution_inputs.split_inputs:
         manifest_sha256 = sha256_file(split_input.passed_manifest_path)
-        for entry in read_passed_manifest_jsonl(split_input.passed_manifest_path):
+        for entry in read_passed_manifest_json(split_input.passed_manifest_path):
             key = (entry.split, entry.sample_id)
             if key in manifest_lookup:
                 raise TierWorkflowInvariantError(

@@ -27,6 +27,26 @@ from text_to_sign_production.artifacts.store.validate import (
 from text_to_sign_production.core.ids import SampleSplit, SampleStatus
 
 
+def _expected_archive_member_for_status(
+    *,
+    stores: ArtifactStores,
+    status: SampleStatus,
+    split: SampleSplit,
+    sample_id: str,
+) -> ArchiveMemberPathRef:
+    """Return the expected archive member path for the given sample status.
+
+    Passed PreparedSample payloads use ``.npz``.
+    Dropped DroppedSample payloads use ``.json``.
+    Status determines the physical member extension.
+    """
+    if status is SampleStatus.PASSED:
+        return stores.drive.samples.passed_archive_member(split, sample_id)
+    if status is SampleStatus.DROPPED:
+        return stores.drive.samples.dropped_archive_member(split, sample_id)
+    raise ValueError(f"Unsupported sample status for archive member validation: {status}")
+
+
 def validate_samples_catalog(catalog: SamplesCatalog, stores: ArtifactStores) -> list[str]:
     """Validate logical invariants for a samples catalog."""
 
@@ -240,7 +260,12 @@ def _validate_drive_sample_binding(
         if archive != expected_archive:
             errors.append(f"{label}: drive_archive must point to {expected_archive.path}.")
 
-    expected_member = stores.drive.samples.archive_member(split, sample_id)
+    expected_member = _expected_archive_member_for_status(
+        stores=stores,
+        status=status,
+        split=split,
+        sample_id=sample_id,
+    )
     if member is None:
         errors.append(f"{label}: drive_archive_member must be present.")
     elif not isinstance(member, ArchiveMemberPathRef):

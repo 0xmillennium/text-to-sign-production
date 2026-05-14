@@ -31,7 +31,6 @@ class GateWorkflowConfig:
     splits: tuple[str, ...]
     gates_config_relpath: Path = Path("configs/data/gates.yaml")
     person_selection_policy: PersonSelectionPolicy = DEFAULT_PERSON_SELECTION_POLICY
-    materialize_dropped_debug_payloads: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "project_root", _coerce_path(self.project_root))
@@ -51,11 +50,6 @@ class GateWorkflowConfig:
             _coerce_person_selection_policy(self.person_selection_policy),
         )
         object.__setattr__(self, "splits", _coerce_splits(self.splits))
-        object.__setattr__(
-            self,
-            "materialize_dropped_debug_payloads",
-            _coerce_debug_payload_flag(self.materialize_dropped_debug_payloads),
-        )
 
 
 def _coerce_path(value: object) -> Path:
@@ -121,9 +115,3 @@ def _coerce_split_item(value: object) -> str:
 def _validate_non_empty_split(value: str) -> None:
     if not value:
         raise GateWorkflowInputError("split names must be non-empty")
-
-
-def _coerce_debug_payload_flag(value: object) -> bool:
-    if not isinstance(value, bool):
-        raise GateWorkflowInputError("materialize_dropped_debug_payloads must be a bool")
-    return value

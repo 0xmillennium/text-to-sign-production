@@ -21,10 +21,10 @@ from text_to_sign_production.workflows.gate.contracts import (
     GatePublishExecution,
     GatePublishPlan,
     GatePublishResult,
-    GateSplitArchivePublishPlan,
     GatePublishTarget,
     GatePublishTargetRow,
     GatePublishVerification,
+    GateSplitArchivePublishPlan,
 )
 
 
@@ -134,9 +134,7 @@ def review_publish_verification_summary(
     verification: GatePublishVerification,
 ) -> tuple[WorkflowReviewSection, ...]:
     failed_checks = tuple(
-        check
-        for check in verification.checks
-        if not _publish_check_succeeded(check)
+        check for check in verification.checks if not _publish_check_succeeded(check)
     )
     archive_checks = tuple(check for check in verification.checks if check.kind == "archive_file")
     return (
@@ -236,9 +234,7 @@ def review_publish_result_summary(
     successful_results = result.execution.execution.successful_results()
     failed_results = result.execution.execution.failed_results()
     verified_targets = tuple(
-        check
-        for check in result.verification.checks
-        if _publish_check_succeeded(check)
+        check for check in result.verification.checks if _publish_check_succeeded(check)
     )
     missing_targets = result.verification.missing_targets()
     return (
@@ -318,7 +314,7 @@ def _publish_check_failure_items(
 
 def _publish_check_succeeded(check: GatePublishCheck) -> bool:
     if check.expected_absent:
-        return check.source_exists and not check.target_exists and check.coherent
+        return not check.target_exists and check.coherent
     return (
         check.source_exists
         and check.target_exists
@@ -334,9 +330,11 @@ def _split_archive_plan_item(row: GateSplitArchivePublishPlan) -> WorkflowReview
             ("passed archive planned", row.passed_archive_planned),
             ("passed archive path", row.passed_archive_path),
             ("passed archive member count", row.passed_archive_member_count),
+            ("passed archive member type", row.passed_archive_member_type),
             ("dropped archive planned", row.dropped_archive_planned),
             ("dropped archive path", row.dropped_archive_path),
             ("dropped archive member count", row.dropped_archive_member_count),
+            ("dropped archive member type", row.dropped_archive_member_type),
             (
                 "dropped archive not planned reason",
                 row.dropped_archive_not_planned_reason,

@@ -23,8 +23,6 @@ class GateDropStage(enum.StrEnum):
     SOURCE = "source"
     POSE = "pose"
     GATES = "gates"
-    PAYLOAD = "payload"
-    MANIFEST = "manifest"
 
 
 class GateDropIssueCode(enum.StrEnum):
@@ -32,8 +30,6 @@ class GateDropIssueCode(enum.StrEnum):
 
     SOURCE_TRUTH_INVALID = "source_truth_invalid"
     POSE_TRUTH_INVALID = "pose_truth_invalid"
-    PAYLOAD_INVALID = "payload_invalid"
-    MANIFEST_INVALID = "manifest_invalid"
     GATE_FAILED = "gate_failed"
 
 
@@ -45,6 +41,9 @@ class GateName(enum.StrEnum):
     BODY = "body"
     HAND = "hand"
     FACE = "face"
+
+
+_SAMPLE_DROP_STAGES = frozenset({GateDropStage.SOURCE, GateDropStage.POSE, GateDropStage.GATES})
 
 
 class GateStatus(enum.StrEnum):
@@ -261,17 +260,157 @@ class DroppedManifestEntry:
 
     drop_stage: GateDropStage
     issue_codes: tuple[GateDropIssueCode, ...]
-    debug_ref: str | None
+    dropped_sample_ref: str
 
     def __post_init__(self) -> None:
         _require_text(self.schema_version, "schema_version")
         _require_text(self.sample_id, "sample_id")
         object.__setattr__(self, "drop_stage", GateDropStage(self.drop_stage))
+        if self.drop_stage not in _SAMPLE_DROP_STAGES:
+            raise ValueError("drop_stage must be source, pose, or gates.")
         codes = tuple(GateDropIssueCode(code) for code in self.issue_codes)
         if not codes:
             raise ValueError("issue_codes must be non-empty.")
         _require_unique(codes, "issue_codes")
         object.__setattr__(self, "issue_codes", codes)
+        _require_text(self.dropped_sample_ref, "dropped_sample_ref")
+
+
+@dataclass(frozen=True, slots=True)
+class DroppedSampleSourceSnapshot:
+    """Source/match evidence carried by a dropped sample payload."""
+
+    text: str | None
+    source_video_id: str | None
+    source_sentence_id: str | None
+    source_sentence_name: str | None
+    match_status: str
+    unmatched_reason: str | None
+    ambiguity_reasons: tuple[str, ...]
+    source_issue_codes: tuple[str, ...]
+    video_match_count: int
+    keypoint_match_count: int
+
+    def __post_init__(self) -> None:
+        _require_text(self.match_status, "match_status")
+        if self.video_match_count < 0:
+            raise ValueError("video_match_count cannot be negative.")
+        if self.keypoint_match_count < 0:
+            raise ValueError("keypoint_match_count cannot be negative.")
+        object.__setattr__(self, "ambiguity_reasons", tuple(self.ambiguity_reasons))
+        object.__setattr__(self, "source_issue_codes", tuple(self.source_issue_codes))
+
+
+@dataclass(frozen=True, slots=True)
+class DroppedSamplePoseSnapshot:
+    """Candidate/pose viability evidence carried by a dropped sample payload."""
+
+    candidate_available: bool
+    video_path: str | None
+    keypoints_dir: str | None
+    candidate_frame_count: int | None
+    observed_frame_count: int | None
+    video_metadata_readable: bool | None
+    video_metadata_error: str | None
+    missing_frame_files: bool | None
+    viability_status: str | None
+    viability_issue_codes: tuple[str, ...]
+    viability_issue_messages: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("candidate_frame_count", self.candidate_frame_count),
+            ("observed_frame_count", self.observed_frame_count),
+        ):
+            if value is not None and value < 0:
+                raise ValueError(f"{name} cannot be negative.")
+        object.__setattr__(self, "viability_issue_codes", tuple(self.viability_issue_codes))
+        object.__setattr__(
+            self,
+            "viability_issue_messages",
+            tuple(self.viability_issue_messages),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DroppedSampleGateSnapshot:
+    """Prepared-sample and gate decision evidence carried by a dropped sample payload."""
+
+    prepared_sample_available: bool
+    frame_count: int
+    valid_frame_count: int
+    body_nonzero_frame_count: int
+    face_nonzero_frame_count: int
+    left_hand_nonzero_frame_count: int
+    right_hand_nonzero_frame_count: int
+    final_status: SampleStatus
+    terminal_gate: GateName | None
+    failed_gates: tuple[GateName, ...]
+    decision_issue_codes: tuple[GateIssueCode, ...]
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("frame_count", self.frame_count),
+            ("valid_frame_count", self.valid_frame_count),
+            ("body_nonzero_frame_count", self.body_nonzero_frame_count),
+            ("face_nonzero_frame_count", self.face_nonzero_frame_count),
+            ("left_hand_nonzero_frame_count", self.left_hand_nonzero_frame_count),
+            ("right_hand_nonzero_frame_count", self.right_hand_nonzero_frame_count),
+        ):
+            if value < 0:
+                raise ValueError(f"{name} cannot be negative.")
+        object.__setattr__(self, "final_status", SampleStatus(self.final_status))
+        object.__setattr__(
+            self,
+            "terminal_gate",
+            None if self.terminal_gate is None else GateName(self.terminal_gate),
+        )
+        object.__setattr__(
+            self,
+            "failed_gates",
+            tuple(GateName(gate) for gate in self.failed_gates),
+        )
+        object.__setattr__(
+            self,
+            "decision_issue_codes",
+            tuple(GateIssueCode(code) for code in self.decision_issue_codes),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DroppedSample:
+    """Canonical in-memory dropped sample evidence payload."""
+
+    schema_version: str
+    sample_id: str
+    split: SampleSplit
+    drop_stage: GateDropStage
+    issue_codes: tuple[GateDropIssueCode, ...]
+    source: DroppedSampleSourceSnapshot
+    pose: DroppedSamplePoseSnapshot | None
+    gate: DroppedSampleGateSnapshot | None
+
+    def __post_init__(self) -> None:
+        _require_text(self.schema_version, "schema_version")
+        _require_text(self.sample_id, "sample_id")
+        object.__setattr__(self, "split", SampleSplit(self.split))
+        object.__setattr__(self, "drop_stage", GateDropStage(self.drop_stage))
+        if self.drop_stage not in _SAMPLE_DROP_STAGES:
+            raise ValueError("drop_stage must be source, pose, or gates.")
+        codes = tuple(GateDropIssueCode(code) for code in self.issue_codes)
+        if not codes:
+            raise ValueError("issue_codes must be non-empty.")
+        _require_unique(codes, "issue_codes")
+        object.__setattr__(self, "issue_codes", codes)
+        if self.drop_stage is GateDropStage.SOURCE:
+            if self.pose is not None or self.gate is not None:
+                raise ValueError("source-stage dropped samples cannot carry pose or gate evidence.")
+        elif self.drop_stage is GateDropStage.POSE:
+            if self.pose is None or self.gate is not None:
+                raise ValueError("pose-stage dropped samples require pose evidence only.")
+        elif self.drop_stage is GateDropStage.GATES:
+            if self.pose is None or self.gate is None:
+                raise ValueError("gate-stage dropped samples require pose and gate evidence.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -463,6 +602,10 @@ def _require_unique(values: tuple[object, ...], name: str) -> None:
 __all__ = [
     "CheckpointAdmission",
     "DroppedManifestEntry",
+    "DroppedSample",
+    "DroppedSampleGateSnapshot",
+    "DroppedSamplePoseSnapshot",
+    "DroppedSampleSourceSnapshot",
     "GateDecision",
     "GateDecisionBundle",
     "GateDropIssueCode",

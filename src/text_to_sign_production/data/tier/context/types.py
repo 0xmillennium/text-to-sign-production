@@ -150,7 +150,6 @@ class GeometryFrameContext:
 
     frame_index: int
     upper_body_segment_lengths: dict[tuple[int, int], float | None]
-    representative_hand_segment_lengths: dict[tuple[int, int], float | None]
     body_scale_reference_length: float | None
     hand_scale_reference_length: float | None
 
@@ -160,7 +159,6 @@ class GeometryReferenceContext:
     """Sample-internal robust geometry references."""
 
     upper_body_segment_references: dict[tuple[int, int], float | None]
-    representative_hand_segment_references: dict[tuple[int, int], float | None]
     cross_channel_scale_reference: float | None
     frames: tuple[GeometryFrameContext, ...]
 

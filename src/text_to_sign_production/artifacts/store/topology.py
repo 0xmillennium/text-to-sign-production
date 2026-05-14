@@ -71,11 +71,11 @@ class ManifestsTopology:
 
     def untiered_passed_manifest(self, split: SampleSplit | str) -> ManifestPathRef:
         split = sample_split_from_value(split)
-        return ManifestPathRef(self.untiered_root / "passed" / f"{split.value}.jsonl")
+        return ManifestPathRef(self.untiered_root / "passed" / f"{split.value}.json")
 
     def untiered_dropped_manifest(self, split: SampleSplit | str) -> ManifestPathRef:
         split = sample_split_from_value(split)
-        return ManifestPathRef(self.untiered_root / "dropped" / f"{split.value}.jsonl")
+        return ManifestPathRef(self.untiered_root / "dropped" / f"{split.value}.json")
 
     def tiered_manifest(
         self,
@@ -86,13 +86,13 @@ class ManifestsTopology:
         tier = tier_name_from_value(tier)
         membership = tier_membership_from_value(membership)
         split = sample_split_from_value(split)
-        path = self.tiered_root / tier.value / membership.value / f"{split.value}.jsonl"
+        path = self.tiered_root / tier.value / membership.value / f"{split.value}.json"
         return ManifestPathRef(path)
 
 
 @dataclass(frozen=True, slots=True)
 class SamplesTopology:
-    """Physical PreparedSample checkpoint payload topology."""
+    """Physical sample payload topology."""
 
     passed_root: Path
     dropped_root: Path
@@ -117,8 +117,22 @@ class SamplesTopology:
         split: SampleSplit | str,
         sample_id: str,
     ) -> SamplePathRef:
-        """Return the PreparedSample checkpoint payload path for one sample."""
-        return SamplePathRef(self.sample_dir(status, split).path / _sample_filename(sample_id))
+        """Return the status-specific sample payload path for one sample."""
+        status = sample_status_from_value(status)
+        suffix = ".npz" if status is SampleStatus.PASSED else ".json"
+        return SamplePathRef(
+            self.sample_dir(status, split).path / _sample_filename(sample_id, suffix)
+        )
+
+    def passed_sample_file(self, split: SampleSplit | str, sample_id: str) -> SamplePathRef:
+        return SamplePathRef(
+            self.passed_split_dir(split).path / _sample_filename(sample_id, ".npz")
+        )
+
+    def dropped_sample_file(self, split: SampleSplit | str, sample_id: str) -> SamplePathRef:
+        return SamplePathRef(
+            self.dropped_split_dir(split).path / _sample_filename(sample_id, ".json")
+        )
 
     def split_archive(self, status: SampleStatus | str, split: SampleSplit | str) -> ArchivePathRef:
         split = sample_split_from_value(split)
@@ -128,8 +142,30 @@ class SamplesTopology:
         return ArtifactPathRef(self._status_root(status))
 
     def archive_member(self, split: SampleSplit | str, sample_id: str) -> ArchiveMemberPathRef:
+        """Legacy passed PreparedSample archive member helper.
+
+        Always returns the ``.npz`` (PreparedSample) member path.
+        Do NOT use for DroppedSample JSON payloads, and do NOT use in any
+        code path where passed/dropped status must be distinguished.
+        Prefer ``passed_archive_member(...)`` or ``dropped_archive_member(...)``."""
+        return self.passed_archive_member(split, sample_id)
+
+    def passed_archive_member(
+        self,
+        split: SampleSplit | str,
+        sample_id: str,
+    ) -> ArchiveMemberPathRef:
         split = sample_split_from_value(split)
-        path = PurePosixPath(split.value) / _sample_filename(sample_id)
+        path = PurePosixPath(split.value) / _sample_filename(sample_id, ".npz")
+        return ArchiveMemberPathRef(path)
+
+    def dropped_archive_member(
+        self,
+        split: SampleSplit | str,
+        sample_id: str,
+    ) -> ArchiveMemberPathRef:
+        split = sample_split_from_value(split)
+        path = PurePosixPath(split.value) / _sample_filename(sample_id, ".json")
         return ArchiveMemberPathRef(path)
 
     def _status_root(self, status: SampleStatus | str) -> Path:
@@ -176,22 +212,22 @@ class ReportsTopology:
         return ReportPathRef(self.samples_root / "summary.md")
 
     def samples_processing_summary(self) -> ReportPathRef:
-        return ReportPathRef(self.samples_root / "processing" / "summary.jsonl")
+        return ReportPathRef(self.samples_root / "processing" / "summary.md")
 
     def samples_processing_detail(self) -> ReportPathRef:
-        return ReportPathRef(self.samples_root / "processing" / "detail.jsonl")
+        return ReportPathRef(self.samples_root / "processing" / "detail.json")
 
     def samples_gate_summary(self) -> ReportPathRef:
-        return ReportPathRef(self.samples_root / "gates" / "summary.jsonl")
+        return ReportPathRef(self.samples_root / "gates" / "summary.md")
 
     def samples_gate_detail(self) -> ReportPathRef:
-        return ReportPathRef(self.samples_root / "gates" / "detail.jsonl")
+        return ReportPathRef(self.samples_root / "gates" / "detail.json")
 
     def samples_source_issue_summary(self) -> ReportPathRef:
-        return ReportPathRef(self.samples_root / "source_issues" / "summary.jsonl")
+        return ReportPathRef(self.samples_root / "source_issues" / "summary.md")
 
     def samples_source_issue_detail(self) -> ReportPathRef:
-        return ReportPathRef(self.samples_root / "source_issues" / "detail.jsonl")
+        return ReportPathRef(self.samples_root / "source_issues" / "detail.json")
 
     def samples_index(self) -> ReportPathRef:
         return ReportPathRef(self.samples_root / "index.json")
@@ -206,7 +242,7 @@ class ReportsTopology:
 
     def tiers_decision_detail(self) -> ReportPathRef:
         """Tier-stage per-sample quality and decision detail report."""
-        return ReportPathRef(self.tiers_root / "decisions" / "detail.jsonl")
+        return ReportPathRef(self.tiers_root / "decisions" / "detail.json")
 
     def tiers_calibration_surfaces(self) -> ReportPathRef:
         """Tier-stage aggregate calibration surface payload."""
@@ -308,13 +344,14 @@ def sample_manifest_relative_path(
     """Return the canonical samples-root-relative manifest sample path."""
     status = sample_status_from_value(status)
     split = sample_split_from_value(split)
-    return Path(status.value) / split.value / _sample_filename(sample_id)
+    suffix = ".npz" if status is SampleStatus.PASSED else ".json"
+    return Path(status.value) / split.value / _sample_filename(sample_id, suffix)
 
 
-def _sample_filename(sample_id: str) -> str:
+def _sample_filename(sample_id: str, suffix: str = ".npz") -> str:
     if not sample_id or Path(sample_id).name != sample_id or sample_id in {".", ".."}:
         raise ValueError(f"Sample id must be a concrete file stem: {sample_id!r}")
-    return f"{sample_id}.npz"
+    return f"{sample_id}{suffix}"
 
 
 def _checkpoint_relative_path(relative_path: str | Path) -> Path:

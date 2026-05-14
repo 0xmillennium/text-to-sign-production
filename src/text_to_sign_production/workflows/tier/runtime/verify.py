@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from text_to_sign_production.core.integrity import sha256_file
-from text_to_sign_production.data.dataset.manifests import read_passed_manifest_jsonl
+from text_to_sign_production.data.dataset.manifests import read_passed_manifest_json
 from text_to_sign_production.data.dataset.payloads import load_prepared_sample_payload
 from text_to_sign_production.data.dataset.validate import validate_payload_manifest_coherence
 from text_to_sign_production.data.tier.policies import (
@@ -170,7 +170,7 @@ def _passed_manifest_check(label: str, path: Path) -> TierRuntimeAssetCheck:
     if not path.exists():
         return TierRuntimeAssetCheck(label=label, path=path, exists=False, scope="domain")
     try:
-        entries = tuple(read_passed_manifest_jsonl(path))
+        entries = tuple(read_passed_manifest_json(path))
         if not entries:
             raise ValueError("passed manifest has no rows")
         identities = tuple((entry.split, entry.sample_id) for entry in entries)
@@ -200,7 +200,7 @@ def _payload_world_check(
     if not path.exists():
         return TierRuntimeAssetCheck(label=label, path=path, exists=False, scope="domain")
     try:
-        entries = read_passed_manifest_jsonl(passed_manifest_path)
+        entries = read_passed_manifest_json(passed_manifest_path)
         samples_root = passed_samples_root.parent
         missing_payloads: list[str] = []
         coherence_issues: list[str] = []

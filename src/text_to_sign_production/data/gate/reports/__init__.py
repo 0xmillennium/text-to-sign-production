@@ -7,7 +7,7 @@ from text_to_sign_production.data.gate.reports.analysis import (
 from text_to_sign_production.data.gate.reports.build import build_gate_report_bundle
 from text_to_sign_production.data.gate.reports.sections import (
     build_checkpoint_integrity_section,
-    build_dropped_debug_payload_section,
+    build_dropped_sample_payload_section,
     build_gate_outcomes_section,
     build_manifest_outcomes_section,
     build_pose_health_section,
@@ -20,9 +20,9 @@ from text_to_sign_production.data.gate.reports.summaries import (
 from text_to_sign_production.data.gate.reports.tables import gate_report_tables
 from text_to_sign_production.data.gate.reports.types import (
     CheckpointIntegritySection,
-    DroppedDebugPayloadSection,
+    DroppedSamplePayloadSection,
     GateCheckpointIntegrityTableRow,
-    GateDroppedDebugPayloadTableRow,
+    GateDroppedSamplePayloadTableRow,
     GateFailedGateCountTableRow,
     GateManifestOutcomeTableRow,
     GateOutcomesSection,
@@ -42,9 +42,9 @@ from text_to_sign_production.data.gate.reports.validate import (
 
 __all__ = [
     "CheckpointIntegritySection",
-    "DroppedDebugPayloadSection",
+    "DroppedSamplePayloadSection",
     "GateCheckpointIntegrityTableRow",
-    "GateDroppedDebugPayloadTableRow",
+    "GateDroppedSamplePayloadTableRow",
     "GateFailedGateCountTableRow",
     "GateManifestOutcomeTableRow",
     "GateOutcomesSection",
@@ -61,7 +61,7 @@ __all__ = [
     "SourceCoverageSection",
     "audit_gate_report",
     "build_checkpoint_integrity_section",
-    "build_dropped_debug_payload_section",
+    "build_dropped_sample_payload_section",
     "build_gate_outcomes_section",
     "build_manifest_outcomes_section",
     "build_pose_health_section",

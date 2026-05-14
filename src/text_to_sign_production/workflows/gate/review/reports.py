@@ -9,7 +9,7 @@ from text_to_sign_production.core.progress import (
 )
 from text_to_sign_production.data.gate.reports import (
     GateCheckpointIntegrityTableRow,
-    GateDroppedDebugPayloadTableRow,
+    GateDroppedSamplePayloadTableRow,
     GateFailedGateCountTableRow,
     GateManifestOutcomeTableRow,
     GateOutcomeTableRow,
@@ -22,16 +22,12 @@ from text_to_sign_production.workflows.foundation.review import (
     JsonValue,
     render_review_sections_markdown,
     write_json,
-    write_jsonl,
     write_markdown,
 )
 from text_to_sign_production.workflows.gate.constants import (
     GATE_STAGE_REPORT_GATE_DETAIL_WRITE,
-    GATE_STAGE_REPORT_GATE_SUMMARY_WRITE,
     GATE_STAGE_REPORT_PROCESSING_DETAIL_WRITE,
-    GATE_STAGE_REPORT_PROCESSING_SUMMARY_WRITE,
     GATE_STAGE_REPORT_SOURCE_ISSUE_DETAIL_WRITE,
-    GATE_STAGE_REPORT_SOURCE_ISSUE_SUMMARY_WRITE,
     GATE_WORKFLOW_NAME,
 )
 from text_to_sign_production.workflows.gate.contracts import (
@@ -49,16 +45,14 @@ from text_to_sign_production.workflows.gate.review.sections import (
     build_final_review_sections,
     build_gate_detail_records,
     build_gate_report,
-    build_gate_summary_records,
     build_output_summary_sections,
     build_processing_detail_records,
-    build_processing_summary_records,
     build_processing_summary_sections,
     build_report_sections,
     build_report_table_records,
     build_runtime_verification_sections,
     build_source_issue_detail_records,
-    build_source_issue_summary_records,
+    build_source_issue_summary_sections,
 )
 
 
@@ -82,49 +76,43 @@ def write_gate_reports(
         artifacts.summary_markdown_path,
         render_review_sections_markdown(summary_sections),
     )
-    _write_jsonl_report(
-        artifacts.processing_summary_jsonl_path,
-        build_processing_summary_records(bundle),
-        stage_id=GATE_STAGE_REPORT_PROCESSING_SUMMARY_WRITE,
-        label="processing summary report write",
-        artifact_role="processing_summary",
-        progress_session=progress_session,
+    write_markdown(
+        artifacts.processing_summary_markdown_path,
+        render_review_sections_markdown(build_processing_summary_sections(bundle)),
     )
-    _write_jsonl_report(
-        artifacts.processing_detail_jsonl_path,
+    _write_json_report(
+        artifacts.processing_detail_json_path,
         build_processing_detail_records(bundle),
+        schema_version="gate.processing.detail.v1",
+        report_kind="gate_processing_detail",
         stage_id=GATE_STAGE_REPORT_PROCESSING_DETAIL_WRITE,
         label="processing detail report write",
         artifact_role="processing_detail",
         progress_session=progress_session,
     )
-    _write_jsonl_report(
-        artifacts.gate_summary_jsonl_path,
-        build_gate_summary_records(bundle),
-        stage_id=GATE_STAGE_REPORT_GATE_SUMMARY_WRITE,
-        label="gate summary report write",
-        artifact_role="gate_summary",
-        progress_session=progress_session,
+    write_markdown(
+        artifacts.gate_summary_markdown_path,
+        render_review_sections_markdown(build_report_sections(bundle)),
     )
-    _write_jsonl_report(
-        artifacts.gate_detail_jsonl_path,
+    _write_json_report(
+        artifacts.gate_detail_json_path,
         build_gate_detail_records(bundle),
+        schema_version="gate.detail.v1",
+        report_kind="gate_detail",
         stage_id=GATE_STAGE_REPORT_GATE_DETAIL_WRITE,
         label="gate detail report write",
         artifact_role="gate_detail",
         progress_session=progress_session,
     )
-    _write_jsonl_report(
-        artifacts.source_issue_summary_jsonl_path,
-        build_source_issue_summary_records(bundle),
-        stage_id=GATE_STAGE_REPORT_SOURCE_ISSUE_SUMMARY_WRITE,
-        label="source issue summary report write",
-        artifact_role="source_issue_summary",
-        progress_session=progress_session,
+    write_markdown(
+        artifacts.source_issue_summary_markdown_path,
+        render_review_sections_markdown(build_source_issue_summary_sections(bundle)),
     )
-    _write_jsonl_report(
-        artifacts.source_issue_detail_jsonl_path,
+    _write_json_report(
+        artifacts.source_issue_detail_json_path,
         build_source_issue_detail_records(bundle),
+        schema_version="gate.source_issue.detail.v1",
+        report_kind="gate_source_issue_detail",
         stage_id=GATE_STAGE_REPORT_SOURCE_ISSUE_DETAIL_WRITE,
         label="source issue detail report write",
         artifact_role="source_issue_detail",
@@ -141,39 +129,39 @@ def write_gate_reports(
             execution_id=bundle.workflow_result.execution_id,
             kind="gate_report",
         ),
-        processing_summary_jsonl=written_file_receipt(
+        processing_summary_markdown=written_file_receipt(
             "gate processing summary",
-            artifacts.processing_summary_jsonl_path,
+            artifacts.processing_summary_markdown_path,
             execution_id=bundle.workflow_result.execution_id,
             kind="gate_report",
         ),
-        processing_detail_jsonl=written_file_receipt(
+        processing_detail_json=written_file_receipt(
             "gate processing detail",
-            artifacts.processing_detail_jsonl_path,
+            artifacts.processing_detail_json_path,
             execution_id=bundle.workflow_result.execution_id,
             kind="gate_report",
         ),
-        gate_summary_jsonl=written_file_receipt(
+        gate_summary_markdown=written_file_receipt(
             "gate summary",
-            artifacts.gate_summary_jsonl_path,
+            artifacts.gate_summary_markdown_path,
             execution_id=bundle.workflow_result.execution_id,
             kind="gate_report",
         ),
-        gate_detail_jsonl=written_file_receipt(
+        gate_detail_json=written_file_receipt(
             "gate detail",
-            artifacts.gate_detail_jsonl_path,
+            artifacts.gate_detail_json_path,
             execution_id=bundle.workflow_result.execution_id,
             kind="gate_report",
         ),
-        source_issue_summary_jsonl=written_file_receipt(
+        source_issue_summary_markdown=written_file_receipt(
             "gate source issue summary",
-            artifacts.source_issue_summary_jsonl_path,
+            artifacts.source_issue_summary_markdown_path,
             execution_id=bundle.workflow_result.execution_id,
             kind="gate_report",
         ),
-        source_issue_detail_jsonl=written_file_receipt(
+        source_issue_detail_json=written_file_receipt(
             "gate source issue detail",
-            artifacts.source_issue_detail_jsonl_path,
+            artifacts.source_issue_detail_json_path,
             execution_id=bundle.workflow_result.execution_id,
             kind="gate_report",
         ),
@@ -197,28 +185,38 @@ def _visible_progress_session(
     )
 
 
-def _write_jsonl_report(
+def _write_json_report(
     path: Path,
     records: tuple[object, ...],
     *,
+    schema_version: str,
+    report_kind: str,
     stage_id: str,
     label: str,
     artifact_role: str,
     progress_session: ProgressSession | None,
 ) -> None:
-    json_records = tuple(_gate_jsonl_record(record) for record in records)
+    json_records = tuple(_gate_record_json(record) for record in records)
+    payload = {
+        "schema_version": schema_version,
+        "report_kind": report_kind,
+        "record_count": len(json_records),
+        "records": json_records,
+    }
     if progress_session is not None and records:
         with progress_session.task(
-            _jsonl_report_progress_spec(
+            _json_report_progress_spec(
                 stage_id=stage_id,
                 label=label,
                 artifact_role=artifact_role,
             ),
             total=len(records),
         ) as progress_task:
-            write_jsonl(path, json_records, progress=progress_task)
+            write_json(path, payload)
+            for _ in records:
+                progress_task.advance()
     else:
-        write_jsonl(path, json_records)
+        write_json(path, payload)
 
 
 def _gate_index_json_payload(bundle: GateExecutionBundle) -> JsonValue:
@@ -276,40 +274,46 @@ def _gate_index_json_payload(bundle: GateExecutionBundle) -> JsonValue:
                 "coherent_passed_count": report.checkpoint_integrity.coherent_passed_count,
                 "coherence_issue_count": report.checkpoint_integrity.coherence_issue_count,
             },
-            "dropped_debug_payloads": {
-                "materialize_dropped_debug_payloads": (
-                    report.dropped_debug_payloads.materialize_dropped_debug_payloads
+            "dropped_sample_payloads": {
+                "dropped_total_count": report.dropped_sample_payloads.dropped_total_count,
+                "source_dropped_sample_count": (
+                    report.dropped_sample_payloads.source_dropped_sample_count
                 ),
-                "dropped_total_count": report.dropped_debug_payloads.dropped_total_count,
-                "pose_or_source_dropped_without_prepared_payload_count": (
-                    report.dropped_debug_payloads
-                    .pose_or_source_dropped_without_prepared_payload_count
+                "pose_dropped_sample_count": (
+                    report.dropped_sample_payloads.pose_dropped_sample_count
                 ),
-                "gate_dropped_prepared_sample_count": (
-                    report.dropped_debug_payloads.gate_dropped_prepared_sample_count
+                "gate_dropped_sample_count": (
+                    report.dropped_sample_payloads.gate_dropped_sample_count
                 ),
-                "dropped_debug_payload_written_count": (
-                    report.dropped_debug_payloads.dropped_debug_payload_written_count
+                "dropped_sample_payload_written_count": (
+                    report.dropped_sample_payloads.dropped_sample_payload_written_count
                 ),
-                "dropped_manifest_entries_with_debug_ref_count": (
-                    report.dropped_debug_payloads
-                    .dropped_manifest_entries_with_debug_ref_count
+                "dropped_manifest_entries_with_payload_ref_count": (
+                    report.dropped_sample_payloads.dropped_manifest_entries_with_payload_ref_count
                 ),
-                "dropped_manifest_entries_without_debug_ref_count": (
-                    report.dropped_debug_payloads
-                    .dropped_manifest_entries_without_debug_ref_count
+                "dropped_manifest_entries_without_payload_ref_count": (
+                    report.dropped_sample_payloads.dropped_manifest_entries_without_payload_ref_count
+                ),
+                "dropped_manifest_payload_ref_count_coherent": (
+                    report.dropped_sample_payloads.dropped_manifest_payload_ref_count_coherent
+                ),
+                "dropped_manifest_payload_identity_coherent": (
+                    report.dropped_sample_payloads.dropped_manifest_payload_identity_coherent
+                ),
+                "dropped_manifest_payload_coherence_issue_count": (
+                    report.dropped_sample_payloads.dropped_manifest_payload_coherence_issue_count
                 ),
             },
         },
         "gate_report_tables": _gate_report_tables_json(build_report_table_records(bundle)),
         "reports": {
             "summary_markdown_path": artifacts.summary_markdown_path,
-            "processing_summary_jsonl_path": artifacts.processing_summary_jsonl_path,
-            "processing_detail_jsonl_path": artifacts.processing_detail_jsonl_path,
-            "gate_summary_jsonl_path": artifacts.gate_summary_jsonl_path,
-            "gate_detail_jsonl_path": artifacts.gate_detail_jsonl_path,
-            "source_issue_summary_jsonl_path": artifacts.source_issue_summary_jsonl_path,
-            "source_issue_detail_jsonl_path": artifacts.source_issue_detail_jsonl_path,
+            "processing_summary_markdown_path": artifacts.processing_summary_markdown_path,
+            "processing_detail_json_path": artifacts.processing_detail_json_path,
+            "gate_summary_markdown_path": artifacts.gate_summary_markdown_path,
+            "gate_detail_json_path": artifacts.gate_detail_json_path,
+            "source_issue_summary_markdown_path": (artifacts.source_issue_summary_markdown_path),
+            "source_issue_detail_json_path": artifacts.source_issue_detail_json_path,
             "index_json_path": artifacts.index_json_path,
         },
         "outputs": {
@@ -327,7 +331,7 @@ def _gate_index_json_payload(bundle: GateExecutionBundle) -> JsonValue:
     }
 
 
-def _gate_jsonl_record(record: object) -> JsonValue:
+def _gate_record_json(record: object) -> JsonValue:
     if isinstance(record, GateProcessingSummaryRecord):
         return {
             "split": record.split,
@@ -335,23 +339,24 @@ def _gate_jsonl_record(record: object) -> JsonValue:
             "prepared_sample_count": record.prepared_sample_count,
             "passed_count": record.passed_count,
             "dropped_count": record.dropped_count,
-            "materialize_dropped_debug_payloads": (
-                record.materialize_dropped_debug_payloads
+            "source_dropped_sample_count": record.source_dropped_sample_count,
+            "pose_dropped_sample_count": record.pose_dropped_sample_count,
+            "gate_dropped_sample_count": record.gate_dropped_sample_count,
+            "dropped_sample_payload_written_count": (record.dropped_sample_payload_written_count),
+            "dropped_manifest_entries_with_payload_ref_count": (
+                record.dropped_manifest_entries_with_payload_ref_count
             ),
-            "pose_or_source_dropped_without_prepared_payload_count": (
-                record.pose_or_source_dropped_without_prepared_payload_count
+            "dropped_manifest_entries_without_payload_ref_count": (
+                record.dropped_manifest_entries_without_payload_ref_count
             ),
-            "gate_dropped_prepared_sample_count": (
-                record.gate_dropped_prepared_sample_count
+            "dropped_manifest_payload_ref_count_coherent": (
+                record.dropped_manifest_payload_ref_count_coherent
             ),
-            "dropped_debug_payload_written_count": (
-                record.dropped_debug_payload_written_count
+            "dropped_manifest_payload_identity_coherent": (
+                record.dropped_manifest_payload_identity_coherent
             ),
-            "dropped_manifest_entries_with_debug_ref_count": (
-                record.dropped_manifest_entries_with_debug_ref_count
-            ),
-            "dropped_manifest_entries_without_debug_ref_count": (
-                record.dropped_manifest_entries_without_debug_ref_count
+            "dropped_manifest_payload_coherence_issue_count": (
+                record.dropped_manifest_payload_coherence_issue_count
             ),
         }
     if isinstance(record, GateProcessingDetailRecord):
@@ -391,7 +396,7 @@ def _gate_jsonl_record(record: object) -> JsonValue:
             "issue_code": record.issue_code,
             "detail": record.detail,
         }
-    raise TypeError(f"Unsupported gate JSONL record type: {type(record).__name__}")
+    raise TypeError(f"Unsupported gate JSON record type: {type(record).__name__}")
 
 
 def _gate_decision_json(record: GateDecisionReviewRecord) -> JsonValue:
@@ -407,12 +412,8 @@ def _gate_report_tables_json(tables: GateReportTables) -> JsonValue:
         "source_coverage": tuple(
             _gate_source_coverage_table_row_json(row) for row in tables.source_coverage
         ),
-        "split_counts": tuple(
-            _gate_split_count_table_row_json(row) for row in tables.split_counts
-        ),
-        "gate_outcomes": tuple(
-            _gate_outcome_table_row_json(row) for row in tables.gate_outcomes
-        ),
+        "split_counts": tuple(_gate_split_count_table_row_json(row) for row in tables.split_counts),
+        "gate_outcomes": tuple(_gate_outcome_table_row_json(row) for row in tables.gate_outcomes),
         "manifest_outcomes": tuple(
             _gate_manifest_outcome_table_row_json(row) for row in tables.manifest_outcomes
         ),
@@ -420,12 +421,11 @@ def _gate_report_tables_json(tables: GateReportTables) -> JsonValue:
             _gate_failed_gate_count_table_row_json(row) for row in tables.failed_gate_counts
         ),
         "checkpoint_integrity": tuple(
-            _gate_checkpoint_integrity_table_row_json(row)
-            for row in tables.checkpoint_integrity
+            _gate_checkpoint_integrity_table_row_json(row) for row in tables.checkpoint_integrity
         ),
-        "dropped_debug_payloads": tuple(
-            _gate_dropped_debug_payload_table_row_json(row)
-            for row in tables.dropped_debug_payloads
+        "dropped_sample_payloads": tuple(
+            _gate_dropped_sample_payload_table_row_json(row)
+            for row in tables.dropped_sample_payloads
         ),
     }
 
@@ -482,27 +482,34 @@ def _gate_checkpoint_integrity_table_row_json(
     }
 
 
-def _gate_dropped_debug_payload_table_row_json(
-    row: GateDroppedDebugPayloadTableRow,
+def _gate_dropped_sample_payload_table_row_json(
+    row: GateDroppedSamplePayloadTableRow,
 ) -> JsonValue:
     return {
-        "materialize_dropped_debug_payloads": row.materialize_dropped_debug_payloads,
         "dropped_total_count": row.dropped_total_count,
-        "pose_or_source_dropped_without_prepared_payload_count": (
-            row.pose_or_source_dropped_without_prepared_payload_count
+        "source_dropped_sample_count": row.source_dropped_sample_count,
+        "pose_dropped_sample_count": row.pose_dropped_sample_count,
+        "gate_dropped_sample_count": row.gate_dropped_sample_count,
+        "dropped_sample_payload_written_count": row.dropped_sample_payload_written_count,
+        "dropped_manifest_entries_with_payload_ref_count": (
+            row.dropped_manifest_entries_with_payload_ref_count
         ),
-        "gate_dropped_prepared_sample_count": row.gate_dropped_prepared_sample_count,
-        "dropped_debug_payload_written_count": row.dropped_debug_payload_written_count,
-        "dropped_manifest_entries_with_debug_ref_count": (
-            row.dropped_manifest_entries_with_debug_ref_count
+        "dropped_manifest_entries_without_payload_ref_count": (
+            row.dropped_manifest_entries_without_payload_ref_count
         ),
-        "dropped_manifest_entries_without_debug_ref_count": (
-            row.dropped_manifest_entries_without_debug_ref_count
+        "dropped_manifest_payload_ref_count_coherent": (
+            row.dropped_manifest_payload_ref_count_coherent
+        ),
+        "dropped_manifest_payload_identity_coherent": (
+            row.dropped_manifest_payload_identity_coherent
+        ),
+        "dropped_manifest_payload_coherence_issue_count": (
+            row.dropped_manifest_payload_coherence_issue_count
         ),
     }
 
 
-def _jsonl_report_progress_spec(
+def _json_report_progress_spec(
     *,
     stage_id: str,
     label: str,
@@ -515,8 +522,8 @@ def _jsonl_report_progress_spec(
         unit="record",
         owner_module=__name__,
         split_behavior="global",
-        operation_kind="jsonl_report_write",
-        total_semantics="records written to one JSONL report artifact",
+        operation_kind="json_report_write",
+        total_semantics="records written to one JSON report artifact",
         bar_eligible=True,
         artifact_role=artifact_role,
     )

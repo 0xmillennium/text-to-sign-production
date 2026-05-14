@@ -15,7 +15,7 @@ class GateReportSummary:
     passed_count: int
     dropped_count: int
     gate_passed_count: int
-    dropped_debug_payload_written_count: int
+    dropped_sample_payload_written_count: int
 
 
 def summarize_gate_report(bundle: GateReportBundle) -> GateReportSummary:
@@ -25,8 +25,8 @@ def summarize_gate_report(bundle: GateReportBundle) -> GateReportSummary:
         passed_count=bundle.checkpoint_integrity.passed_manifest_count,
         dropped_count=bundle.checkpoint_integrity.dropped_manifest_count,
         gate_passed_count=bundle.gate_outcomes.passed_count,
-        dropped_debug_payload_written_count=(
-            bundle.dropped_debug_payloads.dropped_debug_payload_written_count
+        dropped_sample_payload_written_count=(
+            bundle.dropped_sample_payloads.dropped_sample_payload_written_count
         ),
     )
 

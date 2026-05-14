@@ -6,6 +6,7 @@ from pathlib import Path
 from text_to_sign_production.core.ids import SampleStatus
 from text_to_sign_production.core.models import (
     DroppedManifestEntry,
+    DroppedSample,
     GateDecisionBundle,
     PassedManifestEntry,
     PreparedSample,
@@ -28,6 +29,13 @@ class GatePayloadOutput:
 
 
 @dataclass(frozen=True, slots=True)
+class GateDroppedSamplePayloadOutput:
+    sample: DroppedSample
+    path: Path
+    payload_ref: str
+
+
+@dataclass(frozen=True, slots=True)
 class GateSplitProcessingResult:
     split: str
     source_matches: tuple[SourceMatchResult, ...]
@@ -35,7 +43,7 @@ class GateSplitProcessingResult:
     prepared_samples: tuple[PreparedSample, ...]
     gate_bundles: tuple[GateDecisionBundle, ...]
     passed_payloads: tuple[GatePayloadOutput, ...]
-    dropped_debug_payloads: tuple[GatePayloadOutput, ...]
+    dropped_sample_payloads: tuple[GateDroppedSamplePayloadOutput, ...]
     passed_entries: tuple[PassedManifestEntry, ...]
     dropped_entries: tuple[DroppedManifestEntry, ...]
 
@@ -62,6 +70,7 @@ class GateExecutionBundle:
 
 __all__ = [
     "GateExecutionBundle",
+    "GateDroppedSamplePayloadOutput",
     "GatePayloadOutput",
     "GateSplitProcessingResult",
 ]

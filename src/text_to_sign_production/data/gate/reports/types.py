@@ -58,16 +58,19 @@ class CheckpointIntegritySection:
 
 
 @dataclass(frozen=True, slots=True)
-class DroppedDebugPayloadSection:
-    """Dropped manifest/debug payload projection for the gate stage."""
+class DroppedSamplePayloadSection:
+    """Dropped sample payload projection for the gate stage."""
 
-    materialize_dropped_debug_payloads: bool
     dropped_total_count: int
-    pose_or_source_dropped_without_prepared_payload_count: int
-    gate_dropped_prepared_sample_count: int
-    dropped_debug_payload_written_count: int
-    dropped_manifest_entries_with_debug_ref_count: int
-    dropped_manifest_entries_without_debug_ref_count: int
+    source_dropped_sample_count: int
+    pose_dropped_sample_count: int
+    gate_dropped_sample_count: int
+    dropped_sample_payload_written_count: int
+    dropped_manifest_entries_with_payload_ref_count: int
+    dropped_manifest_entries_without_payload_ref_count: int
+    dropped_manifest_payload_ref_count_coherent: bool
+    dropped_manifest_payload_identity_coherent: bool
+    dropped_manifest_payload_coherence_issue_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,7 +83,7 @@ class GateReportBundle:
     pose_health: PoseHealthSection
     gate_outcomes: GateOutcomesSection
     checkpoint_integrity: CheckpointIntegritySection
-    dropped_debug_payloads: DroppedDebugPayloadSection
+    dropped_sample_payloads: DroppedSamplePayloadSection
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,16 +143,19 @@ class GateCheckpointIntegrityTableRow:
 
 
 @dataclass(frozen=True, slots=True)
-class GateDroppedDebugPayloadTableRow:
-    """Table row for dropped debug payload/materialization clarity."""
+class GateDroppedSamplePayloadTableRow:
+    """Table row for dropped sample payload clarity."""
 
-    materialize_dropped_debug_payloads: bool
     dropped_total_count: int
-    pose_or_source_dropped_without_prepared_payload_count: int
-    gate_dropped_prepared_sample_count: int
-    dropped_debug_payload_written_count: int
-    dropped_manifest_entries_with_debug_ref_count: int
-    dropped_manifest_entries_without_debug_ref_count: int
+    source_dropped_sample_count: int
+    pose_dropped_sample_count: int
+    gate_dropped_sample_count: int
+    dropped_sample_payload_written_count: int
+    dropped_manifest_entries_with_payload_ref_count: int
+    dropped_manifest_entries_without_payload_ref_count: int
+    dropped_manifest_payload_ref_count_coherent: bool
+    dropped_manifest_payload_identity_coherent: bool
+    dropped_manifest_payload_coherence_issue_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,14 +168,14 @@ class GateReportTables:
     manifest_outcomes: tuple[GateManifestOutcomeTableRow, ...]
     failed_gate_counts: tuple[GateFailedGateCountTableRow, ...]
     checkpoint_integrity: tuple[GateCheckpointIntegrityTableRow, ...]
-    dropped_debug_payloads: tuple[GateDroppedDebugPayloadTableRow, ...]
+    dropped_sample_payloads: tuple[GateDroppedSamplePayloadTableRow, ...]
 
 
 __all__ = [
     "CheckpointIntegritySection",
-    "DroppedDebugPayloadSection",
+    "DroppedSamplePayloadSection",
     "GateCheckpointIntegrityTableRow",
-    "GateDroppedDebugPayloadTableRow",
+    "GateDroppedSamplePayloadTableRow",
     "GateFailedGateCountTableRow",
     "GateManifestOutcomeTableRow",
     "GateOutcomesSection",

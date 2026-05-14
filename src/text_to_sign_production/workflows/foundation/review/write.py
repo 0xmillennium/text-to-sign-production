@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable
 from pathlib import Path
 
-from text_to_sign_production.core.progress import ProgressTaskHandle
 from text_to_sign_production.workflows.foundation.review.markdown import JsonValue, jsonable
 
 
@@ -25,21 +23,6 @@ def write_json(path: Path, value: JsonValue) -> None:
         json.dumps(jsonable(value), ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-
-
-def write_jsonl(
-    path: Path,
-    records: Iterable[JsonValue],
-    *,
-    progress: ProgressTaskHandle | None = None,
-) -> None:
-    _ensure_path_parent(path)
-    with path.open("w", encoding="utf-8") as file:
-        for record in records:
-            file.write(json.dumps(jsonable(record), ensure_ascii=False, sort_keys=True))
-            file.write("\n")
-            if progress is not None:
-                progress.advance()
 
 
 def _ensure_path_parent(path: Path) -> None:

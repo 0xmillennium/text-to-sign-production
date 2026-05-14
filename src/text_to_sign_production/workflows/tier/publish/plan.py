@@ -68,7 +68,7 @@ def _validate_publish_alignment(
     if not (
         report_artifacts.summary_markdown_path
         and report_artifacts.calibration_markdown_path
-        and report_artifacts.decision_detail_jsonl_path
+        and report_artifacts.decision_detail_json_path
         and report_artifacts.calibration_surfaces_json_path
         and report_artifacts.calibration_detail_json_path
         and report_artifacts.index_json_path
@@ -123,10 +123,10 @@ def _build_report_targets(
         TierPublishTarget(
             label="publish report [decision detail]",
             kind="report_file",
-            source_path=artifacts.decision_detail_jsonl_path,
+            source_path=artifacts.decision_detail_json_path,
             target_path=layout.publish.decision_detail_target_path,
-            source_sha256=artifacts.decision_detail_jsonl.sha256,
-            source_execution_id=artifacts.decision_detail_jsonl.execution_id,
+            source_sha256=artifacts.decision_detail_json.sha256,
+            source_execution_id=artifacts.decision_detail_json.execution_id,
         ),
         TierPublishTarget(
             label="publish report [calibration surfaces]",
@@ -159,7 +159,7 @@ def _report_artifact_paths(artifacts: TierWrittenReportArtifacts) -> tuple[Path,
     return (
         artifacts.summary_markdown_path,
         artifacts.calibration_markdown_path,
-        artifacts.decision_detail_jsonl_path,
+        artifacts.decision_detail_json_path,
         artifacts.calibration_surfaces_json_path,
         artifacts.calibration_detail_json_path,
         artifacts.index_json_path,
@@ -172,7 +172,7 @@ def _report_artifact_receipts(
     return (
         artifacts.summary_markdown,
         artifacts.calibration_markdown,
-        artifacts.decision_detail_jsonl,
+        artifacts.decision_detail_json,
         artifacts.calibration_surfaces_json,
         artifacts.calibration_detail_json,
         artifacts.index_json,

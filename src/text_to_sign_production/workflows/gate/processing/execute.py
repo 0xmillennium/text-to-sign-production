@@ -26,6 +26,7 @@ from text_to_sign_production.workflows.gate.processing.manifests import (
     write_gate_manifests,
 )
 from text_to_sign_production.workflows.gate.processing.models import (
+    GateDroppedSamplePayloadOutput,
     GateExecutionBundle,
     GatePayloadOutput,
     GateSplitProcessingResult,
@@ -103,12 +104,12 @@ def _build_output_summary(layout: GateLayout) -> GateWorkflowOutputSummary:
         dropped_samples_root=layout.outputs.dropped_samples_root,
         planned_report_outputs=GatePlannedReportOutputs(
             summary_markdown_path=layout.reports.summary_markdown_path,
-            processing_summary_jsonl_path=layout.reports.processing_summary_jsonl_path,
-            processing_detail_jsonl_path=layout.reports.processing_detail_jsonl_path,
-            gate_summary_jsonl_path=layout.reports.gate_summary_jsonl_path,
-            gate_detail_jsonl_path=layout.reports.gate_detail_jsonl_path,
-            source_issue_summary_jsonl_path=layout.reports.source_issue_summary_jsonl_path,
-            source_issue_detail_jsonl_path=layout.reports.source_issue_detail_jsonl_path,
+            processing_summary_markdown_path=layout.reports.processing_summary_markdown_path,
+            processing_detail_json_path=layout.reports.processing_detail_json_path,
+            gate_summary_markdown_path=layout.reports.gate_summary_markdown_path,
+            gate_detail_json_path=layout.reports.gate_detail_json_path,
+            source_issue_summary_markdown_path=(layout.reports.source_issue_summary_markdown_path),
+            source_issue_detail_json_path=layout.reports.source_issue_detail_json_path,
             index_json_path=layout.reports.index_json_path,
         ),
     )
@@ -120,12 +121,10 @@ def _written_payload_artifacts(
 ) -> tuple[GateWrittenPayloadArtifact, ...]:
     artifacts: list[GateWrittenPayloadArtifact] = []
     for split_result in split_results:
-        payloads = (
-            *split_result.passed_payloads,
-            *split_result.dropped_debug_payloads,
-        )
-        for payload in payloads:
+        for payload in split_result.passed_payloads:
             artifacts.append(_written_payload_artifact(payload, execution_id))
+        for payload in split_result.dropped_sample_payloads:
+            artifacts.append(_written_dropped_payload_artifact(payload, execution_id))
     return tuple(artifacts)
 
 
@@ -154,6 +153,35 @@ def _written_payload_artifact(
             source_lineage=(
                 payload.sample.source.source_video_id,
                 payload.sample.source.source_sentence_name,
+            ),
+        ),
+    )
+
+
+def _written_dropped_payload_artifact(
+    payload: GateDroppedSamplePayloadOutput,
+    execution_id: str,
+) -> GateWrittenPayloadArtifact:
+    return GateWrittenPayloadArtifact(
+        status="dropped",
+        split=payload.sample.split.value,
+        sample_id=payload.sample.sample_id,
+        payload_ref=payload.payload_ref,
+        receipt=written_file_receipt(
+            f"gate payload [dropped/{payload.sample.split.value}/{payload.sample.sample_id}]",
+            payload.path,
+            execution_id=execution_id,
+            kind="dropped_sample_payload",
+            physical_sample=PhysicalSampleIdentity(
+                split=payload.sample.split.value,
+                sample_id=payload.sample.sample_id,
+            ),
+            semantic_sentence=SemanticSentenceIdentity(
+                sentence_id=payload.sample.source.source_sentence_id or payload.sample.sample_id,
+            ),
+            source_lineage=(
+                payload.sample.source.source_video_id or "",
+                payload.sample.source.source_sentence_name or payload.sample.sample_id,
             ),
         ),
     )

@@ -15,8 +15,8 @@ baseline:
 
 data:
   # Current dataset authority: gate-produced untiered passed manifests.
-  train_manifest: data/manifests/untiered/passed/train.jsonl
-  val_manifest: data/manifests/untiered/passed/val.jsonl
+  train_manifest: data/manifests/untiered/passed/train.json
+  val_manifest: data/manifests/untiered/passed/val.json
   train_split: train
   val_split: val
   prediction_splits:

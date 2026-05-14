@@ -14,8 +14,8 @@ from text_to_sign_production.data.tier.reports.calibration import (
     TierActiveSpanDerivationSummary,
     TierCalibrationSurfaces,
     TierFamilyPassSurface,
-    TierFamilyWaterfallStep,
     TierFamilyWaterfalls,
+    TierFamilyWaterfallStep,
     TierMetricDistributionSummary,
     build_tier_calibration_surfaces,
 )
@@ -51,14 +51,14 @@ from text_to_sign_production.workflows.tier.contracts import (
 )
 from text_to_sign_production.workflows.tier.contracts.results import TieredManifestOutputPlan
 from text_to_sign_production.workflows.tier.contracts.review import (
+    ActiveSpanDerivationReview,
     CalibrationDetailReviewPayload,
     CalibrationSurfacesReviewPayload,
-    ActiveSpanDerivationReview,
     DistributionSummaryReview,
     FamilyFilterLevelReview,
     FamilyPassSurfaceReview,
-    FamilyWaterfallStepReview,
     FamilyWaterfallsReview,
+    FamilyWaterfallStepReview,
     LeakageReviewSummary,
     MembershipCountReview,
     MetricRowReview,
@@ -77,6 +77,7 @@ from text_to_sign_production.workflows.tier.processing import (
     TierExecutionBundle,
     TierReportResult,
 )
+
 
 def build_runtime_plan_sections(
     plan: TierRuntimePlan,
@@ -503,10 +504,7 @@ def build_calibration_detail_sections(
                         ),
                     ),
                 ),
-                *tuple(
-                    _distribution_summary_item(row)
-                    for row in active_span.count_distributions
-                ),
+                *tuple(_distribution_summary_item(row) for row in active_span.count_distributions),
             ),
         ),
         review_section(
@@ -639,7 +637,7 @@ def build_final_operator_summary_sections(
 def build_decision_detail_review_payload(
     bundle: TierExecutionBundle,
 ) -> TierDecisionDetailReviewPayload:
-    """Build the typed decision-detail projection consumed by JSONL writing."""
+    """Build the typed decision-detail projection consumed by JSON writing."""
     records: list[TierDecisionReviewRecord] = []
     report_lookup = {
         (report.manifest.split, report.manifest.sample_id): report for report in bundle.tier_reports
@@ -692,13 +690,10 @@ def build_calibration_surfaces_review_payload(
             _family_pass_surface_review(row) for row in calibration.family_pass_surfaces
         ),
         binding_metric_distributions=tuple(
-            _distribution_summary_review(row)
-            for row in calibration.binding_metric_distributions
+            _distribution_summary_review(row) for row in calibration.binding_metric_distributions
         ),
         family_waterfalls=_waterfalls_review(calibration.family_waterfalls),
-        active_span_derivation=_active_span_derivation_review(
-            calibration.active_span_derivation
-        ),
+        active_span_derivation=_active_span_derivation_review(calibration.active_span_derivation),
         leakage=_leakage_review_summary(bundle),
         tier_report_count=len(bundle.tier_reports),
     )
@@ -718,13 +713,10 @@ def build_calibration_detail_review_payload(
             _family_pass_surface_review(row) for row in calibration.family_pass_surfaces
         ),
         binding_metric_distributions=tuple(
-            _distribution_summary_review(row)
-            for row in calibration.binding_metric_distributions
+            _distribution_summary_review(row) for row in calibration.binding_metric_distributions
         ),
         family_waterfalls=_waterfalls_review(calibration.family_waterfalls),
-        active_span_derivation=_active_span_derivation_review(
-            calibration.active_span_derivation
-        ),
+        active_span_derivation=_active_span_derivation_review(calibration.active_span_derivation),
         leakage=_leakage_review_summary(bundle),
         tier_reports=tuple(_tier_report_summary_review(report) for report in bundle.tier_reports),
         planned_tiered_manifest_outputs=tuple(
@@ -980,8 +972,7 @@ def _active_span_derivation_review(
 ) -> ActiveSpanDerivationReview:
     return ActiveSpanDerivationReview(
         count_distributions=tuple(
-            _distribution_summary_review(distribution)
-            for distribution in row.count_distributions
+            _distribution_summary_review(distribution) for distribution in row.count_distributions
         ),
         fallback_used_count=row.fallback_used_count,
         fallback_used_ratio=row.fallback_used_ratio,
@@ -1065,7 +1056,7 @@ def _planned_report_output_rows(
     return (
         TierPlannedReportOutputRow("summary markdown", artifacts.summary_markdown_path),
         TierPlannedReportOutputRow("calibration markdown", artifacts.calibration_markdown_path),
-        TierPlannedReportOutputRow("decision detail JSONL", artifacts.decision_detail_jsonl_path),
+        TierPlannedReportOutputRow("decision detail JSON", artifacts.decision_detail_json_path),
         TierPlannedReportOutputRow(
             "calibration surfaces JSON",
             artifacts.calibration_surfaces_json_path,
@@ -1099,10 +1090,10 @@ def _written_report_artifact_rows(
             artifacts.calibration_markdown.execution_id,
         ),
         TierWrittenReportArtifactRow(
-            "decision detail JSONL",
-            artifacts.decision_detail_jsonl_path,
-            artifacts.decision_detail_jsonl.sha256,
-            artifacts.decision_detail_jsonl.execution_id,
+            "decision detail JSON",
+            artifacts.decision_detail_json_path,
+            artifacts.decision_detail_json.sha256,
+            artifacts.decision_detail_json.execution_id,
         ),
         TierWrittenReportArtifactRow(
             "calibration surfaces JSON",

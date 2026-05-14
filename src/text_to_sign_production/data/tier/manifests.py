@@ -9,7 +9,7 @@ from typing import TypeAlias
 
 from text_to_sign_production.core.ids import SampleSplit, TierMembership, TierName
 from text_to_sign_production.core.models import PassedManifestEntry, TierDecisionBundle
-from text_to_sign_production.data.dataset.manifests import write_passed_manifest_jsonl
+from text_to_sign_production.data.dataset.manifests import write_tier_manifest_json
 from text_to_sign_production.data.tier.policies.analysis import tier_membership_for_decision
 
 TierManifestBucketKey: TypeAlias = tuple[TierName, TierMembership, SampleSplit]
@@ -90,11 +90,20 @@ def write_tier_manifest_output(
     *,
     path: str | Path,
     entries: Iterable[PassedManifestEntry],
+    tier: TierName,
+    membership: TierMembership,
+    split: SampleSplit,
 ) -> TierManifestProduction:
     """Write one tier included/excluded manifest using passed-row semantics."""
     materialized_entries = tuple(entries)
     manifest_path = Path(path)
-    write_passed_manifest_jsonl(manifest_path, materialized_entries)
+    write_tier_manifest_json(
+        manifest_path,
+        materialized_entries,
+        tier=tier,
+        membership=membership,
+        split=split,
+    )
     return TierManifestProduction(path=manifest_path, entries=materialized_entries)
 
 
@@ -104,6 +113,9 @@ def write_tier_manifest_plan(plan: TierManifestWritePlan) -> tuple[TierManifestP
         write_tier_manifest_output(
             path=entry.target.path,
             entries=entry.entries,
+            tier=entry.target.tier,
+            membership=entry.target.membership,
+            split=entry.target.split,
         )
         for entry in plan.entries
     )

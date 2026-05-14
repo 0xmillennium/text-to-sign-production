@@ -101,7 +101,7 @@ def execute_tier_processing(
             planned_report_outputs=TierPlannedReportOutputs(
                 summary_markdown_path=layout.reports.summary_markdown_path,
                 calibration_markdown_path=layout.reports.calibration_markdown_path,
-                decision_detail_jsonl_path=layout.reports.decision_detail_jsonl_path,
+                decision_detail_json_path=layout.reports.decision_detail_json_path,
                 calibration_surfaces_json_path=layout.reports.calibration_surfaces_json_path,
                 calibration_detail_json_path=layout.reports.calibration_detail_json_path,
                 index_json_path=layout.reports.index_json_path,

@@ -17,7 +17,7 @@ class TierPlannedReportOutputs:
 
     summary_markdown_path: Path
     calibration_markdown_path: Path
-    decision_detail_jsonl_path: Path
+    decision_detail_json_path: Path
     calibration_surfaces_json_path: Path
     calibration_detail_json_path: Path
     index_json_path: Path
@@ -29,7 +29,7 @@ class TierWrittenReportArtifacts:
 
     summary_markdown: WrittenFileReceipt
     calibration_markdown: WrittenFileReceipt
-    decision_detail_jsonl: WrittenFileReceipt
+    decision_detail_json: WrittenFileReceipt
     calibration_surfaces_json: WrittenFileReceipt
     calibration_detail_json: WrittenFileReceipt
     index_json: WrittenFileReceipt
@@ -43,8 +43,8 @@ class TierWrittenReportArtifacts:
         return self.calibration_markdown.path
 
     @property
-    def decision_detail_jsonl_path(self) -> Path:
-        return self.decision_detail_jsonl.path
+    def decision_detail_json_path(self) -> Path:
+        return self.decision_detail_json.path
 
     @property
     def calibration_surfaces_json_path(self) -> Path:

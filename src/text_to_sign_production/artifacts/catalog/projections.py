@@ -1,31 +1,10 @@
-"""Artifact-owned parsing for minimal manifest projections."""
+"""Artifact-owned projections for minimal manifest catalog facts."""
 
 from __future__ import annotations
-
-from collections.abc import Mapping
-from pathlib import Path
-from typing import Any
 
 from text_to_sign_production.artifacts.catalog.types import SampleManifestProjection
 from text_to_sign_production.core.ids import SampleStatus
 from text_to_sign_production.core.models import DroppedManifestEntry, PassedManifestEntry
-from text_to_sign_production.data.dataset.manifests import (
-    dropped_entry_from_record,
-    passed_entry_from_record,
-)
-
-
-def passed_manifest_projection_from_record(
-    record: Mapping[str, Any],
-    path: Path,
-) -> SampleManifestProjection:
-    """Parse artifact-relevant fields from a passed manifest record.
-
-    The passed status is derived from the manifest surface. The row contract is
-    the root ``PassedManifestEntry`` shape and does not need to carry status.
-    """
-    entry = passed_entry_from_record(record)
-    return passed_manifest_projection_from_entry(entry)
 
 
 def passed_manifest_projection_from_entry(
@@ -42,19 +21,6 @@ def passed_manifest_projection_from_entry(
     )
 
 
-def dropped_manifest_projection_from_record(
-    record: Mapping[str, Any],
-    path: Path,
-) -> SampleManifestProjection:
-    """Parse artifact-relevant fields from a dropped manifest record.
-
-    The dropped status is derived from the manifest surface. It is projection
-    metadata only, not manifest row authority.
-    """
-    entry = dropped_entry_from_record(record)
-    return dropped_manifest_projection_from_entry(entry)
-
-
 def dropped_manifest_projection_from_entry(
     entry: DroppedManifestEntry,
 ) -> SampleManifestProjection:
@@ -63,24 +29,13 @@ def dropped_manifest_projection_from_entry(
         sample_id=entry.sample_id,
         split=entry.split,
         projected_status=SampleStatus.DROPPED,
-        payload_ref=entry.debug_ref,
-        payload_declared_present=entry.debug_ref is not None,
-        archive_publishable=entry.debug_ref is not None,
+        payload_ref=entry.dropped_sample_ref,
+        payload_declared_present=True,
+        archive_publishable=True,
     )
 
 
-def tiered_manifest_projection_from_record(
-    record: Mapping[str, Any],
-    path: Path,
-) -> SampleManifestProjection:
-    """Parse a tiered manifest row as passed-row semantics plus tier context."""
-    return passed_manifest_projection_from_record(record, path)
-
-
 __all__ = [
-    "dropped_manifest_projection_from_record",
     "dropped_manifest_projection_from_entry",
     "passed_manifest_projection_from_entry",
-    "passed_manifest_projection_from_record",
-    "tiered_manifest_projection_from_record",
 ]

@@ -44,7 +44,7 @@ class TierOutputLayout:
 class TierReportLayout:
     summary_markdown_path: Path
     calibration_markdown_path: Path
-    decision_detail_jsonl_path: Path
+    decision_detail_json_path: Path
     calibration_surfaces_json_path: Path
     calibration_detail_json_path: Path
     index_json_path: Path
@@ -144,7 +144,7 @@ def _build_report_layout(stores: ArtifactStores) -> TierReportLayout:
     return TierReportLayout(
         summary_markdown_path=reports.tiers_summary().path,
         calibration_markdown_path=reports.tiers_calibration().path,
-        decision_detail_jsonl_path=reports.tiers_decision_detail().path,
+        decision_detail_json_path=reports.tiers_decision_detail().path,
         calibration_surfaces_json_path=reports.tiers_calibration_surfaces().path,
         calibration_detail_json_path=reports.tiers_calibration_detail().path,
         index_json_path=reports.tiers_index().path,

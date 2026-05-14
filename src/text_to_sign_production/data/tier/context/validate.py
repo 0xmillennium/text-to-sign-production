@@ -303,13 +303,6 @@ def validate_geometry_reference_context(
                 "Upper-body geometry references must be present.",
             )
         )
-    if not context.representative_hand_segment_references:
-        issues.append(
-            _issue(
-                ContextValidationCode.GEOMETRY_REFERENCE_EMPTY,
-                "Representative-hand geometry references must be present.",
-            )
-        )
     return tuple(issues)
 
 

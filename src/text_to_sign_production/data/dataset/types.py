@@ -10,6 +10,7 @@ from typing import TypeAlias
 from text_to_sign_production.core.ids import SampleStatus
 from text_to_sign_production.core.models import (
     DroppedManifestEntry,
+    DroppedSample,
     PassedManifestEntry,
     PreparedSample,
 )
@@ -25,6 +26,15 @@ class DatasetPayloadProduction:
     path: Path
     payload_ref: str
     status: SampleStatus
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetDroppedSampleProduction:
+    """Dataset-owned DroppedSample JSON payload write plan/result."""
+
+    sample: DroppedSample
+    path: Path
+    payload_ref: str
 
 
 class DatasetValidationIssueCode(enum.StrEnum):
@@ -100,6 +110,7 @@ class CheckpointHandoffSummary:
 __all__ = [
     "CheckpointHandoffSummary",
     "DatasetPayloadProduction",
+    "DatasetDroppedSampleProduction",
     "DatasetValidationIssue",
     "DatasetValidationIssueCode",
     "DroppedManifestSummary",

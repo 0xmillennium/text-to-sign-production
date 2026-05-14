@@ -49,42 +49,63 @@ def validate_gate_report_bundle(
             bundle.checkpoint_integrity.coherence_issue_count,
         ),
         (
-            "dropped_debug_payloads.dropped_total_count",
-            bundle.dropped_debug_payloads.dropped_total_count,
+            "dropped_sample_payloads.dropped_total_count",
+            bundle.dropped_sample_payloads.dropped_total_count,
         ),
         (
-            "dropped_debug_payloads.pose_or_source_dropped_without_prepared_payload_count",
-            bundle.dropped_debug_payloads
-            .pose_or_source_dropped_without_prepared_payload_count,
+            "dropped_sample_payloads.source_dropped_sample_count",
+            bundle.dropped_sample_payloads.source_dropped_sample_count,
         ),
         (
-            "dropped_debug_payloads.gate_dropped_prepared_sample_count",
-            bundle.dropped_debug_payloads.gate_dropped_prepared_sample_count,
+            "dropped_sample_payloads.pose_dropped_sample_count",
+            bundle.dropped_sample_payloads.pose_dropped_sample_count,
         ),
         (
-            "dropped_debug_payloads.dropped_debug_payload_written_count",
-            bundle.dropped_debug_payloads.dropped_debug_payload_written_count,
+            "dropped_sample_payloads.gate_dropped_sample_count",
+            bundle.dropped_sample_payloads.gate_dropped_sample_count,
         ),
         (
-            "dropped_debug_payloads.dropped_manifest_entries_with_debug_ref_count",
-            bundle.dropped_debug_payloads.dropped_manifest_entries_with_debug_ref_count,
+            "dropped_sample_payloads.dropped_sample_payload_written_count",
+            bundle.dropped_sample_payloads.dropped_sample_payload_written_count,
         ),
         (
-            "dropped_debug_payloads.dropped_manifest_entries_without_debug_ref_count",
-            bundle.dropped_debug_payloads.dropped_manifest_entries_without_debug_ref_count,
+            "dropped_sample_payloads.dropped_manifest_entries_with_payload_ref_count",
+            bundle.dropped_sample_payloads.dropped_manifest_entries_with_payload_ref_count,
+        ),
+        (
+            "dropped_sample_payloads.dropped_manifest_entries_without_payload_ref_count",
+            bundle.dropped_sample_payloads.dropped_manifest_entries_without_payload_ref_count,
+        ),
+        (
+            "dropped_sample_payloads.dropped_manifest_payload_coherence_issue_count",
+            bundle.dropped_sample_payloads.dropped_manifest_payload_coherence_issue_count,
         ),
     ):
         if count < 0:
             issues.append(GateReportValidationIssue("Count cannot be negative.", path))
     if (
-        bundle.dropped_debug_payloads.dropped_manifest_entries_with_debug_ref_count
-        + bundle.dropped_debug_payloads.dropped_manifest_entries_without_debug_ref_count
-        != bundle.dropped_debug_payloads.dropped_total_count
+        bundle.dropped_sample_payloads.dropped_manifest_entries_with_payload_ref_count
+        + bundle.dropped_sample_payloads.dropped_manifest_entries_without_payload_ref_count
+        != bundle.dropped_sample_payloads.dropped_total_count
     ):
         issues.append(
             GateReportValidationIssue(
-                "Dropped manifest debug-ref counts must sum to total dropped count.",
-                "dropped_debug_payloads",
+                "Dropped manifest payload-ref counts must sum to total dropped count.",
+                "dropped_sample_payloads",
+            )
+        )
+    if not bundle.dropped_sample_payloads.dropped_manifest_payload_ref_count_coherent:
+        issues.append(
+            GateReportValidationIssue(
+                "Dropped manifest payload refs must be count-coherent with written payload count.",
+                "dropped_sample_payloads.dropped_manifest_payload_ref_count_coherent",
+            )
+        )
+    if not bundle.dropped_sample_payloads.dropped_manifest_payload_identity_coherent:
+        issues.append(
+            GateReportValidationIssue(
+                "Dropped manifest entries must be identity-coherent with DroppedSample payloads.",
+                "dropped_sample_payloads.dropped_manifest_payload_identity_coherent",
             )
         )
     if bundle.pose_health.total_valid_frame_count > bundle.pose_health.total_frame_count:

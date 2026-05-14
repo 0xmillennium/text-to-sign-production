@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from text_to_sign_production.core.models import (
     DroppedManifestEntry,
+    DroppedSample,
     GateDecisionBundle,
     PassedManifestEntry,
     PreparedSample,
 )
 from text_to_sign_production.data.gate.reports.sections import (
     build_checkpoint_integrity_section,
-    build_dropped_debug_payload_section,
+    build_dropped_sample_payload_section,
     build_gate_outcomes_section,
     build_manifest_outcomes_section,
     build_pose_health_section,
@@ -29,8 +30,7 @@ def build_gate_report_bundle(
     passed_entries: Sequence[PassedManifestEntry],
     dropped_entries: Sequence[DroppedManifestEntry],
     gate_bundles: Sequence[GateDecisionBundle],
-    materialize_dropped_debug_payloads: bool,
-    dropped_debug_payload_written_count: int,
+    dropped_sample_payloads_by_ref: Mapping[str, DroppedSample],
 ) -> GateReportBundle:
     """Build the root gate-stage report projection bundle."""
     bundle = GateReportBundle(
@@ -44,10 +44,9 @@ def build_gate_report_bundle(
             passed_entries,
             dropped_entries,
         ),
-        dropped_debug_payloads=build_dropped_debug_payload_section(
+        dropped_sample_payloads=build_dropped_sample_payload_section(
             dropped_entries,
-            materialize_dropped_debug_payloads=materialize_dropped_debug_payloads,
-            dropped_debug_payload_written_count=dropped_debug_payload_written_count,
+            dropped_sample_payloads_by_ref=dropped_sample_payloads_by_ref,
         ),
     )
     issues = validate_gate_report_bundle(bundle)

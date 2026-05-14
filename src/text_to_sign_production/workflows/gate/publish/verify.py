@@ -14,9 +14,9 @@ from text_to_sign_production.workflows.foundation.provenance import (
 from text_to_sign_production.workflows.gate.contracts import (
     GatePublishCheck,
     GatePublishPlan,
-    GateSplitArchivePublishPlan,
     GatePublishTarget,
     GatePublishVerification,
+    GateSplitArchivePublishPlan,
 )
 
 
@@ -43,9 +43,7 @@ def _publish_check(
     target_exists = target.target_path.exists()
     source_sha256 = target.source_sha256
     target_sha256 = (
-        _file_sha256(target.target_path)
-        if target_exists and target.target_path.is_file()
-        else None
+        _file_sha256(target.target_path) if target_exists and target.target_path.is_file() else None
     )
     digest_match = None
     coherent = True
@@ -125,9 +123,7 @@ def _publish_check(
                 None if observed_source_tree is None else observed_source_tree.member_count
             ),
             observed_source_member_listing_digest=(
-                None
-                if observed_source_tree is None
-                else observed_source_tree.member_listing_digest
+                None if observed_source_tree is None else observed_source_tree.member_listing_digest
             ),
             observed_source_member_tree_digest=(
                 None if observed_source_tree is None else observed_source_tree.member_tree_digest
@@ -170,7 +166,7 @@ def _expected_absent_dropped_archive_check(
         label=f"dropped sample archive absent as expected [{split_plan.split}]",
         kind="archive_file",
         source_path=split_plan.dropped_archive_path,
-        source_exists=True,
+        source_exists=False,
         target_path=split_plan.dropped_archive_path,
         target_exists=split_plan.dropped_archive_path.exists(),
         expected_member_count=split_plan.dropped_archive_member_count,
