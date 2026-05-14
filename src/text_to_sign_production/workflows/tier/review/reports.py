@@ -7,6 +7,9 @@ from text_to_sign_production.core.progress import (
     ProgressStageSpec,
     TqdmProgressSink,
 )
+from text_to_sign_production.data.tier.reports.calibration import (
+    TierCalibrationProgressSpecs,
+)
 from text_to_sign_production.workflows.foundation.provenance import written_file_receipt
 from text_to_sign_production.workflows.foundation.review import (
     JsonValue,
@@ -15,7 +18,13 @@ from text_to_sign_production.workflows.foundation.review import (
     write_markdown,
 )
 from text_to_sign_production.workflows.tier.constants import (
-    TIER_STAGE_DECISION_DETAIL_WRITE,
+    TIER_STAGE_CALIBRATION_ACTIVE_SPAN_DERIVATION,
+    TIER_STAGE_CALIBRATION_BINDING_DISTRIBUTIONS,
+    TIER_STAGE_CALIBRATION_FAMILY_PASS_SURFACES,
+    TIER_STAGE_CALIBRATION_FAMILY_WATERFALLS,
+    TIER_STAGE_DECISION_DETAIL_JSON_PROJECT,
+    TIER_STAGE_DECISION_DETAIL_PAYLOAD_PROJECT,
+    TIER_STAGE_REPORT_FILE_WRITE,
     TIER_WORKFLOW_NAME,
 )
 from text_to_sign_production.workflows.tier.contracts import TierWrittenReportArtifacts
@@ -43,6 +52,7 @@ from text_to_sign_production.workflows.tier.review.sections import (
     build_output_summary_sections,
     build_processing_summary_sections,
     build_runtime_verification_sections,
+    _tier_calibration_surfaces,
 )
 
 
@@ -61,60 +71,80 @@ def write_tier_reports(
         *build_output_summary_sections(bundle.workflow_result),
         *build_final_review_sections(bundle),
     )
-    write_markdown(
-        artifacts.summary_markdown_path,
-        render_review_sections_markdown(summary_sections),
+    summary_markdown = render_review_sections_markdown(summary_sections)
+    calibration_surfaces = _tier_calibration_surfaces(
+        bundle,
+        progress_session=progress_session,
+        progress_specs=_calibration_progress_specs(),
     )
-    write_markdown(
-        artifacts.calibration_markdown_path,
-        render_review_sections_markdown(build_calibration_sections(bundle)),
+    calibration_markdown = render_review_sections_markdown(
+        build_calibration_sections(
+            bundle,
+            calibration_surfaces=calibration_surfaces,
+        )
     )
-    _write_decision_detail_json(
-        artifacts.decision_detail_json_path,
-        build_decision_detail_review_payload(bundle),
+    decision_detail_payload = build_decision_detail_review_payload(
+        bundle,
+        progress_session=progress_session,
+        progress_spec=_decision_detail_payload_projection_progress_spec(),
+    )
+    decision_detail_document = _decision_detail_json_document(
+        decision_detail_payload,
         progress_session=progress_session,
     )
-    write_json(
-        artifacts.calibration_surfaces_json_path,
-        _calibration_surfaces_json_payload(build_calibration_surfaces_review_payload(bundle)),
+    calibration_surfaces_document = _calibration_surfaces_json_payload(
+        build_calibration_surfaces_review_payload(
+            bundle,
+            calibration_surfaces=calibration_surfaces,
+        )
     )
-    write_json(
-        artifacts.calibration_detail_json_path,
-        _calibration_detail_json_payload(build_calibration_detail_review_payload(bundle)),
+    calibration_detail_document = _calibration_detail_json_payload(
+        build_calibration_detail_review_payload(
+            bundle,
+            calibration_surfaces=calibration_surfaces,
+        )
     )
-    write_json(
-        artifacts.index_json_path,
-        _report_index_json_payload(
-            TierReportIndexPayload(
-                summary_markdown_path=artifacts.summary_markdown_path,
-                calibration_markdown_path=artifacts.calibration_markdown_path,
-                decision_detail_json_path=artifacts.decision_detail_json_path,
-                calibration_surfaces_json_path=artifacts.calibration_surfaces_json_path,
-                calibration_detail_json_path=artifacts.calibration_detail_json_path,
-                index_json_path=artifacts.index_json_path,
-                config_provenance=tuple(
-                    (
-                        output_summary_config.label,
-                        output_summary_config.original_path,
-                        output_summary_config.execution_path,
-                        output_summary_config.sha256,
-                    )
-                    for output_summary_config in (
-                        bundle.workflow_result.execution_inputs.filters_config_provenance,
-                        bundle.workflow_result.execution_inputs.tier_config_provenance,
-                    )
-                ),
-                planned_tiered_manifest_outputs=tuple(
-                    TierManifestOutputReview(
-                        tier=output.tier,
-                        membership=output.membership,
-                        split=output.split,
-                        path=output.path,
-                    )
-                    for output in output_summary.planned_tiered_manifest_outputs
-                ),
-            )
+    index_document = _report_index_json_payload(
+        TierReportIndexPayload(
+            summary_markdown_path=artifacts.summary_markdown_path,
+            calibration_markdown_path=artifacts.calibration_markdown_path,
+            decision_detail_json_path=artifacts.decision_detail_json_path,
+            calibration_surfaces_json_path=artifacts.calibration_surfaces_json_path,
+            calibration_detail_json_path=artifacts.calibration_detail_json_path,
+            index_json_path=artifacts.index_json_path,
+            config_provenance=tuple(
+                (
+                    output_summary_config.label,
+                    output_summary_config.original_path,
+                    output_summary_config.execution_path,
+                    output_summary_config.sha256,
+                )
+                for output_summary_config in (
+                    bundle.workflow_result.execution_inputs.filters_config_provenance,
+                    bundle.workflow_result.execution_inputs.tier_config_provenance,
+                )
+            ),
+            planned_tiered_manifest_outputs=tuple(
+                TierManifestOutputReview(
+                    tier=output.tier,
+                    membership=output.membership,
+                    split=output.split,
+                    path=output.path,
+                )
+                for output in output_summary.planned_tiered_manifest_outputs
+            ),
+        )
+    )
+    _write_report_files(
+        (
+            ("markdown", artifacts.summary_markdown_path, summary_markdown),
+            ("markdown", artifacts.calibration_markdown_path, calibration_markdown),
+            ("json", artifacts.decision_detail_json_path, decision_detail_document),
+            ("json", artifacts.calibration_surfaces_json_path, calibration_surfaces_document),
+            ("json", artifacts.calibration_detail_json_path, calibration_detail_document),
+            ("json", artifacts.index_json_path, index_document),
         ),
+        progress_session=progress_session,
     )
     return TierWrittenReportArtifacts(
         summary_markdown=written_file_receipt(
@@ -167,79 +197,201 @@ def _visible_progress_session(
     )
 
 
-def _write_decision_detail_json(
-    path: Path,
+def _decision_detail_json_document(
     payload: TierDecisionDetailReviewPayload,
     *,
     progress_session: ProgressSession | None,
-) -> None:
-    records = _decision_detail_records(payload)
-    document: JsonValue = {
+) -> JsonValue:
+    records = _decision_detail_records(payload, progress_session=progress_session)
+    return {
         "schema_version": "tier.decision.detail.v1",
         "report_kind": "tier_decision_detail",
         "record_count": len(records),
         "records": records,
     }
-    if progress_session is not None and records:
-        with progress_session.task(
-            _decision_detail_progress_spec(),
-            total=len(records),
-        ) as progress_task:
-            write_json(path, document)
-            if records:
-                progress_task.advance(len(records))
-    else:
-        write_json(path, document)
 
 
-def _decision_detail_progress_spec() -> ProgressStageSpec:
+def _decision_detail_payload_projection_progress_spec() -> ProgressStageSpec:
     return ProgressStageSpec(
         workflow_id=TIER_WORKFLOW_NAME,
-        stage_id=TIER_STAGE_DECISION_DETAIL_WRITE,
-        label="decision detail report write",
+        stage_id=TIER_STAGE_DECISION_DETAIL_PAYLOAD_PROJECT,
+        label="decision detail payload projection",
+        unit="decision",
+        owner_module="text_to_sign_production.workflows.tier.review.sections",
+        split_behavior="global",
+        operation_kind="projection",
+        total_semantics="tier reports indexed and decision bundles projected",
+        bar_eligible=True,
+        allowed_counters=("indexed", "projected", "skipped", "failed"),
+        artifact_role="decision_detail",
+    )
+
+
+def _calibration_progress_specs() -> TierCalibrationProgressSpecs:
+    return TierCalibrationProgressSpecs(
+        family_pass_surfaces=ProgressStageSpec(
+            workflow_id=TIER_WORKFLOW_NAME,
+            stage_id=TIER_STAGE_CALIBRATION_FAMILY_PASS_SURFACES,
+            label="calibration family pass surfaces",
+            unit="surface",
+            owner_module="text_to_sign_production.data.tier.reports.calibration",
+            split_behavior="global",
+            operation_kind="projection",
+            total_semantics="family pass calibration aggregate",
+            bar_eligible=True,
+            allowed_counters=("projected", "failed"),
+            artifact_role="calibration",
+        ),
+        binding_metric_distributions=ProgressStageSpec(
+            workflow_id=TIER_WORKFLOW_NAME,
+            stage_id=TIER_STAGE_CALIBRATION_BINDING_DISTRIBUTIONS,
+            label="calibration binding metric distributions",
+            unit="distribution set",
+            owner_module="text_to_sign_production.data.tier.reports.calibration",
+            split_behavior="global",
+            operation_kind="projection",
+            total_semantics="binding metric calibration distributions",
+            bar_eligible=True,
+            allowed_counters=("projected", "failed"),
+            artifact_role="calibration",
+        ),
+        family_waterfalls=ProgressStageSpec(
+            workflow_id=TIER_WORKFLOW_NAME,
+            stage_id=TIER_STAGE_CALIBRATION_FAMILY_WATERFALLS,
+            label="calibration family waterfalls",
+            unit="waterfall set",
+            owner_module="text_to_sign_production.data.tier.reports.calibration",
+            split_behavior="global",
+            operation_kind="projection",
+            total_semantics="family waterfall calibration aggregate",
+            bar_eligible=True,
+            allowed_counters=("projected", "failed"),
+            artifact_role="calibration",
+        ),
+        active_span_derivation=ProgressStageSpec(
+            workflow_id=TIER_WORKFLOW_NAME,
+            stage_id=TIER_STAGE_CALIBRATION_ACTIVE_SPAN_DERIVATION,
+            label="calibration active span derivation",
+            unit="summary",
+            owner_module="text_to_sign_production.data.tier.reports.calibration",
+            split_behavior="global",
+            operation_kind="projection",
+            total_semantics="active span derivation calibration aggregate",
+            bar_eligible=True,
+            allowed_counters=("projected", "failed"),
+            artifact_role="calibration",
+        ),
+    )
+
+
+def _decision_detail_json_projection_progress_spec() -> ProgressStageSpec:
+    return ProgressStageSpec(
+        workflow_id=TIER_WORKFLOW_NAME,
+        stage_id=TIER_STAGE_DECISION_DETAIL_JSON_PROJECT,
+        label="decision detail JSON projection",
         unit="record",
         owner_module=__name__,
         split_behavior="global",
-        operation_kind="json_report_write",
-        total_semantics="records written to decision detail JSON report",
+        operation_kind="projection",
+        total_semantics="decision detail JSON records",
         bar_eligible=True,
+        allowed_counters=("projected", "skipped", "failed"),
         artifact_role="decision_detail",
     )
 
 
 def _decision_detail_records(
     payload: TierDecisionDetailReviewPayload,
+    *,
+    progress_session: ProgressSession | None,
 ) -> tuple[JsonValue, ...]:
-    return tuple(
-        {
-            "split": record.split,
-            "sample_id": record.sample_id,
-            "selected_tier": record.selected_tier,
-            "tier_status": record.tier_status,
-            "leakage_observed_max_severity": record.leakage_observed_max_severity,
-            "leakage_admissible_tiers": record.leakage_admissible_tiers,
-            "leakage_rejected_tiers": record.leakage_rejected_tiers,
-            "report_summary": dict(record.report_summary.items()),
-            "metric_rows": tuple(
-                {
-                    "family": row.family,
-                    "metric_name": row.metric_name,
-                    "value": row.value,
-                }
-                for row in record.metric_rows
-            ),
-            "tier_rows": tuple(
-                {
-                    "family": row.family,
-                    "status": row.status,
-                    "best_supported_tier": row.best_supported_tier,
-                    "supported_tiers": row.supported_tiers,
-                    "issue_count": row.issue_count,
-                }
-                for row in record.tier_rows
-            ),
-        }
-        for record in payload.records
+    if progress_session is None:
+        return tuple(_decision_detail_record_json(record) for record in payload.records)
+    records: list[JsonValue] = []
+    projected = 0
+    with progress_session.task(
+        _decision_detail_json_projection_progress_spec(),
+        total=len(payload.records),
+    ) as progress_task:
+        for record in payload.records:
+            records.append(_decision_detail_record_json(record))
+            projected += 1
+            progress_task.advance(counters={"projected": projected})
+    return tuple(records)
+
+
+def _decision_detail_record_json(record) -> JsonValue:
+    return {
+        "split": record.split,
+        "sample_id": record.sample_id,
+        "selected_tier": record.selected_tier,
+        "tier_status": record.tier_status,
+        "leakage_observed_max_severity": record.leakage_observed_max_severity,
+        "leakage_admissible_tiers": record.leakage_admissible_tiers,
+        "leakage_rejected_tiers": record.leakage_rejected_tiers,
+        "report_summary": dict(record.report_summary.items()),
+        "metric_rows": tuple(
+            {
+                "family": row.family,
+                "metric_name": row.metric_name,
+                "value": row.value,
+            }
+            for row in record.metric_rows
+        ),
+        "tier_rows": tuple(
+            {
+                "family": row.family,
+                "status": row.status,
+                "best_supported_tier": row.best_supported_tier,
+                "supported_tiers": row.supported_tiers,
+                "issue_count": row.issue_count,
+            }
+            for row in record.tier_rows
+        ),
+    }
+
+
+def _write_report_files(
+    files: tuple[tuple[str, Path, str | JsonValue], ...],
+    *,
+    progress_session: ProgressSession | None,
+) -> None:
+    if progress_session is None:
+        for file_kind, path, payload in files:
+            _write_report_file(file_kind, path, payload)
+        return
+    written = 0
+    with progress_session.task(_report_file_write_progress_spec(), total=len(files)) as task:
+        for file_kind, path, payload in files:
+            _write_report_file(file_kind, path, payload)
+            written += 1
+            task.advance(counters={"written": written})
+
+
+def _write_report_file(file_kind: str, path: Path, payload: str | JsonValue) -> None:
+    if file_kind == "markdown":
+        if not isinstance(payload, str):
+            raise TypeError("markdown report payload must be text")
+        write_markdown(path, payload)
+        return
+    if file_kind == "json":
+        write_json(path, payload)
+        return
+    raise ValueError(f"Unsupported tier report file kind: {file_kind}")
+
+
+def _report_file_write_progress_spec() -> ProgressStageSpec:
+    return ProgressStageSpec(
+        workflow_id=TIER_WORKFLOW_NAME,
+        stage_id=TIER_STAGE_REPORT_FILE_WRITE,
+        label="tier report file write",
+        unit="file",
+        owner_module=__name__,
+        split_behavior="global",
+        operation_kind="write",
+        total_semantics="report files",
+        bar_eligible=True,
+        allowed_counters=("written", "failed"),
     )
 
 

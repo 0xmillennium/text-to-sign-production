@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from text_to_sign_production.core.ids import SampleSplit
 from text_to_sign_production.core.progress import ProgressSession, ProgressStageSpec
 from text_to_sign_production.data.tier.quality import (
     TierQualityComputationError,
@@ -24,13 +25,14 @@ def build_tier_quality_bundles(
 ) -> tuple[TierQualityBundle, ...]:
     quality_bundles: list[TierQualityBundle] = []
     if progress_session is not None and catalog_bundle.processed_count > 0:
-        with progress_session.task(
-            _metric_compute_progress_spec(),
-            total=catalog_bundle.processed_count,
-        ) as progress_task:
-            for sample_bundle in catalog_bundle.samples:
-                quality_bundles.append(_build_quality_bundle(sample_bundle))
-                progress_task.advance()
+        for split, sample_bundles in _samples_by_split(catalog_bundle.samples):
+            with progress_session.task(
+                _metric_compute_progress_spec(split),
+                total=len(sample_bundles),
+            ) as progress_task:
+                for sample_bundle in sample_bundles:
+                    quality_bundles.append(_build_quality_bundle(sample_bundle))
+                    progress_task.advance()
     else:
         quality_bundles = [
             _build_quality_bundle(sample_bundle) for sample_bundle in catalog_bundle.samples
@@ -58,14 +60,27 @@ def _build_quality_bundle(sample_bundle: TierSampleBundle) -> TierQualityBundle:
     )
 
 
-def _metric_compute_progress_spec() -> ProgressStageSpec:
+def _samples_by_split(
+    sample_bundles: tuple[TierSampleBundle, ...],
+) -> tuple[tuple[SampleSplit, tuple[TierSampleBundle, ...]], ...]:
+    splits = tuple(dict.fromkeys(sample.manifest.split for sample in sample_bundles))
+    return tuple(
+        (
+            split,
+            tuple(sample for sample in sample_bundles if sample.manifest.split is split),
+        )
+        for split in splits
+    )
+
+
+def _metric_compute_progress_spec(split: SampleSplit) -> ProgressStageSpec:
     return ProgressStageSpec(
         workflow_id=TIER_WORKFLOW_NAME,
-        stage_id=TIER_STAGE_METRIC_COMPUTE,
-        label="quality continuation",
+        stage_id=f"{TIER_STAGE_METRIC_COMPUTE}.{split.value}",
+        label=f"quality metrics [{split.value}]",
         unit="sample",
         owner_module=__name__,
-        split_behavior="global",
+        split_behavior="per_split",
         operation_kind="quality_continuation",
         total_semantics="PreparedSample payloads with facts, context, and metric bundles",
         bar_eligible=True,

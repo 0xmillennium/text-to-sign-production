@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Callable, TypeVar
 
 from text_to_sign_production.core.ids import TierName
 from text_to_sign_production.core.models import TierDecisionBundle, TierFamilyDecision
+from text_to_sign_production.core.progress import ProgressSession, ProgressStageSpec
 from text_to_sign_production.data.tier.context.types import QualityContext
 from text_to_sign_production.data.tier.families.analysis import binding_metric_summary
 from text_to_sign_production.data.tier.families.types import (
@@ -68,6 +70,8 @@ _BINDING_METRIC_NAMES_BY_FAMILY: dict[BindingQualityFamily, tuple[str, ...]] = {
         "active_span_cross_channel_scale_outlier_frame_ratio",
     ),
 }
+
+_ProgressResult = TypeVar("_ProgressResult")
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,19 +143,68 @@ class TierCalibrationSurfaces:
     active_span_derivation: TierActiveSpanDerivationSummary
 
 
+@dataclass(frozen=True, slots=True)
+class TierCalibrationProgressSpecs:
+    """Progress stages for tier calibration aggregate report computation."""
+
+    family_pass_surfaces: ProgressStageSpec | None = None
+    binding_metric_distributions: ProgressStageSpec | None = None
+    family_waterfalls: ProgressStageSpec | None = None
+    active_span_derivation: ProgressStageSpec | None = None
+
+
 def build_tier_calibration_surfaces(
     *,
     quality_metrics: tuple[QualityMetricBundle, ...],
     quality_contexts: tuple[QualityContext, ...],
     tier_decisions: tuple[TierDecisionBundle, ...],
+    progress_session: ProgressSession | None = None,
+    progress_specs: TierCalibrationProgressSpecs | None = None,
 ) -> TierCalibrationSurfaces:
     """Build typed tier calibration report surfaces from domain/data inputs."""
+    if progress_session is None or progress_specs is None:
+        return TierCalibrationSurfaces(
+            family_pass_surfaces=_family_pass_surfaces(tier_decisions),
+            binding_metric_distributions=_binding_metric_distributions(quality_metrics),
+            family_waterfalls=_family_waterfalls(tier_decisions),
+            active_span_derivation=_active_span_derivation_summary(quality_contexts),
+        )
+
     return TierCalibrationSurfaces(
-        family_pass_surfaces=_family_pass_surfaces(tier_decisions),
-        binding_metric_distributions=_binding_metric_distributions(quality_metrics),
-        family_waterfalls=_family_waterfalls(tier_decisions),
-        active_span_derivation=_active_span_derivation_summary(quality_contexts),
+        family_pass_surfaces=_compute_with_optional_progress(
+            progress_session,
+            progress_specs.family_pass_surfaces,
+            lambda: _family_pass_surfaces(tier_decisions),
+        ),
+        binding_metric_distributions=_compute_with_optional_progress(
+            progress_session,
+            progress_specs.binding_metric_distributions,
+            lambda: _binding_metric_distributions(quality_metrics),
+        ),
+        family_waterfalls=_compute_with_optional_progress(
+            progress_session,
+            progress_specs.family_waterfalls,
+            lambda: _family_waterfalls(tier_decisions),
+        ),
+        active_span_derivation=_compute_with_optional_progress(
+            progress_session,
+            progress_specs.active_span_derivation,
+            lambda: _active_span_derivation_summary(quality_contexts),
+        ),
     )
+
+
+def _compute_with_optional_progress(
+    progress_session: ProgressSession,
+    progress_spec: ProgressStageSpec | None,
+    compute: Callable[[], _ProgressResult],
+) -> _ProgressResult:
+    if progress_spec is None:
+        return compute()
+    with progress_session.task(progress_spec, total=1) as task:
+        result = compute()
+        task.advance(counters={"projected": 1})
+        return result
 
 
 def family_decision_for(
@@ -336,6 +389,7 @@ def _ratio(numerator: int, denominator: int) -> float:
 
 __all__ = [
     "TierActiveSpanDerivationSummary",
+    "TierCalibrationProgressSpecs",
     "TierCalibrationSurfaces",
     "TierFamilyPassSurface",
     "TierFamilyWaterfallStep",

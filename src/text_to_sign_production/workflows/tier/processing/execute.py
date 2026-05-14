@@ -66,7 +66,10 @@ def execute_tier_processing(
         catalog_bundle,
         progress_session=progress_session,
     )
-    leakage_bundle = build_tier_leakage_bundle(catalog_bundle)
+    leakage_bundle = build_tier_leakage_bundle(
+        catalog_bundle,
+        progress_session=progress_session,
+    )
     filter_config, tier_policies, decision_bundles = build_tier_decision_bundles(
         layout=layout,
         quality_bundles=quality_bundles,

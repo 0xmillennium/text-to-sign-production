@@ -3,6 +3,7 @@ from __future__ import annotations
 from text_to_sign_production.core.models import (
     CheckpointAdmission,
 )
+from text_to_sign_production.core.ids import SampleSplit
 from text_to_sign_production.core.progress import ProgressSession, ProgressStageSpec
 from text_to_sign_production.data.tier.leakages import LeakageBundle, sample_leakage_summary
 from text_to_sign_production.data.tier.policies.compute import evaluate_tier_decision
@@ -39,20 +40,21 @@ def build_tier_decision_bundles(
 
     decision_bundles: list[TierDecisionResult] = []
     if progress_session is not None and quality_bundles:
-        with progress_session.task(
-            _tier_decision_progress_spec(),
-            total=len(quality_bundles),
-        ) as progress_task:
-            for quality_bundle in quality_bundles:
-                decision_bundles.append(
-                    _evaluate_quality_bundle(
-                        quality_bundle=quality_bundle,
-                        leakage_bundle=leakage_bundle,
-                        filter_config=filter_config,
-                        tier_policies=tier_policies,
+        for split, split_quality_bundles in _quality_bundles_by_split(quality_bundles):
+            with progress_session.task(
+                _tier_decision_progress_spec(split),
+                total=len(split_quality_bundles),
+            ) as progress_task:
+                for quality_bundle in split_quality_bundles:
+                    decision_bundles.append(
+                        _evaluate_quality_bundle(
+                            quality_bundle=quality_bundle,
+                            leakage_bundle=leakage_bundle,
+                            filter_config=filter_config,
+                            tier_policies=tier_policies,
+                        )
                     )
-                )
-                progress_task.advance()
+                    progress_task.advance()
     else:
         decision_bundles = [
             _evaluate_quality_bundle(
@@ -116,14 +118,27 @@ def _checkpoint_admission(quality_bundle: TierQualityBundle) -> CheckpointAdmiss
     )
 
 
-def _tier_decision_progress_spec() -> ProgressStageSpec:
+def _quality_bundles_by_split(
+    quality_bundles: tuple[TierQualityBundle, ...],
+) -> tuple[tuple[SampleSplit, tuple[TierQualityBundle, ...]], ...]:
+    splits = tuple(dict.fromkeys(bundle.manifest.split for bundle in quality_bundles))
+    return tuple(
+        (
+            split,
+            tuple(bundle for bundle in quality_bundles if bundle.manifest.split is split),
+        )
+        for split in splits
+    )
+
+
+def _tier_decision_progress_spec(split: SampleSplit) -> ProgressStageSpec:
     return ProgressStageSpec(
         workflow_id=TIER_WORKFLOW_NAME,
-        stage_id=TIER_STAGE_DECISION_COMPUTE,
-        label="tier decision",
+        stage_id=f"{TIER_STAGE_DECISION_COMPUTE}.{split.value}",
+        label=f"tier decision [{split.value}]",
         unit="sample",
         owner_module=__name__,
-        split_behavior="global",
+        split_behavior="per_split",
         operation_kind="tier_decision_compute",
         total_semantics="PreparedSample-based tier decisions",
         bar_eligible=True,

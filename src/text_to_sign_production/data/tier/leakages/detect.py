@@ -7,6 +7,7 @@ from itertools import combinations
 
 from text_to_sign_production.core.ids import SampleSplit
 from text_to_sign_production.core.models import PassedManifestEntry, PreparedSample
+from text_to_sign_production.core.progress import ProgressSession
 from text_to_sign_production.data.tier.leakages.overlap import (
     build_leakage_input,
     detect_pair_relations,
@@ -20,6 +21,7 @@ from text_to_sign_production.data.tier.leakages.types import (
     LeakageBundle,
     LeakageInput,
     LeakagePairFact,
+    LeakageProgressSpecs,
     LeakageRelation,
     LeakageSampleRef,
     LeakageSampleSummary,
@@ -31,6 +33,9 @@ SampleKey = tuple[SampleSplit, str]
 def build_leakage_bundle(
     samples: Sequence[PreparedSample],
     manifests: Sequence[PassedManifestEntry] = (),
+    *,
+    progress_session: ProgressSession | None = None,
+    progress_specs: LeakageProgressSpecs | None = None,
 ) -> LeakageBundle:
     """Detect and compose leakage facts from PreparedSample checkpoint authority."""
     manifest_by_id = {manifest.sample_id: manifest for manifest in manifests}
@@ -38,19 +43,55 @@ def build_leakage_bundle(
         build_leakage_input(sample, manifest_by_id.get(sample.source.sample_id))
         for sample in samples
     )
-    return build_leakage_bundle_from_inputs(inputs)
+    return build_leakage_bundle_from_inputs(
+        inputs,
+        progress_session=progress_session,
+        progress_specs=progress_specs,
+    )
 
 
-def build_leakage_bundle_from_inputs(inputs: Sequence[LeakageInput]) -> LeakageBundle:
+def build_leakage_bundle_from_inputs(
+    inputs: Sequence[LeakageInput],
+    *,
+    progress_session: ProgressSession | None = None,
+    progress_specs: LeakageProgressSpecs | None = None,
+) -> LeakageBundle:
     """Detect and compose leakage facts from explicit leakage inputs."""
+    progress_specs = progress_specs or LeakageProgressSpecs()
     sorted_inputs = tuple(sorted(inputs, key=_input_sort_key))
-    _check_duplicate_inputs(sorted_inputs)
-    pair_facts = _build_pair_facts(sorted_inputs)
-    sample_summaries = _build_sample_summaries(sorted_inputs, pair_facts)
+    _check_duplicate_inputs(
+        sorted_inputs,
+        progress_session=progress_session,
+        progress_specs=progress_specs,
+    )
+    pair_facts = _build_pair_facts(
+        sorted_inputs,
+        progress_session=progress_session,
+        progress_specs=progress_specs,
+    )
+    sample_summaries = _build_sample_summaries(
+        sorted_inputs,
+        pair_facts,
+        progress_session=progress_session,
+        progress_specs=progress_specs,
+    )
     return LeakageBundle(pair_facts=pair_facts, sample_summaries=sample_summaries)
 
 
-def _check_duplicate_inputs(inputs: Sequence[LeakageInput]) -> None:
+def _check_duplicate_inputs(
+    inputs: Sequence[LeakageInput],
+    *,
+    progress_session: ProgressSession | None,
+    progress_specs: LeakageProgressSpecs,
+) -> None:
+    if progress_session is not None and progress_specs.duplicate_check is not None:
+        with progress_session.task(progress_specs.duplicate_check, total=len(inputs)) as task:
+            _check_duplicate_inputs_inner(inputs, progress_task=task)
+        return
+    _check_duplicate_inputs_inner(inputs, progress_task=None)
+
+
+def _check_duplicate_inputs_inner(inputs: Sequence[LeakageInput], *, progress_task) -> None:
     seen: set[SampleKey] = set()
     for sample in inputs:
         key = _sample_key(sample)
@@ -60,12 +101,35 @@ def _check_duplicate_inputs(inputs: Sequence[LeakageInput]) -> None:
                 f"split={sample.split.value!r}, sample_id={sample.sample_id!r}."
             )
         seen.add(key)
+        _advance(progress_task)
 
 
-def _build_pair_facts(inputs: Sequence[LeakageInput]) -> tuple[LeakagePairFact, ...]:
+def _build_pair_facts(
+    inputs: Sequence[LeakageInput],
+    *,
+    progress_session: ProgressSession | None,
+    progress_specs: LeakageProgressSpecs,
+) -> tuple[LeakagePairFact, ...]:
+    total = len(inputs) * (len(inputs) - 1) // 2
+    if progress_session is not None and progress_specs.relation_scan is not None:
+        with progress_session.task(progress_specs.relation_scan, total=total) as task:
+            return _build_pair_facts_inner(inputs, progress_task=task)
+    return _build_pair_facts_inner(inputs, progress_task=None)
+
+
+def _build_pair_facts_inner(
+    inputs: Sequence[LeakageInput],
+    *,
+    progress_task,
+) -> tuple[LeakagePairFact, ...]:
     facts: list[LeakagePairFact] = []
+    pending_progress = 0
     for left, right in combinations(inputs, 2):
         relations = detect_pair_relations(left, right)
+        pending_progress += 1
+        if pending_progress >= 1000:
+            _advance(progress_task, pending_progress)
+            pending_progress = 0
         if relations is None:
             continue
         facts.append(
@@ -80,12 +144,29 @@ def _build_pair_facts(inputs: Sequence[LeakageInput]) -> tuple[LeakagePairFact, 
                 severity=classify_leakage_severity(relations),
             )
         )
+    if pending_progress:
+        _advance(progress_task, pending_progress)
     return tuple(facts)
 
 
 def _build_sample_summaries(
     inputs: Sequence[LeakageInput],
     pair_facts: tuple[LeakagePairFact, ...],
+    *,
+    progress_session: ProgressSession | None,
+    progress_specs: LeakageProgressSpecs,
+) -> tuple[LeakageSampleSummary, ...]:
+    if progress_session is not None and progress_specs.summary_build is not None:
+        with progress_session.task(progress_specs.summary_build, total=len(inputs)) as task:
+            return _build_sample_summaries_inner(inputs, pair_facts, progress_task=task)
+    return _build_sample_summaries_inner(inputs, pair_facts, progress_task=None)
+
+
+def _build_sample_summaries_inner(
+    inputs: Sequence[LeakageInput],
+    pair_facts: tuple[LeakagePairFact, ...],
+    *,
+    progress_task,
 ) -> tuple[LeakageSampleSummary, ...]:
     pairs_by_sample: dict[SampleKey, list[tuple[LeakagePairFact, SampleKey]]] = {
         _sample_key(sample): [] for sample in inputs
@@ -127,6 +208,7 @@ def _build_sample_summaries(
                 matched_samples=matched,
             )
         )
+        _advance(progress_task)
     return tuple(summaries)
 
 
@@ -143,6 +225,11 @@ def _sample_key(sample: LeakageInput) -> SampleKey:
 
 def _input_sort_key(sample: LeakageInput) -> tuple[str, str]:
     return (sample.split.value, sample.sample_id)
+
+
+def _advance(progress_task, count: int = 1) -> None:
+    if progress_task is not None:
+        progress_task.advance(count)
 
 
 __all__ = ["build_leakage_bundle", "build_leakage_bundle_from_inputs"]

@@ -8,7 +8,7 @@ from text_to_sign_production.data.tier.manifests import (
     TierManifestWritePlan,
     bucket_tier_manifest_entries,
     plan_tier_manifest_outputs,
-    write_tier_manifest_plan,
+    write_tier_manifest_output,
 )
 from text_to_sign_production.workflows.foundation.provenance import written_file_receipt
 from text_to_sign_production.workflows.tier.constants import (
@@ -38,17 +38,22 @@ def write_tiered_manifests(
         for decision_bundle in decision_bundles
     )
     plan = _plan_tiered_manifests(targets=targets, inputs=inputs)
-    total = len(decision_bundles) * len(tuple(TierName))
     if progress_session is not None:
         with progress_session.task(
             _tiered_manifest_progress_spec(),
-            total=total,
+            total=len(plan.entries),
         ) as progress_task:
-            outputs = _write_tiered_manifest_outputs(plan, execution_id=execution_id)
-            if total:
-                progress_task.advance(total)
+            outputs = _write_tiered_manifest_outputs(
+                plan,
+                execution_id=execution_id,
+                progress_task=progress_task,
+            )
     else:
-        outputs = _write_tiered_manifest_outputs(plan, execution_id=execution_id)
+        outputs = _write_tiered_manifest_outputs(
+            plan,
+            execution_id=execution_id,
+            progress_task=None,
+        )
     return outputs
 
 
@@ -65,12 +70,21 @@ def _write_tiered_manifest_outputs(
     plan: TierManifestWritePlan,
     *,
     execution_id: str,
+    progress_task,
 ) -> tuple[TieredWrittenManifestArtifact, ...]:
-    write_tier_manifest_plan(plan)
-    return tuple(
-        _tiered_manifest_output(entry.target, execution_id=execution_id)
-        for entry in plan.entries
-    )
+    outputs: list[TieredWrittenManifestArtifact] = []
+    for entry in plan.entries:
+        write_tier_manifest_output(
+            path=entry.target.path,
+            entries=entry.entries,
+            tier=entry.target.tier,
+            membership=entry.target.membership,
+            split=entry.target.split,
+        )
+        outputs.append(_tiered_manifest_output(entry.target, execution_id=execution_id))
+        if progress_task is not None:
+            progress_task.advance()
+    return tuple(outputs)
 
 
 def _tiered_manifest_output(
@@ -117,10 +131,10 @@ def _tiered_manifest_progress_spec() -> ProgressStageSpec:
         workflow_id=TIER_WORKFLOW_NAME,
         stage_id=TIER_STAGE_MANIFEST_WRITE,
         label="tiered manifest write",
-        unit="entry",
+        unit="file",
         owner_module=__name__,
         split_behavior="global",
         operation_kind="tiered_manifest_write",
-        total_semantics="passed manifest rows projected into tier/membership/split files",
+        total_semantics="tier/membership/split manifest files written",
         bar_eligible=True,
     )

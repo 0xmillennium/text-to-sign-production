@@ -4,6 +4,7 @@ from collections import Counter
 from collections.abc import Iterable
 
 from text_to_sign_production.core.ids import TierMembership, TierName
+from text_to_sign_production.core.progress import ProgressSession, ProgressStageSpec
 from text_to_sign_production.data.dataset.analysis import (
     summarize_checkpoint_handoff,
     summarize_passed_manifest,
@@ -12,6 +13,7 @@ from text_to_sign_production.data.tier.families.types import BindingQualityFamil
 from text_to_sign_production.data.tier.policies.analysis import tier_membership_for_decision
 from text_to_sign_production.data.tier.reports.calibration import (
     TierActiveSpanDerivationSummary,
+    TierCalibrationProgressSpecs,
     TierCalibrationSurfaces,
     TierFamilyPassSurface,
     TierFamilyWaterfalls,
@@ -342,14 +344,25 @@ def build_processing_detail_sections(
 
 def build_calibration_sections(
     bundle: TierExecutionBundle,
+    *,
+    calibration_surfaces: TierCalibrationSurfaces | None = None,
 ) -> tuple[WorkflowReviewSection, ...]:
-    return build_calibration_summary_sections(bundle)
+    return build_calibration_summary_sections(
+        bundle,
+        calibration_surfaces=calibration_surfaces,
+    )
 
 
 def build_calibration_summary_sections(
     bundle: TierExecutionBundle,
+    *,
+    calibration_surfaces: TierCalibrationSurfaces | None = None,
 ) -> tuple[WorkflowReviewSection, ...]:
-    calibration = _tier_calibration_surfaces(bundle)
+    calibration = (
+        calibration_surfaces
+        if calibration_surfaces is not None
+        else _tier_calibration_surfaces(bundle)
+    )
     pass_surfaces = tuple(
         _family_pass_surface_review(row) for row in calibration.family_pass_surfaces
     )
@@ -461,8 +474,14 @@ def build_calibration_summary_sections(
 
 def build_calibration_detail_sections(
     bundle: TierExecutionBundle,
+    *,
+    calibration_surfaces: TierCalibrationSurfaces | None = None,
 ) -> tuple[WorkflowReviewSection, ...]:
-    calibration = _tier_calibration_surfaces(bundle)
+    calibration = (
+        calibration_surfaces
+        if calibration_surfaces is not None
+        else _tier_calibration_surfaces(bundle)
+    )
     waterfalls = _waterfalls_review(calibration.family_waterfalls)
     active_span = _active_span_derivation_review(calibration.active_span_derivation)
     return (
@@ -636,52 +655,84 @@ def build_final_operator_summary_sections(
 
 def build_decision_detail_review_payload(
     bundle: TierExecutionBundle,
+    *,
+    progress_session: ProgressSession | None = None,
+    progress_spec: ProgressStageSpec | None = None,
 ) -> TierDecisionDetailReviewPayload:
     """Build the typed decision-detail projection consumed by JSON writing."""
-    records: list[TierDecisionReviewRecord] = []
-    report_lookup = {
-        (report.manifest.split, report.manifest.sample_id): report for report in bundle.tier_reports
-    }
-    for decision_bundle in bundle.decision_bundles:
-        key = (decision_bundle.manifest.split, decision_bundle.manifest.sample_id)
-        report_bundle = report_lookup[key]
-        report = report_bundle.report
-        leakage_decision = decision_bundle.decision.leakage_decision
-        records.append(
-            TierDecisionReviewRecord(
-                split=decision_bundle.manifest.split.value,
-                sample_id=decision_bundle.manifest.sample_id,
-                selected_tier=(
-                    None
-                    if decision_bundle.decision.selected_tier is None
-                    else decision_bundle.decision.selected_tier.value
-                ),
-                tier_status=decision_bundle.decision.status.value,
-                leakage_observed_max_severity=(
-                    None if leakage_decision is None else leakage_decision.observed_max_severity
-                ),
-                leakage_admissible_tiers=(
-                    ()
-                    if leakage_decision is None
-                    else tuple(tier.value for tier in leakage_decision.admissible_tiers)
-                ),
-                leakage_rejected_tiers=(
-                    ()
-                    if leakage_decision is None
-                    else tuple(tier.value for tier in leakage_decision.rejected_tiers)
-                ),
-                report_summary=_tier_report_summary_review(report_bundle),
-                metric_rows=_metric_row_records(report.tables.metric_rows),
-                tier_rows=_tier_row_records(report.tables.tier_rows),
-            )
-        )
+    if progress_session is not None and progress_spec is not None:
+        records: list[TierDecisionReviewRecord] = []
+        report_lookup: dict[tuple[object, str], TierReportResult] = {}
+        indexed = 0
+        projected = 0
+        total = len(bundle.tier_reports) + len(bundle.decision_bundles)
+        with progress_session.task(progress_spec, total=total) as task:
+            for report in bundle.tier_reports:
+                report_lookup[(report.manifest.split, report.manifest.sample_id)] = report
+                indexed += 1
+                task.advance(counters={"indexed": indexed, "projected": projected})
+            for decision_bundle in bundle.decision_bundles:
+                records.append(_decision_detail_review_record(decision_bundle, report_lookup))
+                projected += 1
+                task.advance(counters={"indexed": indexed, "projected": projected})
+    else:
+        report_lookup = {
+            (report.manifest.split, report.manifest.sample_id): report
+            for report in bundle.tier_reports
+        }
+        records = [
+            _decision_detail_review_record(decision_bundle, report_lookup)
+            for decision_bundle in bundle.decision_bundles
+        ]
     return TierDecisionDetailReviewPayload(records=tuple(records))
+
+
+def _decision_detail_review_record(
+    decision_bundle,
+    report_lookup: dict[tuple[object, str], TierReportResult],
+) -> TierDecisionReviewRecord:
+    key = (decision_bundle.manifest.split, decision_bundle.manifest.sample_id)
+    report_bundle = report_lookup[key]
+    report = report_bundle.report
+    leakage_decision = decision_bundle.decision.leakage_decision
+    return TierDecisionReviewRecord(
+        split=decision_bundle.manifest.split.value,
+        sample_id=decision_bundle.manifest.sample_id,
+        selected_tier=(
+            None
+            if decision_bundle.decision.selected_tier is None
+            else decision_bundle.decision.selected_tier.value
+        ),
+        tier_status=decision_bundle.decision.status.value,
+        leakage_observed_max_severity=(
+            None if leakage_decision is None else leakage_decision.observed_max_severity
+        ),
+        leakage_admissible_tiers=(
+            ()
+            if leakage_decision is None
+            else tuple(tier.value for tier in leakage_decision.admissible_tiers)
+        ),
+        leakage_rejected_tiers=(
+            ()
+            if leakage_decision is None
+            else tuple(tier.value for tier in leakage_decision.rejected_tiers)
+        ),
+        report_summary=_tier_report_summary_review(report_bundle),
+        metric_rows=_metric_row_records(report.tables.metric_rows),
+        tier_rows=_tier_row_records(report.tables.tier_rows),
+    )
 
 
 def build_calibration_surfaces_review_payload(
     bundle: TierExecutionBundle,
+    *,
+    calibration_surfaces: TierCalibrationSurfaces | None = None,
 ) -> CalibrationSurfacesReviewPayload:
-    calibration = _tier_calibration_surfaces(bundle)
+    calibration = (
+        calibration_surfaces
+        if calibration_surfaces is not None
+        else _tier_calibration_surfaces(bundle)
+    )
     return CalibrationSurfacesReviewPayload(
         workflow="tier",
         processed_count=bundle.processed_count,
@@ -701,8 +752,14 @@ def build_calibration_surfaces_review_payload(
 
 def build_calibration_detail_review_payload(
     bundle: TierExecutionBundle,
+    *,
+    calibration_surfaces: TierCalibrationSurfaces | None = None,
 ) -> CalibrationDetailReviewPayload:
-    calibration = _tier_calibration_surfaces(bundle)
+    calibration = (
+        calibration_surfaces
+        if calibration_surfaces is not None
+        else _tier_calibration_surfaces(bundle)
+    )
     return CalibrationDetailReviewPayload(
         workflow="tier",
         processed_count=bundle.processed_count,
@@ -909,13 +966,20 @@ def _membership_count_review_rows(
     )
 
 
-def _tier_calibration_surfaces(bundle: TierExecutionBundle) -> TierCalibrationSurfaces:
+def _tier_calibration_surfaces(
+    bundle: TierExecutionBundle,
+    *,
+    progress_session: ProgressSession | None = None,
+    progress_specs: TierCalibrationProgressSpecs | None = None,
+) -> TierCalibrationSurfaces:
     return build_tier_calibration_surfaces(
         quality_metrics=tuple(quality_bundle.metrics for quality_bundle in bundle.quality_bundles),
         quality_contexts=tuple(quality_bundle.context for quality_bundle in bundle.quality_bundles),
         tier_decisions=tuple(
             decision_bundle.decision for decision_bundle in bundle.decision_bundles
         ),
+        progress_session=progress_session,
+        progress_specs=progress_specs,
     )
 
 

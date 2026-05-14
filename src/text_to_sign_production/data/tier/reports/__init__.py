@@ -3,6 +3,7 @@
 from text_to_sign_production.data.tier.reports.build import build_tier_report
 from text_to_sign_production.data.tier.reports.calibration import (
     TierActiveSpanDerivationSummary,
+    TierCalibrationProgressSpecs,
     TierCalibrationSurfaces,
     TierFamilyPassSurface,
     TierFamilyWaterfallStep,
@@ -16,6 +17,7 @@ from text_to_sign_production.data.tier.reports.types import (
 
 __all__ = [
     "TierActiveSpanDerivationSummary",
+    "TierCalibrationProgressSpecs",
     "TierCalibrationSurfaces",
     "TierFamilyPassSurface",
     "TierFamilyWaterfallStep",

@@ -6,6 +6,7 @@ import enum
 from dataclasses import dataclass
 
 from text_to_sign_production.core.ids import SampleSplit
+from text_to_sign_production.core.progress import ProgressStageSpec
 
 
 class LeakageRelation(enum.StrEnum):
@@ -30,6 +31,15 @@ class LeakageSeverity(enum.StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
+
+@dataclass(frozen=True, slots=True)
+class LeakageProgressSpecs:
+    """Optional progress stages for leakage bundle construction."""
+
+    duplicate_check: ProgressStageSpec | None = None
+    relation_scan: ProgressStageSpec | None = None
+    summary_build: ProgressStageSpec | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,6 +144,7 @@ __all__ = [
     "LeakageBundle",
     "LeakageInput",
     "LeakagePairFact",
+    "LeakageProgressSpecs",
     "LeakageRelation",
     "LeakageRelationFrequencyRecord",
     "LeakageSampleRef",
