@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
 
@@ -9,8 +10,9 @@ from text_to_sign_production.core.ids import (
     SampleSplit,
     SampleStatus,
     TierMembership,
-    TierName,
 )
+
+_SAFE_TIER_TOKEN_RE = re.compile(r"^[a-z0-9]+(?:[-_][a-z0-9]+)*$")
 
 
 def validate_samples_relative_path(relative_path: str | Path) -> list[str]:
@@ -155,8 +157,8 @@ def validate_manifests_relative_path(relative_path: str | Path) -> list[str]:
     if len(parts) == 4 and parts[0] == "tiered":
         _, tier, membership, filename = parts
         errors = []
-        if tier not in _values(TierName):
-            errors.append("Tiered manifest tier must be loose, clean, or tight.")
+        if not _SAFE_TIER_TOKEN_RE.fullmatch(tier):
+            errors.append("Tiered manifest tier must be a lowercase safe token.")
         if membership not in _values(TierMembership):
             errors.append("Tiered manifest membership must be included or excluded.")
         errors.extend(_validate_split_json_filename(filename, "Tiered manifest"))
@@ -166,6 +168,162 @@ def validate_manifests_relative_path(relative_path: str | Path) -> list[str]:
         "Manifest relative path must have shape untiered/passed/<split>.json, "
         "untiered/dropped/<split>.json, or tiered/<tier>/<membership>/<split>.json."
     ]
+
+
+def validate_model_run_relative_path(relative_path: str | Path) -> list[str]:
+    """Validate a repo-relative model run artifact path shape."""
+
+    parts_errors, parts = _relative_parts(relative_path)
+    if parts_errors:
+        return parts_errors
+    safe_errors = _validate_safe_parts(parts, "Model run relative path")
+    if safe_errors:
+        return safe_errors
+    if len(parts) < 4 or parts[0] != "models":
+        return ["Model run relative path must be under models/<model_key>/<run_name>/."]
+    _, model_key, run_name, family, *rest = parts
+    errors: list[str] = []
+    errors.extend(_validate_path_token(model_key, "Model key"))
+    errors.extend(_validate_path_token(run_name, "Model run name"))
+    if family in {"effective_config.json", "research_spec.json", "run_metadata.json"}:
+        if rest:
+            errors.append("Model run metadata files must be directly under the run root.")
+        return errors
+    if family == "checkpoints":
+        if len(rest) != 1:
+            errors.append("Model checkpoint path must include exactly one checkpoint filename.")
+            return errors
+        filename = rest[0]
+        if not (filename.endswith(".pt") or filename.endswith(".pt.zst")):
+            errors.append("Model checkpoint filename must end with .pt or .pt.zst.")
+        if filename in {".pt", ".pt.zst"}:
+            errors.append("Model checkpoint filename must include a concrete file stem.")
+        return errors
+    if family == "training":
+        if tuple(rest) not in {
+            ("metrics.jsonl",),
+            ("summary.json",),
+            ("live.log",),
+        }:
+            errors.append("Model training path must be metrics.jsonl, summary.json, or live.log.")
+        return errors
+    if family == "intermediates":
+        if not rest:
+            errors.append("Model intermediate path must include an intermediate name or file.")
+        else:
+            errors.extend(_validate_path_token(rest[0], "Model intermediate name"))
+        return errors
+    errors.append("Model run relative path family is not recognized.")
+    return errors
+
+
+def validate_generated_pose_relative_path(relative_path: str | Path) -> list[str]:
+    """Validate a repo-relative generated-pose artifact path shape."""
+
+    parts_errors, parts = _relative_parts(relative_path)
+    if parts_errors:
+        return parts_errors
+    safe_errors = _validate_safe_parts(parts, "Generated-pose relative path")
+    if safe_errors:
+        return safe_errors
+    if len(parts) >= 2 and parts[0] == "generated_pose":
+        return _validate_generated_pose_diagnostic_tail(parts[1:])
+    if len(parts) >= 6 and parts[:2] == ("reports", "test_model"):
+        return _validate_test_model_generated_pose_path(parts)
+    if len(parts) < 6 or parts[:2] != ("evaluations", "generated_pose"):
+        return [
+            "Generated-pose relative path must be under "
+            "evaluations/generated_pose/<producer_key>/<run_name>/<split>/ "
+            "or reports/test_model/<model_run>/<sample>/<execution>/generated_pose/."
+        ]
+    _, _, producer_key, run_name, split, *rest = parts
+    errors: list[str] = []
+    errors.extend(_validate_path_token(producer_key, "Generated-pose producer key"))
+    errors.extend(_validate_path_token(run_name, "Generated-pose run name"))
+    if split not in _values(SampleSplit):
+        errors.append("Generated-pose split must be train, val, or test.")
+    if tuple(rest) == ("manifest.jsonl",):
+        return errors
+    if len(rest) == 2 and rest[0] == "samples":
+        filename = rest[1]
+        match = _GENERATED_POSE_SAMPLE_RE.fullmatch(filename)
+        if not match:
+            errors.append(
+                "Generated-pose sample filename must match {sample_id}__g{non_negative_int}.npz."
+            )
+        else:
+            errors.extend(
+                _validate_path_token(match.group("sample_id"), "Generated-pose sample id")
+            )
+        return errors
+    errors.append(
+        "Generated-pose relative path must end with manifest.jsonl or "
+        "samples/{sample_id}__g{generation_index}.npz."
+    )
+    return errors
+
+
+def _validate_test_model_generated_pose_path(parts: tuple[str, ...]) -> list[str]:
+    if len(parts) < 7 or parts[:2] != ("reports", "test_model"):
+        return [
+            "Test-model generated-pose path must be under "
+            "reports/test_model/<model_run>/<sample>/<execution>/generated_pose/."
+        ]
+    _, _, model_run, sample_id, execution_id, generated_pose, *rest = parts
+    errors: list[str] = []
+    errors.extend(_validate_path_token(model_run, "Test-model run name"))
+    errors.extend(_validate_path_token(sample_id, "Test-model sample id"))
+    errors.extend(_validate_path_token(execution_id, "Test-model execution id"))
+    if generated_pose != "generated_pose":
+        errors.append("Test-model generated-pose path must include generated_pose/.")
+        return errors
+    errors.extend(_validate_generated_pose_diagnostic_tail(tuple(rest)))
+    return errors
+
+
+def _validate_generated_pose_diagnostic_tail(parts: tuple[str, ...]) -> list[str]:
+    if tuple(parts) == ("manifest.jsonl",):
+        return []
+    if len(parts) == 2 and parts[0] == "samples":
+        filename = parts[1]
+        match = _GENERATED_POSE_SAMPLE_RE.fullmatch(filename)
+        if not match:
+            return [
+                "Generated-pose sample filename must match {sample_id}__g{non_negative_int}.npz."
+            ]
+        return _validate_path_token(match.group("sample_id"), "Generated-pose sample id")
+    return [
+        "Generated-pose diagnostic path must end with manifest.jsonl or "
+        "samples/{sample_id}__g{generation_index}.npz."
+    ]
+
+
+def validate_modeling_report_relative_path(relative_path: str | Path) -> list[str]:
+    """Validate a repo-relative model report path shape."""
+
+    parts_errors, parts = _relative_parts(relative_path)
+    if parts_errors:
+        return parts_errors
+    safe_errors = _validate_safe_parts(parts, "Modeling report relative path")
+    if safe_errors:
+        return safe_errors
+    if len(parts) == 6 and parts[:2] == ("reports", "modeling") and parts[4] == "validation":
+        errors = []
+        errors.extend(_validate_path_token(parts[2], "Modeling report model key"))
+        errors.extend(_validate_path_token(parts[3], "Modeling report run name"))
+        errors.extend(_validate_validation_report_filename(parts[-1]))
+        return errors
+    if len(parts) != 5 or parts[:2] != ("reports", "modeling"):
+        return [
+            "Modeling report relative path must have shape "
+            "reports/modeling/<model_key>/<run_name>/<filename> or "
+            "reports/modeling/<model_key>/<run_name>/validation/<filename>."
+        ]
+    errors = []
+    errors.extend(_validate_path_token(parts[2], "Modeling report model key"))
+    errors.extend(_validate_path_token(parts[3], "Modeling report run name"))
+    errors.extend(_validate_report_filename(parts[-1], "Modeling report"))
+    return errors
 
 
 def _values(enum_type: type[StrEnum]) -> set[str]:
@@ -227,11 +385,57 @@ def _validate_checkpoint_relative_path(
     return []
 
 
+def _validate_safe_parts(parts: tuple[str, ...], label: str) -> list[str]:
+    errors: list[str] = []
+    for part in parts:
+        if not part.strip() or part in {".", ".."}:
+            errors.append(f"{label} must not contain blank or dot path tokens.")
+            break
+        if "\\" in part:
+            errors.append(f"{label} must not contain backslash path separators.")
+            break
+    return errors
+
+
+def _validate_report_filename(filename: str, label: str) -> list[str]:
+    if not (filename.endswith(".md") or filename.endswith(".json")):
+        return [f"{label} filename must end with .md or .json."]
+    if filename in {".md", ".json"}:
+        return [f"{label} filename must include a concrete file stem."]
+    return []
+
+
+def _validate_validation_report_filename(filename: str) -> list[str]:
+    if not (
+        filename.endswith(".md")
+        or filename.endswith(".json")
+        or filename.endswith(".jsonl")
+    ):
+        return ["Model validation report filename must end with .md, .json, or .jsonl."]
+    if filename in {".md", ".json", ".jsonl"}:
+        return ["Model validation report filename must include a concrete file stem."]
+    return []
+
+
+def _validate_path_token(value: str, label: str) -> list[str]:
+    if not value.strip() or value in {".", ".."}:
+        return [f"{label} must be a non-empty concrete path token."]
+    if "." in value or "/" in value or "\\" in value:
+        return [f"{label} must not contain dot or path separator characters."]
+    return []
+
+
+_GENERATED_POSE_SAMPLE_RE = re.compile(r"(?P<sample_id>.+)__g(?:0|[1-9][0-9]*)\.npz")
+
+
 __all__ = [
     "validate_checkpoint_drive_archive_relative_path",
     "validate_checkpoint_runtime_file_relative_path",
+    "validate_generated_pose_relative_path",
     "validate_keypoint_archive_relative_path",
     "validate_manifests_relative_path",
+    "validate_model_run_relative_path",
+    "validate_modeling_report_relative_path",
     "validate_sample_archive_member_path",
     "validate_sample_archive_relative_path",
     "validate_samples_relative_path",

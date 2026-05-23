@@ -136,6 +136,56 @@ def render_side_by_side_video(
     }
 
 
+def render_pose_pair_video(
+    *,
+    left_pose_sample: PoseSample,
+    right_pose_sample: PoseSample,
+    output_path: Path | str,
+    fps: float = 30.0,
+    left_label: str | None = None,
+    right_label: str | None = None,
+    config: SkeletonRenderConfig | None = None,
+) -> dict[str, Any]:
+    """Write two skeleton pose samples side by side and return render metadata."""
+
+    resolved_config = config or SkeletonRenderConfig()
+    resolved_output_path = Path(output_path).expanduser().resolve()
+    _require_prepared_output_parent(resolved_output_path)
+    output_frame_count = max(left_pose_sample.num_frames, right_pose_sample.num_frames)
+    writer = _video_writer(
+        resolved_output_path,
+        fps=fps,
+        frame_size=(resolved_config.canvas_width * 2, resolved_config.canvas_height),
+    )
+    written_frames = 0
+    try:
+        for frame_index in range(output_frame_count):
+            left_frame = render_pose_frame(
+                left_pose_sample,
+                frame_index,
+                config=resolved_config,
+                label=left_label,
+            )
+            right_frame = render_pose_frame(
+                right_pose_sample,
+                frame_index,
+                config=resolved_config,
+                label=right_label,
+            )
+            writer.write(np.concatenate([left_frame, right_frame], axis=1))
+            written_frames += 1
+    finally:
+        writer.release()
+
+    return {
+        "output_frame_count": written_frames,
+        "left_frames": left_pose_sample.num_frames,
+        "right_frames": right_pose_sample.num_frames,
+        "fps": fps,
+        "layout": "pose_pair_side_by_side",
+    }
+
+
 def _usable_fps(value: float | None) -> float | None:
     if value is None or not np.isfinite(value) or value <= 0:
         return None

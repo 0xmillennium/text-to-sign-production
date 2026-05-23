@@ -640,33 +640,6 @@ def run_baseline_training(
             validation_metric=validation_result.metric,
             metric_name=config.training.early_stopping_metric,
         )
-        save_training_checkpoint(
-            last_checkpoint_path,
-            model=model,
-            optimizer=optimizer,
-            scheduler=scheduler,
-            scaler=scaler,
-            epoch=epoch,
-            role="last",
-            config_summary=config_summary,
-            config_hash=config_hash,
-            backbone_name=config.backbone.name,
-            model_revision=_resolved_model_revision(model_metadata),
-            seed=config.training.seed,
-            metrics=metrics,
-            run_mode=run_mode,
-            best_metric=best_metric_value,
-            best_epoch=best_epoch,
-            target_standardization=(
-                None if target_standardization is None else target_standardization.to_dict()
-            ),
-        )
-        progress_events.emit(
-            CheckpointSaved(checkpoint_path=last_checkpoint_path, role="last", epoch=epoch)
-        )
-        run_log.emit(
-            CheckpointSavedLog(checkpoint_path=last_checkpoint_path, role="last", epoch=epoch)
-        )
         best_checkpoint_updated = should_replace_best_checkpoint(
             candidate_validation_loss=validation_result.metric,
             best_validation_loss=best_metric_value,

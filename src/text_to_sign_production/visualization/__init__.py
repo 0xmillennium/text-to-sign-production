@@ -2,7 +2,12 @@
 
 from .pose import PoseSample, PoseSampleError, load_pose_sample
 from .skeleton import BODY_25_EDGES, HAND_21_EDGES, SkeletonRenderConfig, render_pose_frame
-from .video import VideoRenderError, render_side_by_side_video, render_skeleton_video
+from .video import (
+    VideoRenderError,
+    render_pose_pair_video,
+    render_side_by_side_video,
+    render_skeleton_video,
+)
 
 __all__ = [
     "BODY_25_EDGES",
@@ -13,6 +18,7 @@ __all__ = [
     "VideoRenderError",
     "load_pose_sample",
     "render_pose_frame",
+    "render_pose_pair_video",
     "render_side_by_side_video",
     "render_skeleton_video",
 ]

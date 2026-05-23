@@ -8,8 +8,12 @@ from text_to_sign_production.data.dataset.dropped_payloads import (
     write_dropped_sample_payload,
 )
 from text_to_sign_production.data.dataset.manifests import (
+    PassedManifestHeader,
+    TierManifestHeader,
     read_dropped_manifest_json,
+    read_passed_manifest_header,
     read_passed_manifest_json,
+    read_tier_manifest_header,
     read_tier_manifest_json,
     write_dropped_manifest_json,
     write_passed_manifest_json,
@@ -22,10 +26,14 @@ from text_to_sign_production.data.dataset.payloads import (
 
 __all__ = [
     "PREPARED_SAMPLE_SCHEMA_VERSION",
+    "PassedManifestHeader",
+    "TierManifestHeader",
     "load_dropped_sample_payload",
     "load_prepared_sample_payload",
     "read_dropped_manifest_json",
+    "read_passed_manifest_header",
     "read_passed_manifest_json",
+    "read_tier_manifest_header",
     "read_tier_manifest_json",
     "write_dropped_manifest_json",
     "write_dropped_sample_payload",

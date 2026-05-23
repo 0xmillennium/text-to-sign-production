@@ -104,12 +104,6 @@ def validate_artifact_topology(topology: ArtifactTopology) -> list[str]:
         topology.reports_root / "visualization",
         "reports.visualization_root",
     )
-    _expect_path(
-        errors,
-        topology.reports.evaluation_root,
-        topology.reports_root / "evaluation",
-        "reports.evaluation_root",
-    )
     return errors
 
 

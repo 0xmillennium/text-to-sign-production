@@ -132,6 +132,11 @@ def _build_split_processing_result(
             for evaluation in evaluations
             if evaluation.dropped_entry is not None
         ),
+        confidence_canonicalization_summaries=tuple(
+            evaluation.confidence_canonicalization
+            for evaluation in evaluations
+            if evaluation.confidence_canonicalization is not None
+        ),
     )
 
 

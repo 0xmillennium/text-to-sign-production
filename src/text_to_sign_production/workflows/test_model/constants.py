@@ -1,0 +1,32 @@
+"""Constants for single-sample model test workflow orchestration."""
+
+TEST_MODEL_WORKFLOW_NAME = "test_model"
+TEST_MODEL_WORKFLOW_DIRNAME = "test_model"
+
+TEST_MODEL_STAGE_RUNTIME_RESTORE = "test_model.runtime.restore"
+TEST_MODEL_STAGE_INFERENCE = "test_model.inference"
+TEST_MODEL_STAGE_VISUALIZATION = "test_model.visualization"
+TEST_MODEL_STAGE_REPORTS = "test_model.reports"
+TEST_MODEL_STAGE_PUBLISH = "test_model.publish"
+TEST_MODEL_STAGE_TARGET_RESOLVE = "test_model.target.resolve"
+TEST_MODEL_STAGE_EVIDENCE_COLLECT = "test_model.evidence.collect"
+TEST_MODEL_STAGE_INFERENCE_RUN = "test_model.inference.run"
+TEST_MODEL_STAGE_REFERENCE_COMPARE = "test_model.reference.compare"
+TEST_MODEL_STAGE_VISUALIZATION_RENDER = "test_model.visualization.render"
+TEST_MODEL_STAGE_REPORT_WRITE = "test_model.report.write"
+
+__all__ = [
+    "TEST_MODEL_STAGE_EVIDENCE_COLLECT",
+    "TEST_MODEL_STAGE_INFERENCE",
+    "TEST_MODEL_STAGE_INFERENCE_RUN",
+    "TEST_MODEL_STAGE_PUBLISH",
+    "TEST_MODEL_STAGE_REFERENCE_COMPARE",
+    "TEST_MODEL_STAGE_REPORT_WRITE",
+    "TEST_MODEL_STAGE_REPORTS",
+    "TEST_MODEL_STAGE_RUNTIME_RESTORE",
+    "TEST_MODEL_STAGE_TARGET_RESOLVE",
+    "TEST_MODEL_STAGE_VISUALIZATION",
+    "TEST_MODEL_STAGE_VISUALIZATION_RENDER",
+    "TEST_MODEL_WORKFLOW_DIRNAME",
+    "TEST_MODEL_WORKFLOW_NAME",
+]

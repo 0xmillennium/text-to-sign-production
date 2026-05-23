@@ -3,7 +3,7 @@ families:
     loose:
       max_out_of_bounds_ratio: 0.25
     clean:
-      max_out_of_bounds_ratio: 0.12
+      max_out_of_bounds_ratio: 0.15
     tight:
       max_out_of_bounds_ratio: 0.06
 
@@ -11,7 +11,7 @@ families:
     loose:
       min_active_span_upper_body_support_landmark_coverage_ratio: 0.75
     clean:
-      min_active_span_upper_body_support_landmark_coverage_ratio: 0.90
+      min_active_span_upper_body_support_landmark_coverage_ratio: 0.85
     tight:
       min_active_span_upper_body_support_landmark_coverage_ratio: 0.97
 
@@ -20,8 +20,8 @@ families:
       min_active_span_any_hand_available_frame_ratio: 0.60
       max_active_span_any_hand_unavailable_run_ratio: 0.40
     clean:
-      min_active_span_any_hand_available_frame_ratio: 0.85
-      max_active_span_any_hand_unavailable_run_ratio: 0.20
+      min_active_span_any_hand_available_frame_ratio: 0.80
+      max_active_span_any_hand_unavailable_run_ratio: 0.25
     tight:
       min_active_span_any_hand_available_frame_ratio: 0.95
       max_active_span_any_hand_unavailable_run_ratio: 0.10
@@ -31,8 +31,8 @@ families:
       min_active_span_face_available_frame_ratio: 0.70
       max_active_span_face_unavailable_run_ratio: 0.30
     clean:
-      min_active_span_face_available_frame_ratio: 0.90
-      max_active_span_face_unavailable_run_ratio: 0.15
+      min_active_span_face_available_frame_ratio: 0.85
+      max_active_span_face_unavailable_run_ratio: 0.20
     tight:
       min_active_span_face_available_frame_ratio: 0.97
       max_active_span_face_unavailable_run_ratio: 0.05
@@ -46,7 +46,7 @@ families:
       min_active_span_any_hand_observed_mean_confidence: 0.35
     tight:
       min_active_span_body_observed_mean_confidence: 0.65
-      min_active_span_any_hand_observed_mean_confidence: 0.50
+      min_active_span_any_hand_observed_mean_confidence: 0.45
 
   kinematic_naturalness:
     loose:
@@ -55,7 +55,7 @@ families:
       max_active_span_frozen_run_ratio: 0.25
     clean:
       max_comparable_transition_abrupt_ratio: 0.05
-      max_comparable_transition_discontinuity_ratio: 0.02
+      max_comparable_transition_discontinuity_ratio: 0.03
       max_active_span_frozen_run_ratio: 0.15
     tight:
       max_comparable_transition_abrupt_ratio: 0.02
@@ -68,9 +68,9 @@ families:
       max_person_tracking_continuity_break_ratio: 0.30
       max_person_tracking_reanchor_ratio: 0.30
     clean:
-      max_tracked_target_missing_frame_ratio: 0.10
-      max_person_tracking_continuity_break_ratio: 0.15
-      max_person_tracking_reanchor_ratio: 0.15
+      max_tracked_target_missing_frame_ratio: 0.12
+      max_person_tracking_continuity_break_ratio: 0.18
+      max_person_tracking_reanchor_ratio: 0.18
     tight:
       max_tracked_target_missing_frame_ratio: 0.05
       max_person_tracking_continuity_break_ratio: 0.05
@@ -83,10 +83,10 @@ families:
       min_active_span_representative_hand_distal_chain_coverage_ratio: 0.60
       max_active_span_representative_hand_detail_dropout_run_ratio: 0.40
     clean:
-      min_active_span_representative_hand_landmark_coverage_ratio: 0.85
-      min_active_span_representative_hand_fingertip_coverage_ratio: 0.85
-      min_active_span_representative_hand_distal_chain_coverage_ratio: 0.85
-      max_active_span_representative_hand_detail_dropout_run_ratio: 0.20
+      min_active_span_representative_hand_landmark_coverage_ratio: 0.80
+      min_active_span_representative_hand_fingertip_coverage_ratio: 0.80
+      min_active_span_representative_hand_distal_chain_coverage_ratio: 0.80
+      max_active_span_representative_hand_detail_dropout_run_ratio: 0.25
     tight:
       min_active_span_representative_hand_landmark_coverage_ratio: 0.95
       min_active_span_representative_hand_fingertip_coverage_ratio: 0.95
@@ -101,11 +101,11 @@ families:
       max_active_span_face_detail_dropout_run_ratio: 0.30
       min_active_span_face_available_given_manual_frame_ratio: 0.70
     clean:
-      min_active_span_face_landmark_coverage_ratio: 0.90
-      min_active_span_upper_face_landmark_coverage_ratio: 0.90
-      min_active_span_lower_face_landmark_coverage_ratio: 0.90
-      max_active_span_face_detail_dropout_run_ratio: 0.15
-      min_active_span_face_available_given_manual_frame_ratio: 0.90
+      min_active_span_face_landmark_coverage_ratio: 0.85
+      min_active_span_upper_face_landmark_coverage_ratio: 0.85
+      min_active_span_lower_face_landmark_coverage_ratio: 0.85
+      max_active_span_face_detail_dropout_run_ratio: 0.20
+      min_active_span_face_available_given_manual_frame_ratio: 0.85
     tight:
       min_active_span_face_landmark_coverage_ratio: 0.97
       min_active_span_upper_face_landmark_coverage_ratio: 0.97
@@ -119,7 +119,7 @@ families:
       max_active_span_cross_channel_scale_outlier_frame_ratio: 0.10
     clean:
       max_active_span_upper_body_bone_length_outlier_frame_ratio: 0.20
-      max_active_span_cross_channel_scale_outlier_frame_ratio: 0.05
+      max_active_span_cross_channel_scale_outlier_frame_ratio: 0.06
     tight:
       max_active_span_upper_body_bone_length_outlier_frame_ratio: 0.10
-      max_active_span_cross_channel_scale_outlier_frame_ratio: 0.02
+      max_active_span_cross_channel_scale_outlier_frame_ratio: 0.04

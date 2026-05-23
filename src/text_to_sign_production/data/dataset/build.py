@@ -36,6 +36,8 @@ from text_to_sign_production.data.gate.sources import (
 )
 
 PREPARED_SAMPLE_SCHEMA_VERSION = PREPARED_SAMPLE_PAYLOAD_SCHEMA_VERSION
+CONFIDENCE_MIN = 0.0
+CONFIDENCE_MAX = 1.0
 
 
 # Sample construction
@@ -135,11 +137,23 @@ def _require_fps(candidate: SourceCandidate) -> float:
 
 def _xyc(channel: PoseChannelTensor) -> np.ndarray:
     coordinates = np.asarray(channel.coordinates, dtype=np.float32)
-    confidences = np.asarray(channel.confidences, dtype=np.float32)
+    confidences = _canonical_confidences(channel.confidences)
     return np.concatenate((coordinates, confidences[..., np.newaxis]), axis=-1)
 
 
+def _canonical_confidences(value: np.ndarray) -> np.ndarray:
+    confidences = np.asarray(value, dtype=np.float32)
+    if not np.all(np.isfinite(confidences)):
+        raise ValueError("Pose confidence values must be finite before canonicalization.")
+    return np.clip(confidences, CONFIDENCE_MIN, CONFIDENCE_MAX).astype(
+        np.float32,
+        copy=False,
+    )
+
+
 __all__ = [
+    "CONFIDENCE_MAX",
+    "CONFIDENCE_MIN",
     "DatasetPayloadProduction",
     "PREPARED_SAMPLE_SCHEMA_VERSION",
     "build_prepared_sample",

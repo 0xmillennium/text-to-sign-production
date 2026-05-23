@@ -281,7 +281,9 @@ def _validate_xyc_tensor(
     frame_count: int,
     path: str,
 ) -> None:
-    if tensor.shape[0] != frame_count:
+    shape_valid = True
+    if tensor.ndim == 0 or tensor.shape[0] != frame_count:
+        shape_valid = False
         _add(
             issues,
             DatasetValidationIssueCode.INVALID_POSE_ARRAY_SHAPE,
@@ -289,6 +291,7 @@ def _validate_xyc_tensor(
             path,
         )
     if tensor.ndim != 3 or tensor.shape[-1] != 3:
+        shape_valid = False
         _add(
             issues,
             DatasetValidationIssueCode.INVALID_POSE_ARRAY_SHAPE,
@@ -300,6 +303,24 @@ def _validate_xyc_tensor(
             issues,
             DatasetValidationIssueCode.INVALID_POSE_ARRAY_DTYPE,
             "Pose tensor must be float32.",
+            path,
+        )
+    if not shape_valid:
+        return
+    if not np.all(np.isfinite(tensor)):
+        _add(
+            issues,
+            DatasetValidationIssueCode.INVALID_POSE_ARRAY_VALUE,
+            "Pose tensor must contain only finite values.",
+            path,
+        )
+        return
+    confidence = tensor[..., 2]
+    if np.any((confidence < 0.0) | (confidence > 1.0)):
+        _add(
+            issues,
+            DatasetValidationIssueCode.INVALID_POSE_CONFIDENCE_RANGE,
+            "Pose tensor confidence values must be within [0.0, 1.0].",
             path,
         )
 

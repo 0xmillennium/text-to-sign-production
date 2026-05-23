@@ -1,5 +1,6 @@
 # Local tooling
 .codex
+.codex/
 .cache/
 .venv*/
 venv*/

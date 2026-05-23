@@ -1,0 +1,71 @@
+identity:
+  schema_version: t2sp-validation-engine-v1
+  name: candidate_agnostic_validation
+  manifest_family: null
+
+data:
+  split: val
+  minimum_paired_count: 1
+  alignment_policy: prefix_min_length
+
+surfaces:
+  - label: base_direct
+    producer_type: model
+    producer_key: base_direct
+    canonical_id: null
+    research_role: null
+    run_name: null
+    required: false
+  - label: learned_pose_token
+    producer_type: model
+    producer_key: learned_pose_token
+    canonical_id: null
+    research_role: null
+    run_name: null
+    required: false
+  - label: latent_diffusion
+    producer_type: model
+    producer_key: latent_diffusion
+    canonical_id: null
+    research_role: null
+    run_name: null
+    required: false
+  - label: articulator_aware
+    producer_type: model
+    producer_key: articulator_aware
+    canonical_id: null
+    research_role: null
+    run_name: null
+    required: false
+  - label: retrieval_pose
+    producer_type: comparator
+    producer_key: retrieval_pose
+    canonical_id: retrieval_augmented_pose_comparator
+    research_role: counter_alternative_comparator
+    run_name: null
+    required: false
+
+metrics:
+  full_bfh_metrics: true
+  channel_metrics: true
+
+comparison:
+  enabled: true
+  require_shared_pairing_subset: true
+  lower_is_better:
+    - masked_l1_mean
+    - masked_l2_mean
+    - velocity_l1_mean
+    - velocity_l2_mean
+    - sequence_length_absolute_error
+    - channel_masked_l1_mean:*
+    - channel_masked_l2_mean:*
+    - channel_velocity_l1_mean:*
+    - channel_velocity_l2_mean:*
+  higher_is_better:
+    - valid_joint_coverage
+    - channel_valid_joint_coverage:*
+
+reports:
+  enabled: true
+  output_dir_name: validation_engine

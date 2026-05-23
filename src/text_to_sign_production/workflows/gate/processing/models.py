@@ -11,6 +11,9 @@ from text_to_sign_production.core.models import (
     PassedManifestEntry,
     PreparedSample,
 )
+from text_to_sign_production.data.dataset.confidence import (
+    ConfidenceCanonicalizationSummary,
+)
 from text_to_sign_production.data.gate.sources import SourceMatchResult
 from text_to_sign_production.data.gate.sources.types import CandidateViabilityReport
 from text_to_sign_production.workflows.gate.contracts import GateWorkflowResult
@@ -46,6 +49,7 @@ class GateSplitProcessingResult:
     dropped_sample_payloads: tuple[GateDroppedSamplePayloadOutput, ...]
     passed_entries: tuple[PassedManifestEntry, ...]
     dropped_entries: tuple[DroppedManifestEntry, ...]
+    confidence_canonicalization_summaries: tuple[ConfidenceCanonicalizationSummary, ...]
 
     @property
     def processed_count(self) -> int:

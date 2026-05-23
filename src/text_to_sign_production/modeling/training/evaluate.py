@@ -18,7 +18,7 @@ from .events import (
 )
 from .losses import channel_balanced_masked_pose_mse_loss
 from .masking import build_effective_frame_mask
-from .metrics import (
+from .pose_tensor_metrics import (
     masked_average_keypoint_l2_error,
     masked_pose_metric_tensors,
     metric_tensor_to_float,

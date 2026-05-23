@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, TypeAlias, cast
 
@@ -65,6 +67,28 @@ _TIER_DOCUMENT_KEYS = frozenset(
     {"schema_version", "manifest_kind", "tier", "membership", "split", "entry_count", "entries"}
 )
 _SAMPLE_DROP_STAGES = frozenset({GateDropStage.SOURCE, GateDropStage.POSE, GateDropStage.GATES})
+
+
+@dataclass(frozen=True, slots=True)
+class PassedManifestHeader:
+    """Typed identifying metadata for a passed manifest document."""
+
+    schema_version: str
+    manifest_kind: str
+    split: SampleSplit
+    entry_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class TierManifestHeader:
+    """Typed identifying metadata for a tier manifest document."""
+
+    schema_version: str
+    manifest_kind: str
+    tier: str
+    membership: TierMembership
+    split: SampleSplit
+    entry_count: int
 
 
 def build_passed_entry(
@@ -164,6 +188,24 @@ def read_passed_manifest_json(path: str | Path) -> tuple[PassedManifestEntry, ..
     return entries
 
 
+def read_passed_manifest_header(path: str | Path) -> PassedManifestHeader:
+    """Read typed passed-manifest header metadata without parsing entry records."""
+
+    document = _read_document(path, _PASSED_DOCUMENT_KEYS, "passed manifest")
+    schema_version = _require_gate_schema_version(document["schema_version"])
+    manifest_kind = _text(document["manifest_kind"], "manifest_kind")
+    if manifest_kind != "passed":
+        raise ValueError("Passed manifest document manifest_kind must be passed.")
+    entries = _list(document["entries"], "entries")
+    _validate_document_count(document, len(entries))
+    return PassedManifestHeader(
+        schema_version=schema_version,
+        manifest_kind=manifest_kind,
+        split=SampleSplit(_text(document["split"], "split")),
+        entry_count=len(entries),
+    )
+
+
 def write_dropped_manifest_json(
     path: str | Path,
     entries: Iterable[DroppedManifestEntry],
@@ -207,14 +249,14 @@ def write_tier_manifest_json(
     split: SampleSplit | str,
 ) -> None:
     """Write a tier manifest JSON document containing passed manifest entries."""
-    tier = TierName(tier)
+    tier_token = _tier_manifest_token(tier)
     membership = TierMembership(membership)
     split = SampleSplit(split)
     materialized = tuple(entries)
     document = {
         "schema_version": TIER_MANIFEST_SCHEMA_VERSION,
         "manifest_kind": "tiered",
-        "tier": tier.value,
+        "tier": tier_token,
         "membership": membership.value,
         "split": split.value,
         "entry_count": len(materialized),
@@ -231,7 +273,7 @@ def read_tier_manifest_json(path: str | Path) -> tuple[PassedManifestEntry, ...]
         raise ValueError("Tier manifest schema_version is unsupported.")
     if _text(document["manifest_kind"], "manifest_kind") != "tiered":
         raise ValueError("Tier manifest document manifest_kind must be tiered.")
-    TierName(_text(document["tier"], "tier"))
+    _tier_manifest_token(document["tier"])
     TierMembership(_text(document["membership"], "membership"))
     split = SampleSplit(_text(document["split"], "split"))
     entries = tuple(
@@ -241,6 +283,28 @@ def read_tier_manifest_json(path: str | Path) -> tuple[PassedManifestEntry, ...]
     _validate_document_count(document, len(entries))
     _validate_passed_document(entries, split, GATE_MANIFEST_SCHEMA_VERSION)
     return entries
+
+
+def read_tier_manifest_header(path: str | Path) -> TierManifestHeader:
+    """Read typed tier manifest header metadata without parsing entry records."""
+
+    document = _read_document(path, _TIER_DOCUMENT_KEYS, "tier manifest")
+    schema_version = _text(document["schema_version"], "schema_version")
+    if schema_version != TIER_MANIFEST_SCHEMA_VERSION:
+        raise ValueError("Tier manifest schema_version is unsupported.")
+    manifest_kind = _text(document["manifest_kind"], "manifest_kind")
+    if manifest_kind != "tiered":
+        raise ValueError("Tier manifest document manifest_kind must be tiered.")
+    entries = _list(document["entries"], "entries")
+    _validate_document_count(document, len(entries))
+    return TierManifestHeader(
+        schema_version=schema_version,
+        manifest_kind=manifest_kind,
+        tier=_tier_manifest_token(document["tier"]),
+        membership=TierMembership(_text(document["membership"], "membership")),
+        split=SampleSplit(_text(document["split"], "split")),
+        entry_count=len(entries),
+    )
 
 
 def passed_entry_from_record(record: Mapping[str, Any]) -> PassedManifestEntry:
@@ -476,6 +540,13 @@ def _require_gate_schema_version(value: object) -> str:
     return schema_version
 
 
+def _tier_manifest_token(value: object) -> str:
+    tier = _text(value, "tier")
+    if not re.fullmatch(r"[a-z0-9]+(?:[-_][a-z0-9]+)*", tier):
+        raise ValueError("Tier manifest tier must be a lowercase safe token.")
+    return tier
+
+
 def _int(value: object, label: str) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError(f"{label} must be an integer.")
@@ -492,13 +563,17 @@ __all__ = [
     "GATE_MANIFEST_SCHEMA_VERSION",
     "TIER_MANIFEST_SCHEMA_VERSION",
     "ManifestEntry",
+    "PassedManifestHeader",
+    "TierManifestHeader",
     "build_dropped_entry",
     "build_passed_entry",
     "dropped_entry_from_record",
     "passed_entry_from_record",
     "read_dropped_manifest_json",
     "read_passed_manifest_json",
+    "read_passed_manifest_header",
     "read_tier_manifest_json",
+    "read_tier_manifest_header",
     "write_dropped_manifest_json",
     "write_passed_manifest_json",
     "write_tier_manifest_json",

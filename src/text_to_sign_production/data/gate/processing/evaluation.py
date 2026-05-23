@@ -7,6 +7,9 @@ from text_to_sign_production.data.dataset.build import (
     PREPARED_SAMPLE_SCHEMA_VERSION,
     build_prepared_sample,
 )
+from text_to_sign_production.data.dataset.confidence import (
+    summarize_pose_output_confidence,
+)
 from text_to_sign_production.data.gate.policies import (
     GatesConfig,
     evaluate_sample_gates,
@@ -89,6 +92,11 @@ def evaluate_gate_source_bundle(
             missing_frame_files=True,
         )
 
+    confidence_canonicalization = summarize_pose_output_confidence(
+        sample_id=candidate.sample_id,
+        split=candidate.split.value if hasattr(candidate.split, "value") else candidate.split,
+        pose_output=pose_output,
+    )
     sample = build_prepared_sample(
         candidate,
         pose_output,
@@ -103,6 +111,7 @@ def evaluate_gate_source_bundle(
             gate=gate,
             output_refs=output_refs,
             manifest_schema_version=manifest_schema_version,
+            confidence_canonicalization=confidence_canonicalization,
         )
 
     return plan_gate_failed_evaluation(
@@ -115,6 +124,7 @@ def evaluate_gate_source_bundle(
         manifest_schema_version=manifest_schema_version,
         observed_frame_count=frame_listing.frame_count,
         missing_frame_files=frame_listing.missing,
+        confidence_canonicalization=confidence_canonicalization,
     )
 
 

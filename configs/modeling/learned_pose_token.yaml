@@ -1,0 +1,84 @@
+identity:
+  model_key: learned_pose_token
+  research_role: primary_model_candidate
+  phase_number: 6
+
+data:
+  max_frame_count: null
+  min_frame_count: 1
+
+text_encoder:
+  backend: deterministic_hash
+  embedding_dim: 256
+  pooling: mean
+  trainable: false
+  max_length: 128
+
+pose_representation:
+  coordinate_mode: xy
+  confidence_policy: mask_only
+  standardization: train_split
+  standardization_missing_observation_policy: channel_fallback
+
+tokenizer:
+  temporal_granularity: frame
+  window_size: 1
+  stride: 1
+  latent_dim: 128
+  hidden_dim: 256
+  commitment_weight: 0.25
+  reconstruction_loss: masked_l1_l2
+  velocity_loss_weight: 0.0
+
+codebook:
+  size: 256
+  embedding_dim: 128
+  initialization: random_normal
+  dead_code_threshold: 1
+  collapse_perplexity_threshold: 1.5
+
+training:
+  max_epochs: 3
+  batch_size: 16
+  tokenizer_batch_size: null
+  text_to_token_batch_size: null
+  reconstruction_batch_size: null
+  decode_batch_size: null
+  materialization_workers: 0
+  cache_materialized_sources: false
+  learning_rate: 0.0003
+  weight_decay: 0.0
+  seed: 13
+  num_workers: 0
+  device: auto
+
+text_to_token:
+  predictor_type: temporal_mlp
+  hidden_dim: 256
+  position_dim: 16
+  dropout: 0.0
+  length_predictor: mlp
+  min_generated_tokens: 1
+  max_generated_tokens: null
+  token_loss_weight: 1.0
+  length_loss_weight: 0.1
+
+generation:
+  token_selection: argmax
+  generation_mode: deterministic
+  max_generation_tokens: null
+  confidence_policy: synthetic_validity
+  length_policy: predicted_length
+
+checkpoints:
+  selection_metric: validation_token_loss
+  lower_is_better: true
+
+export:
+  reconstruction_split: val
+  max_reconstruction_samples: null
+
+reports:
+  write_tokenizer_report: true
+  write_reconstruction_report: true
+  write_codebook_report: true

@@ -1,0 +1,45 @@
+"""Stable workflow and progress stage identifiers for model production."""
+
+MODEL_WORKFLOW_NAME = "model"
+MODEL_WORKFLOW_DIRNAME = "model"
+
+MODEL_STAGE_RUNTIME_PLAN = "model.runtime.plan"
+MODEL_STAGE_RUNTIME_RESTORE = "model.runtime.restore"
+MODEL_STAGE_RUNTIME_VERIFY = "model.runtime.verify"
+
+MODEL_STAGE_RESEARCH_RESOLVE = "model.research.resolve"
+MODEL_STAGE_PROVIDER_RESOLVE = "model.provider.resolve"
+MODEL_STAGE_PROVIDER_CONFIG_LOAD = "model.provider.config_load"
+MODEL_STAGE_STAGE_PLAN = "model.stage.plan"
+MODEL_STAGE_STAGE_EXECUTE = "model.stage.execute"
+MODEL_STAGE_TRAINING_STANDARDIZATION = "model.training.standardization"
+MODEL_STAGE_TRAINING_TRAIN_EPOCH = "model.training.train_epoch"
+MODEL_STAGE_TRAINING_VAL_EPOCH = "model.training.val_epoch"
+
+MODEL_STAGE_ARTIFACT_WRITE = "model.artifacts.write"
+MODEL_STAGE_REPORT_WRITE = "model.reports.write"
+
+MODEL_STAGE_PUBLISH_PLAN = "model.publish.plan"
+MODEL_STAGE_PUBLISH_EXECUTE = "model.publish.execute"
+MODEL_STAGE_PUBLISH_VERIFY = "model.publish.verify"
+
+__all__ = [
+    "MODEL_STAGE_ARTIFACT_WRITE",
+    "MODEL_STAGE_PROVIDER_CONFIG_LOAD",
+    "MODEL_STAGE_PROVIDER_RESOLVE",
+    "MODEL_STAGE_PUBLISH_EXECUTE",
+    "MODEL_STAGE_PUBLISH_PLAN",
+    "MODEL_STAGE_PUBLISH_VERIFY",
+    "MODEL_STAGE_REPORT_WRITE",
+    "MODEL_STAGE_RESEARCH_RESOLVE",
+    "MODEL_STAGE_RUNTIME_PLAN",
+    "MODEL_STAGE_RUNTIME_RESTORE",
+    "MODEL_STAGE_RUNTIME_VERIFY",
+    "MODEL_STAGE_STAGE_EXECUTE",
+    "MODEL_STAGE_STAGE_PLAN",
+    "MODEL_STAGE_TRAINING_STANDARDIZATION",
+    "MODEL_STAGE_TRAINING_TRAIN_EPOCH",
+    "MODEL_STAGE_TRAINING_VAL_EPOCH",
+    "MODEL_WORKFLOW_DIRNAME",
+    "MODEL_WORKFLOW_NAME",
+]

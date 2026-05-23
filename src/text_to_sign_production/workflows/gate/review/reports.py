@@ -305,6 +305,7 @@ def _gate_index_json_payload(bundle: GateExecutionBundle) -> JsonValue:
                 ),
             },
         },
+        "confidence_canonicalization": _confidence_canonicalization_json_payload(bundle),
         "gate_report_tables": _gate_report_tables_json(build_report_table_records(bundle)),
         "reports": {
             "summary_markdown_path": artifacts.summary_markdown_path,
@@ -328,6 +329,111 @@ def _gate_index_json_payload(bundle: GateExecutionBundle) -> JsonValue:
             "passed_samples_root": output_summary.passed_samples_root,
             "dropped_samples_root": output_summary.dropped_samples_root,
         },
+    }
+
+
+def _confidence_canonicalization_json_payload(bundle: GateExecutionBundle) -> JsonValue:
+    summaries = tuple(
+        summary
+        for split_result in bundle.split_results
+        for summary in split_result.confidence_canonicalization_summaries
+    )
+    by_split = {
+        split_result.split: _confidence_summary_aggregate(
+            split_result.confidence_canonicalization_summaries
+        )
+        for split_result in bundle.split_results
+    }
+    channel_names = sorted(
+        {
+            channel.channel
+            for summary in summaries
+            for channel in summary.channel_summaries
+        }
+    )
+    by_channel = {
+        channel_name: _confidence_channel_aggregate(summaries, channel_name)
+        for channel_name in channel_names
+    }
+    return {
+        "schema_version": "gate.confidence_canonicalization.v1",
+        **_confidence_summary_aggregate(summaries),
+        "by_split": by_split,
+        "by_channel": by_channel,
+    }
+
+
+def _confidence_summary_aggregate(summaries: tuple[object, ...]) -> dict[str, object]:
+    max_values = [
+        summary.max_before_clip
+        for summary in summaries
+        if summary.max_before_clip is not None
+    ]
+    min_values = [
+        summary.min_before_clip
+        for summary in summaries
+        if summary.min_before_clip is not None
+    ]
+    return {
+        "sample_count": len(summaries),
+        "sample_with_clipping_count": sum(
+            1 for summary in summaries if summary.clipped_value_count > 0
+        ),
+        "total_clipped_value_count": sum(
+            summary.clipped_value_count for summary in summaries
+        ),
+        "total_upper_clipped_value_count": sum(
+            summary.upper_clipped_value_count for summary in summaries
+        ),
+        "total_lower_clipped_value_count": sum(
+            summary.lower_clipped_value_count for summary in summaries
+        ),
+        "total_nonfinite_count": sum(summary.nonfinite_count for summary in summaries),
+        "max_confidence_before_clip": max(max_values) if max_values else None,
+        "min_confidence_before_clip": min(min_values) if min_values else None,
+    }
+
+
+def _confidence_channel_aggregate(
+    summaries: tuple[object, ...],
+    channel_name: str,
+) -> dict[str, object]:
+    channel_summaries = tuple(
+        channel
+        for summary in summaries
+        for channel in summary.channel_summaries
+        if channel.channel == channel_name
+    )
+    max_values = [
+        item.max_before_clip
+        for item in channel_summaries
+        if item.max_before_clip is not None
+    ]
+    min_values = [
+        item.min_before_clip
+        for item in channel_summaries
+        if item.min_before_clip is not None
+    ]
+    return {
+        "sample_count": len(channel_summaries),
+        "sample_with_clipping_count": sum(
+            1
+            for item in channel_summaries
+            if item.lower_clipped_count + item.upper_clipped_count > 0
+        ),
+        "total_clipped_value_count": sum(
+            item.lower_clipped_count + item.upper_clipped_count
+            for item in channel_summaries
+        ),
+        "total_upper_clipped_value_count": sum(
+            item.upper_clipped_count for item in channel_summaries
+        ),
+        "total_lower_clipped_value_count": sum(
+            item.lower_clipped_count for item in channel_summaries
+        ),
+        "total_nonfinite_count": sum(item.nonfinite_count for item in channel_summaries),
+        "max_confidence_before_clip": max(max_values) if max_values else None,
+        "min_confidence_before_clip": min(min_values) if min_values else None,
     }
 
 

@@ -15,6 +15,17 @@ from .base import TextBackboneOutput
 DEFAULT_FLAN_T5_MODEL_NAME = "google/flan-t5-base"
 
 
+def _quiet_huggingface_progress() -> None:
+    try:
+        from huggingface_hub.utils import disable_progress_bars
+    except Exception:
+        return
+    try:
+        disable_progress_bars()
+    except Exception:
+        return
+
+
 def _load_transformers_classes() -> tuple[Any, Any]:
     try:
         transformers = import_module("transformers")
@@ -101,6 +112,7 @@ class FlanT5TextBackbone(nn.Module):
             raise ValueError("freeze_strategy must be one of: none, partial, frozen.")
 
         tokenizer_cls, encoder_cls = _load_transformers_classes()
+        _quiet_huggingface_progress()
         self.model_name = model_name
         self.revision = revision
         self.max_length = max_length

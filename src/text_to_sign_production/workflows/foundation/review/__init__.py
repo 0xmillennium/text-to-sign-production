@@ -11,6 +11,7 @@ from text_to_sign_production.workflows.foundation.review.contracts import (
     review_item,
     review_lines_section,
     review_section,
+    to_review_value,
 )
 from text_to_sign_production.workflows.foundation.review.markdown import (
     JsonValue,
@@ -32,6 +33,7 @@ __all__ = [
     "review_item",
     "review_section",
     "review_lines_section",
+    "to_review_value",
     "JsonValue",
     "render_review_sections_markdown",
     "display_review_sections",

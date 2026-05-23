@@ -1,0 +1,14 @@
+schema_version: model.compute_profile.v1
+name: portable
+precision:
+  policy: auto
+torch:
+  allow_tf32: false
+  float32_matmul_precision: highest
+  compile: false
+dataloader:
+  num_workers: null
+  pin_memory: true
+  persistent_workers: null
+  prefetch_factor: null
+provider_overrides: {}

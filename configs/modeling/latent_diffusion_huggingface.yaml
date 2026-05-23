@@ -1,0 +1,80 @@
+identity:
+  model_key: latent_diffusion
+  research_role: primary_model_candidate
+  phase_number: 7
+
+data:
+  min_frame_count: 1
+  max_frame_count: null
+
+latent_target:
+  target_type: standardized_bfh_frame
+  temporal_granularity: frame
+  window_size: 1
+  stride: 1
+  coordinate_mode: xy
+  confidence_policy: mask_only
+  standardization: train_split
+  standardization_missing_observation_policy: channel_fallback
+
+text_encoder:
+  encoder_key: latent_diffusion_text_encoder
+  backend: huggingface
+  model_name_or_path: google/flan-t5-base
+  revision: main
+  local_files_only: false
+  pooling: mean
+  trainable: false
+  max_length: 128
+  embedding_dim: null
+
+denoiser:
+  architecture: temporal_mlp
+  latent_dim: null
+  hidden_dim: 512
+  timestep_embedding_dim: 64
+  position_embedding_dim: 16
+  max_positions: 4096
+  dropout: 0.0
+  prediction_type: epsilon
+
+diffusion:
+  schedule: linear_beta
+  timesteps: 100
+  beta_start: 0.0001
+  beta_end: 0.02
+  loss: masked_mse
+  sampler: ddpm
+  sampling_steps: 100
+
+length:
+  policy: predicted_length
+  predictor_type: mlp
+  min_generated_frames: 1
+  max_generated_frames: null
+  loss_weight: 0.1
+
+generation:
+  generation_mode: stochastic
+  candidate_count: 1
+  seed_policy: fixed_per_run
+  confidence_policy: synthetic_validity
+
+training:
+  max_epochs: 3
+  batch_size: 16
+  learning_rate: 0.0002
+  weight_decay: 0.0
+  seed: 17
+  num_workers: 0
+  device: auto
+
+checkpoints:
+  selection_metric: validation_denoising_loss
+  lower_is_better: true
+
+reports:
+  write_latent_target_report: true
+  write_seed_policy_report: true
+  write_compute_failure_cost_report: true
+  write_generation_report: true

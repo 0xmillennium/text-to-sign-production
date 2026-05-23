@@ -1,0 +1,53 @@
+identity:
+  comparator_key: retrieval_pose
+  canonical_id: retrieval_augmented_pose_comparator
+  display_name: Retrieval-Augmented Pose Comparator
+  phase_number: 9
+  research_role: counter_alternative_comparator
+  producer_type: comparator
+  channel_policy: full_bfh
+  output_contract: t2sp-generated-pose-v1
+  manifest_contract: t2sp-generated-pose-manifest-v1
+
+data:
+  manifest_family: untiered:passed
+  bank_split: train
+  query_splits:
+    - val
+  max_bank_size: null
+  max_query_samples: null
+
+text_encoder:
+  encoder_key: retrieval_pose_text_encoder
+  backend: deterministic_hash
+  model_name_or_path: null
+  revision: main
+  local_files_only: false
+  pooling: mean
+  trainable: false
+  max_length: 128
+  embedding_dim: 256
+
+retrieval:
+  score_metric: cosine_similarity
+  selection_policy: top1
+  top_k: 5
+  normalize_embeddings: true
+
+leakage:
+  allow_same_split: false
+  exclude_same_sample_id: true
+  exclude_same_source_sentence_id: true
+  exclude_same_source_video_id: false
+  exclude_identical_text: false
+  fail_on_leakage: true
+
+generation:
+  candidates_per_query: 1
+  generation_mode: retrieval
+  length_policy: retrieved_length
+  confidence_policy: retrieved_confidence
+
+reports:
+  enabled: true
+  output_dir_name: retrieval_pose

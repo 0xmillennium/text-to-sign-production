@@ -77,15 +77,16 @@ class NoOpTrainingRunLogSink:
 class TextTrainingRunLogSink:
     prefix: str = ""
     log_path: Path | None = None
-    stream: object = field(default_factory=lambda: sys.stdout)
+    stream: object | None = field(default_factory=lambda: sys.stdout)
 
     def emit(self, event: TrainingRunLogEvent) -> None:
         message, fields = _event_line_parts(event)
         line = _render_line(self.prefix, message, fields)
-        print(line, file=self.stream)
-        flush = getattr(self.stream, "flush", None)
-        if callable(flush):
-            flush()
+        if self.stream is not None:
+            print(line, file=self.stream)
+            flush = getattr(self.stream, "flush", None)
+            if callable(flush):
+                flush()
         if self.log_path is not None:
             self.log_path.parent.mkdir(parents=True, exist_ok=True)
             with self.log_path.open("a", encoding="utf-8") as handle:

@@ -1,32 +1,17 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import TypeAlias
 
+from text_to_sign_production.core.io import JsonValue as JsonValue
+from text_to_sign_production.core.io import jsonable
 from text_to_sign_production.workflows.foundation.review.contracts import (
     RenderableValue,
     WorkflowReviewField,
     WorkflowReviewItem,
     WorkflowReviewSection,
 )
-
-JsonScalar: TypeAlias = str | int | float | bool | None
-JsonValue: TypeAlias = JsonScalar | Path | tuple["JsonValue", ...] | list["JsonValue"] | Mapping[
-    str,
-    "JsonValue",
-]
-
-
-def jsonable(value: JsonValue) -> JsonScalar | list[object] | dict[str, object]:
-    if isinstance(value, Mapping):
-        return {key: jsonable(mapping_value) for key, mapping_value in value.items()}
-    if isinstance(value, (tuple, list)):
-        return [jsonable(item) for item in value]
-    if isinstance(value, Path):
-        return value.as_posix()
-    return value
 
 
 def markdown_value(value: RenderableValue) -> str:

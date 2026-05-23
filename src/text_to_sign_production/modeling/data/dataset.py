@@ -6,7 +6,8 @@ adapts the current data/dataset contracts into the M0 modeling batch shape.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import json
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import cast
 
@@ -14,9 +15,13 @@ import numpy as np
 import numpy.typing as npt
 
 from text_to_sign_production.core.ids import VALID_SAMPLE_SPLITS as SPLITS
+from text_to_sign_production.core.ids import SampleSplit
 from text_to_sign_production.core.models import PassedManifestEntry, PreparedSample
 from text_to_sign_production.data.dataset import PREPARED_SAMPLE_SCHEMA_VERSION
-from text_to_sign_production.data.dataset.manifests import read_passed_manifest_json
+from text_to_sign_production.data.dataset.manifests import (
+    read_passed_manifest_json,
+    read_tier_manifest_json,
+)
 from text_to_sign_production.data.dataset.payloads import load_prepared_sample_payload
 
 from .schemas import (
@@ -105,6 +110,29 @@ def _processed_manifest_record_from_entry(
     )
 
 
+def processed_modeling_record_from_entry(
+    entry: PassedManifestEntry,
+    *,
+    manifest_path: Path,
+    expected_split: SampleSplit | str | None,
+    data_root: Path,
+) -> ProcessedModelingManifestRecord:
+    """Adapt one official passed/tiered manifest entry into the legacy M0 row."""
+
+    try:
+        resolved_split = None if expected_split is None else SampleSplit(expected_split).value
+    except ValueError as exc:
+        raise ProcessedModelingDataError(
+            f"Requested modeling manifest split uses unknown split {expected_split!r}."
+        ) from exc
+    return _processed_manifest_record_from_entry(
+        entry,
+        manifest_path=manifest_path,
+        expected_split=resolved_split,
+        data_root=data_root,
+    )
+
+
 def read_processed_modeling_manifest(
     manifest_path: Path | str,
     *,
@@ -124,8 +152,8 @@ def read_processed_modeling_manifest(
 
     records: list[ProcessedModelingManifestRecord] = []
     seen_sample_ids: set[str] = set()
-    for entry in read_passed_manifest_json(path):
-        manifest_record = _processed_manifest_record_from_entry(
+    for entry in _read_processed_manifest_entries(path):
+        manifest_record = processed_modeling_record_from_entry(
             entry,
             manifest_path=path,
             expected_split=split,
@@ -139,6 +167,29 @@ def read_processed_modeling_manifest(
         records.append(manifest_record)
 
     return records
+
+
+def _read_processed_manifest_entries(path: Path) -> tuple[PassedManifestEntry, ...]:
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ProcessedModelingDataError(
+            f"Could not read processed modeling manifest: {path}: {exc}"
+        ) from exc
+    if not isinstance(document, Mapping):
+        raise ProcessedModelingDataError(
+            f"Processed modeling manifest root must be a JSON object: {path}"
+        )
+    manifest_kind = document.get("manifest_kind")
+    if manifest_kind == "passed":
+        return read_passed_manifest_json(path)
+    if manifest_kind == "tiered":
+        return read_tier_manifest_json(path)
+    raise ProcessedModelingDataError(
+        f"Processed modeling manifest has unsupported manifest_kind {manifest_kind!r}: {path}"
+    )
 
 
 def _infer_data_root_from_manifest(path: Path) -> Path:

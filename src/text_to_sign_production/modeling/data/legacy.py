@@ -7,6 +7,7 @@ from text_to_sign_production.modeling.data.dataset import (
     ProcessedModelingDataError,
     ProcessedPoseDataset,
     load_processed_pose_sample,
+    processed_modeling_record_from_entry,
     read_processed_modeling_manifest,
 )
 from text_to_sign_production.modeling.data.schemas import (
@@ -41,5 +42,6 @@ __all__ = [
     "PoseArray",
     "collate_processed_pose_samples",
     "load_processed_pose_sample",
+    "processed_modeling_record_from_entry",
     "read_processed_modeling_manifest",
 ]

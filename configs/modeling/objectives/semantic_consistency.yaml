@@ -1,0 +1,97 @@
+identity:
+  objective_key: semantic_consistency
+  canonical_id: text_pose_semantic_consistency_objective
+  phase_number: 9
+  research_role: auxiliary_additive_objective
+  standalone_model_allowed: false
+  requires_ablation: true
+
+attachment:
+  allowed_models:
+    - learned_pose_token
+    - latent_diffusion
+    - articulator_aware
+  forbidden_models:
+    - base_direct
+  stage_id: semantic_consistency.attach
+  require_same_manifest_family: true
+  require_same_splits: true
+  require_same_evaluation_protocol: true
+
+text_embedding:
+  backend: deterministic_hash
+  embedding_dim: 256
+  pooling: mean
+  trainable: false
+  proxy_only: true
+
+pose_embedding:
+  backend: bfh_statistics_projection
+  embedding_dim: 256
+  coordinate_mode: xy
+  channel_groups:
+    - body
+    - left_hand
+    - right_hand
+    - face
+  include_velocity_statistics: true
+  include_validity_statistics: true
+  projection_seed: 9001
+  proxy_only: true
+
+alignment:
+  metric: cosine_distance
+  loss_weight: 0.05
+  zero_norm_policy: fail
+  non_finite_policy: fail
+  normalize_embeddings: true
+
+ablation:
+  required: true
+  comparison: with_without_objective
+  same_model_config_required: true
+  same_manifest_family_required: true
+  same_seed_required: false
+  same_validation_protocol_required: true
+
+reports:
+  write_attachment_decision_report: true
+  write_objective_config_report: true
+  write_ablation_plan_report: true
+  write_metric_limitations_report: true
+  write_risk_controls_report: true
+
+training_objective:
+  enabled: true
+  role: differentiable_auxiliary_training_loss
+  text_source: candidate_text_embedding
+  detach_text_embedding: true
+  pose_projection:
+    backend: differentiable_bfh_statistics_projection
+    embedding_dim_policy: match_text_embedding
+    coordinate_mode: xy
+    channel_groups:
+      - body
+      - left_hand
+      - right_hand
+      - face
+    include_velocity_statistics: true
+    include_validity_statistics: true
+    projection_seed: 9001
+    trainable_projection: false
+  alignment:
+    metric: cosine_distance
+    loss_weight: 0.02
+    normalize_embeddings: true
+    zero_norm_policy: fail
+    non_finite_policy: fail
+  supported_models:
+    - learned_pose_token
+    - latent_diffusion
+    - articulator_aware
+  supported_stages:
+    learned_pose_token: train_text_to_token
+    latent_diffusion: train_denoiser
+    articulator_aware: train_structure_aware
+  requires_ablation: true
+  proxy_only: false

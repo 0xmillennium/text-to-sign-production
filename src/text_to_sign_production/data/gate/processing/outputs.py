@@ -22,6 +22,9 @@ from text_to_sign_production.data.dataset.build import (
 )
 from text_to_sign_production.data.dataset.manifests import build_dropped_entry, build_passed_entry
 from text_to_sign_production.data.dataset.types import DatasetDroppedSampleProduction
+from text_to_sign_production.data.dataset.confidence import (
+    ConfidenceCanonicalizationSummary,
+)
 from text_to_sign_production.data.gate.processing.dropped_samples import (
     build_gate_dropped_sample,
     build_pose_dropped_sample,
@@ -53,6 +56,7 @@ class GateSourceEvaluation:
     dropped_sample_payload: DatasetDroppedSampleProduction | None
     passed_entry: PassedManifestEntry | None
     dropped_entry: DroppedManifestEntry | None
+    confidence_canonicalization: ConfidenceCanonicalizationSummary | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +96,7 @@ def plan_unmatched_source_evaluation(
         dropped_sample_payload=dropped.payload,
         passed_entry=None,
         dropped_entry=dropped.entry,
+        confidence_canonicalization=None,
     )
 
 
@@ -124,6 +129,7 @@ def plan_pose_dropped_evaluation(
         dropped_sample_payload=dropped.payload,
         passed_entry=None,
         dropped_entry=dropped.entry,
+        confidence_canonicalization=None,
     )
 
 
@@ -135,6 +141,7 @@ def plan_gate_passed_evaluation(
     gate: GateDecisionBundle,
     output_refs: GateSourceOutputRefs,
     manifest_schema_version: str,
+    confidence_canonicalization: ConfidenceCanonicalizationSummary,
 ) -> GateSourceEvaluation:
     """Plan payload and manifest outputs for a gate-passed prepared sample."""
     passed = plan_gate_passed_outputs(
@@ -153,6 +160,7 @@ def plan_gate_passed_evaluation(
         dropped_sample_payload=None,
         passed_entry=passed.entry,
         dropped_entry=None,
+        confidence_canonicalization=confidence_canonicalization,
     )
 
 
@@ -167,6 +175,7 @@ def plan_gate_failed_evaluation(
     manifest_schema_version: str,
     observed_frame_count: int | None,
     missing_frame_files: bool | None,
+    confidence_canonicalization: ConfidenceCanonicalizationSummary,
 ) -> GateSourceEvaluation:
     """Plan payload and manifest outputs for a gate-failed prepared sample."""
     dropped = plan_gate_failed_sample_outputs(
@@ -190,6 +199,7 @@ def plan_gate_failed_evaluation(
         dropped_sample_payload=dropped.payload,
         passed_entry=None,
         dropped_entry=dropped.entry,
+        confidence_canonicalization=confidence_canonicalization,
     )
 
 

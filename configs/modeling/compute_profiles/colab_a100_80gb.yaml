@@ -1,0 +1,75 @@
+schema_version: model.compute_profile.v1
+name: colab_a100_80gb
+precision:
+  policy: bf16
+torch:
+  allow_tf32: true
+  float32_matmul_precision: high
+  compile: false
+dataloader:
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 4
+provider_overrides:
+  base_direct:
+    active:
+      smoke:
+        batch_size: 2
+      debug:
+        batch_size: 4
+      full:
+        batch_size: 8
+    candidates:
+      batch_size: [4, 8, 16]
+  learned_pose_token:
+    active:
+      smoke:
+        tokenizer_batch_size: 128
+        text_to_token_batch_size: 64
+        reconstruction_batch_size: 64
+        decode_batch_size: 64
+        cache_materialized_sources: true
+      debug:
+        tokenizer_batch_size: 256
+        text_to_token_batch_size: 128
+        reconstruction_batch_size: 128
+        decode_batch_size: 128
+        cache_materialized_sources: true
+      full:
+        tokenizer_batch_size: 512
+        text_to_token_batch_size: 256
+        reconstruction_batch_size: 256
+        decode_batch_size: 256
+        cache_materialized_sources: true
+    candidates:
+      tokenizer_batch_size: [128, 256, 512, 1024]
+      text_to_token_batch_size: [128, 256, 512]
+      reconstruction_batch_size: [128, 256, 512]
+      decode_batch_size: [128, 256, 512]
+  latent_diffusion:
+    active:
+      smoke:
+        denoiser_batch_size: 32
+      debug:
+        denoiser_batch_size: 64
+      full:
+        denoiser_batch_size: 128
+    candidates:
+      denoiser_batch_size: [32, 64, 128, 256]
+    smoke_sampling_steps: 10
+    debug_sampling_steps: 25
+  articulator_aware:
+    active:
+      smoke:
+        source_batch_size: 16
+        frame_batch_size: 512
+      debug:
+        source_batch_size: 32
+        frame_batch_size: 1024
+      full:
+        source_batch_size: 64
+        frame_batch_size: 2048
+    candidates:
+      source_batch_size: [16, 32, 64, 128]
+      frame_batch_size: [512, 1024, 2048, 4096]

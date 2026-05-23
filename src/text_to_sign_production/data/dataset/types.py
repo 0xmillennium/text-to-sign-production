@@ -48,6 +48,8 @@ class DatasetValidationIssueCode(enum.StrEnum):
     MISSING_SOURCE_TRUTH = "missing_source_truth"
     INVALID_POSE_ARRAY_SHAPE = "invalid_pose_array_shape"
     INVALID_POSE_ARRAY_DTYPE = "invalid_pose_array_dtype"
+    INVALID_POSE_ARRAY_VALUE = "invalid_pose_array_value"
+    INVALID_POSE_CONFIDENCE_RANGE = "invalid_pose_confidence_range"
     INVALID_COORDINATE_SPACE = "invalid_coordinate_space"
     INVALID_FRAME_MASK = "invalid_frame_mask"
     INVALID_TRACKING_SUMMARY = "invalid_tracking_summary"

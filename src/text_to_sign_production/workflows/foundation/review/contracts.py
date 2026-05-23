@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeAlias
@@ -78,6 +78,21 @@ def review_lines_section(
     )
 
 
+def to_review_value(value: object) -> RenderableValue:
+    """Normalize arbitrary provider metadata into the strict review value contract."""
+
+    if _is_renderable_scalar(value):
+        return value
+    if isinstance(value, tuple | list):
+        return tuple(to_review_value(item) for item in value)
+    if isinstance(value, Mapping):
+        return tuple(
+            f"{str(key)}={_review_value_text(raw_value)}"
+            for key, raw_value in sorted(value.items(), key=lambda item: str(item[0]))
+        )
+    return str(value)
+
+
 def _render_review_label(value: str) -> str:
     label = value.strip()
     label = label.strip()
@@ -122,6 +137,17 @@ def _validate_renderable_value(value: RenderableValue) -> None:
         for item in value:
             _validate_renderable_value(item)
         return
-    if value is None or isinstance(value, str | int | float | bool | Path):
+    if _is_renderable_scalar(value):
         return
     raise TypeError(f"Unsupported review field value type: {type(value).__name__}")
+
+
+def _is_renderable_scalar(value: object) -> bool:
+    return value is None or isinstance(value, str | int | float | bool | Path)
+
+
+def _review_value_text(value: object) -> str:
+    normalized = to_review_value(value)
+    if isinstance(normalized, tuple):
+        return "[" + ", ".join(_review_value_text(item) for item in normalized) + "]"
+    return str(normalized)

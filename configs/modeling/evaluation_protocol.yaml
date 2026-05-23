@@ -1,0 +1,135 @@
+identity:
+  schema_version: t2sp-evaluation-protocol-v1
+  name: bachelor_thesis_validation_protocol
+  manifest_family: null
+
+split: val
+
+execution:
+  mode: validate_existing
+  run_validation_engine: true
+
+validation_engine:
+  enabled: true
+  minimum_shared_paired_count: 1
+  require_shared_pairing_subset: true
+  output_dir_name: validation_engine
+
+reports:
+  enabled: true
+  output_dir_name: evaluation_protocol
+
+variants:
+  - variant_id: learned_pose_token_frame
+    label: learned_pose_token_frame
+    producer_type: model
+    producer_key: learned_pose_token
+    config_path: configs/modeling/learned_pose_token.yaml
+    run_name: learned_pose_token_frame
+    auxiliary_objectives: []
+    objective_config_paths: {}
+    tags: [primary_model, frame]
+    required: true
+  - variant_id: learned_pose_token_window
+    label: learned_pose_token_window
+    producer_type: model
+    producer_key: learned_pose_token
+    config_path: configs/modeling/learned_pose_token_window.yaml
+    run_name: learned_pose_token_window
+    auxiliary_objectives: []
+    objective_config_paths: {}
+    tags: [primary_model, window]
+    required: true
+  - variant_id: latent_diffusion_frame
+    label: latent_diffusion_frame
+    producer_type: model
+    producer_key: latent_diffusion
+    config_path: configs/modeling/latent_diffusion.yaml
+    run_name: latent_diffusion_frame
+    auxiliary_objectives: []
+    objective_config_paths: {}
+    tags: [primary_model, frame]
+    required: true
+  - variant_id: latent_diffusion_temporal_latent
+    label: latent_diffusion_temporal_latent
+    producer_type: model
+    producer_key: latent_diffusion
+    config_path: configs/modeling/latent_diffusion_temporal_latent.yaml
+    run_name: latent_diffusion_temporal_latent
+    auxiliary_objectives: []
+    objective_config_paths: {}
+    tags: [primary_model, temporal_latent]
+    required: true
+  - variant_id: articulator_aware_legacy
+    label: articulator_aware_legacy
+    producer_type: model
+    producer_key: articulator_aware
+    config_path: configs/modeling/articulator_aware.yaml
+    run_name: articulator_aware_legacy
+    auxiliary_objectives: []
+    objective_config_paths: {}
+    tags: [primary_model, legacy]
+    required: true
+  - variant_id: articulator_aware_factorized
+    label: articulator_aware_factorized
+    producer_type: model
+    producer_key: articulator_aware
+    config_path: configs/modeling/articulator_aware_factorized.yaml
+    run_name: articulator_aware_factorized
+    auxiliary_objectives: []
+    objective_config_paths: {}
+    tags: [primary_model, factorized]
+    required: true
+  - variant_id: articulator_aware_factorized_semantic
+    label: articulator_aware_factorized_semantic
+    producer_type: model
+    producer_key: articulator_aware
+    config_path: configs/modeling/articulator_aware_factorized.yaml
+    run_name: articulator_aware_factorized_semantic
+    auxiliary_objectives: [semantic_consistency]
+    objective_config_paths:
+      semantic_consistency: configs/modeling/objectives/semantic_consistency.yaml
+    tags: [primary_model, factorized, semantic_consistency]
+    required: true
+  - variant_id: retrieval_pose_baseline
+    label: retrieval_pose_baseline
+    producer_type: comparator
+    producer_key: retrieval_pose
+    config_path: configs/modeling/comparators/retrieval_pose.yaml
+    run_name: retrieval_pose_baseline
+    auxiliary_objectives: []
+    objective_config_paths: {}
+    tags: [comparator_baseline, retrieval]
+    required: true
+
+contrasts:
+  - contrast_id: learned_pose_token_window_vs_frame
+    contrast_type: ablation
+    control_variant_id: learned_pose_token_frame
+    treatment_variant_id: learned_pose_token_window
+    intended_difference: temporal window representation compared with frame representation
+    required: true
+  - contrast_id: latent_temporal_vs_frame
+    contrast_type: ablation
+    control_variant_id: latent_diffusion_frame
+    treatment_variant_id: latent_diffusion_temporal_latent
+    intended_difference: temporal latent diffusion variant compared with frame latent diffusion
+    required: true
+  - contrast_id: articulator_factorized_vs_legacy
+    contrast_type: ablation
+    control_variant_id: articulator_aware_legacy
+    treatment_variant_id: articulator_aware_factorized
+    intended_difference: factorized articulator representation compared with legacy articulator-aware configuration
+    required: true
+  - contrast_id: semantic_objective_on_vs_off
+    contrast_type: ablation
+    control_variant_id: articulator_aware_factorized
+    treatment_variant_id: articulator_aware_factorized_semantic
+    intended_difference: semantic_consistency auxiliary objective enabled while keeping the same model config
+    required: true
+  - contrast_id: retrieval_baseline_vs_factorized
+    contrast_type: comparator_baseline
+    control_variant_id: retrieval_pose_baseline
+    treatment_variant_id: articulator_aware_factorized
+    intended_difference: whole-pose retrieval reuse counter-baseline compared with learned factorized generation
+    required: true

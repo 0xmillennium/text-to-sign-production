@@ -1,0 +1,102 @@
+identity:
+  model_key: articulator_aware
+  research_role: primary_model_candidate
+  phase_number: 8
+
+data:
+  min_frame_count: 1
+  max_frame_count: null
+
+partition_policy:
+  source: canonical_bfh_channels
+  primary_channels:
+    - body
+    - left_hand
+    - right_hand
+    - face
+  composite_groups:
+    hands:
+      - left_hand
+      - right_hand
+    manual_focus:
+      - left_hand
+      - right_hand
+    non_manual_proxy:
+      - face
+    body_context:
+      - body
+
+mask_strategy:
+  validity_source: bfh_confidence_and_frame_validity
+  confidence_policy: mask_only
+  missing_channel_policy: skip_channel_loss
+  all_invalid_sample_policy: fail
+  channel_min_valid_fraction:
+    body: 0.01
+    left_hand: 0.01
+    right_hand: 0.01
+    face: 0.01
+
+loss_weighting:
+  policy: static_channel_weights
+  normalize_weights: true
+  channel_weights:
+    body: 1.0
+    left_hand: 2.0
+    right_hand: 2.0
+    face: 1.5
+  velocity_weight: 0.0
+  symmetry_weight: 0.0
+  cross_channel_consistency_weight: 0.0
+
+structure_variant:
+  architecture: channel_fusion_mlp
+  shared_text_encoder: huggingface
+  channel_specific_heads: true
+  fusion: concat
+  hidden_dim: 256
+  dropout: 0.0
+
+text_encoder:
+  encoder_key: articulator_aware_text_encoder
+  backend: huggingface
+  model_name_or_path: google/flan-t5-base
+  revision: main
+  local_files_only: false
+  pooling: mean
+  trainable: false
+  max_length: 128
+  embedding_dim: null
+
+training:
+  max_epochs: 3
+  batch_size: 16
+  frame_batch_size: 256
+  learning_rate: 0.0003
+  weight_decay: 0.0
+  seed: 23
+  num_workers: 0
+  device: auto
+
+length:
+  policy: predicted_length
+  predictor_type: mlp
+  min_generated_frames: 1
+  max_generated_frames: null
+  loss_weight: 0.1
+  max_positions: 4096
+
+generation:
+  generation_mode: deterministic
+  confidence_policy: synthetic_validity
+  length_policy: predicted_length
+
+checkpoints:
+  selection_metric: validation_channel_weighted_loss
+  lower_is_better: true
+
+reports:
+  write_partition_report: true
+  write_mask_report: true
+  write_loss_weighting_report: true
+  write_channel_diagnostics_report: true

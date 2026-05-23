@@ -5,6 +5,17 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Final
 
+from text_to_sign_production.modeling.config.common import (
+    OptimizerConfig,
+    SchedulerConfig,
+    TrainingLoopConfig,
+)
+
 DEFAULT_BASELINE_CONFIG_PATH: Final[Path] = Path(__file__).resolve().with_name("baseline.yaml")
 
-__all__ = ["DEFAULT_BASELINE_CONFIG_PATH"]
+__all__ = [
+    "DEFAULT_BASELINE_CONFIG_PATH",
+    "OptimizerConfig",
+    "SchedulerConfig",
+    "TrainingLoopConfig",
+]
